@@ -16,6 +16,7 @@ import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
@@ -65,6 +66,12 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private var sponsorHeadlineBitmap: Bitmap? = null
     private var sponsorLeftBitmap: Bitmap? = null
     private var sponsorRightBitmap: Bitmap? = null
+
+    private var logoScale = 1f
+    private var sponsorHeadlineScale = 1f
+    private var sponsorLeftScale = 1f
+    private var sponsorRightScale = 1f
+    private var sponsorHeadlinePrefix = ""
 
     // Plain SharedPreferences, matching the rest of this POC's no-backend scope. A stream key
     // here is only readable by this app's own sandboxed storage (not other apps, not over the
@@ -175,13 +182,17 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     }
 
     private fun renderCurrentOverlayBitmap(): Bitmap {
-        val logo = OverlayAsset(businessLabel, logoBitmap)
-        val headline = OverlayAsset(sponsorHeadline, sponsorHeadlineBitmap)
-        val left = OverlayAsset(sponsorLeft, sponsorLeftBitmap)
-        val right = OverlayAsset(sponsorRight, sponsorRightBitmap)
+        val logo = OverlayAsset(businessLabel, logoBitmap, logoScale)
+        val headline = OverlayAsset(sponsorHeadline, sponsorHeadlineBitmap, sponsorHeadlineScale)
+        val left = OverlayAsset(sponsorLeft, sponsorLeftBitmap, sponsorLeftScale)
+        val right = OverlayAsset(sponsorRight, sponsorRightBitmap, sponsorRightScale)
         return when (currentSport.layout) {
-            ScoreboardLayout.TWO_TEAM -> teamOverlayRenderer.render(scoreController.state, logo, headline, left, right)
-            ScoreboardLayout.CRICKET -> cricketOverlayRenderer.render(cricketController.state, logo, headline, left, right)
+            ScoreboardLayout.TWO_TEAM -> teamOverlayRenderer.render(
+                scoreController.state, logo, sponsorHeadlinePrefix, headline, left, right
+            )
+            ScoreboardLayout.CRICKET -> cricketOverlayRenderer.render(
+                cricketController.state, logo, sponsorHeadlinePrefix, headline, left, right
+            )
         }
     }
 
@@ -208,6 +219,22 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         loadSavedImage(PREF_SPONSOR_HEADLINE_URI, binding.sponsorHeadlineThumbnail) { sponsorHeadlineBitmap = it }
         loadSavedImage(PREF_SPONSOR_LEFT_URI, binding.sponsorLeftThumbnail) { sponsorLeftBitmap = it }
         loadSavedImage(PREF_SPONSOR_RIGHT_URI, binding.sponsorRightThumbnail) { sponsorRightBitmap = it }
+
+        logoScale = prefs.getFloat(PREF_LOGO_SCALE, 1f)
+        sponsorHeadlineScale = prefs.getFloat(PREF_SPONSOR_HEADLINE_SCALE, 1f)
+        sponsorLeftScale = prefs.getFloat(PREF_SPONSOR_LEFT_SCALE, 1f)
+        sponsorRightScale = prefs.getFloat(PREF_SPONSOR_RIGHT_SCALE, 1f)
+        binding.logoSizeSeekBar.progress = (logoScale * 100).toInt()
+        binding.sponsorHeadlineSizeSeekBar.progress = (sponsorHeadlineScale * 100).toInt()
+        binding.sponsorLeftSizeSeekBar.progress = (sponsorLeftScale * 100).toInt()
+        binding.sponsorRightSizeSeekBar.progress = (sponsorRightScale * 100).toInt()
+        binding.logoSizeValue.text = getString(R.string.percent_format, binding.logoSizeSeekBar.progress)
+        binding.sponsorHeadlineSizeValue.text = getString(R.string.percent_format, binding.sponsorHeadlineSizeSeekBar.progress)
+        binding.sponsorLeftSizeValue.text = getString(R.string.percent_format, binding.sponsorLeftSizeSeekBar.progress)
+        binding.sponsorRightSizeValue.text = getString(R.string.percent_format, binding.sponsorRightSizeSeekBar.progress)
+
+        sponsorHeadlinePrefix = prefs.getString(PREF_SPONSOR_HEADLINE_PREFIX, "").orEmpty()
+        binding.sponsorHeadlinePrefixInput.setText(sponsorHeadlinePrefix)
     }
 
     private fun setupSponsorImagePickers() {
@@ -227,6 +254,39 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         binding.clearSponsorRightBtn.setOnClickListener {
             clearPickedImage(PREF_SPONSOR_RIGHT_URI, binding.sponsorRightThumbnail) { sponsorRightBitmap = null }
         }
+
+        setupSizeSeekBar(binding.logoSizeSeekBar, binding.logoSizeValue, PREF_LOGO_SCALE) { logoScale = it }
+        setupSizeSeekBar(binding.sponsorHeadlineSizeSeekBar, binding.sponsorHeadlineSizeValue, PREF_SPONSOR_HEADLINE_SCALE) {
+            sponsorHeadlineScale = it
+        }
+        setupSizeSeekBar(binding.sponsorLeftSizeSeekBar, binding.sponsorLeftSizeValue, PREF_SPONSOR_LEFT_SCALE) {
+            sponsorLeftScale = it
+        }
+        setupSizeSeekBar(binding.sponsorRightSizeSeekBar, binding.sponsorRightSizeValue, PREF_SPONSOR_RIGHT_SCALE) {
+            sponsorRightScale = it
+        }
+
+        binding.sponsorHeadlinePrefixInput.doAfterTextChanged {
+            sponsorHeadlinePrefix = it?.toString().orEmpty()
+            prefs.edit().putString(PREF_SPONSOR_HEADLINE_PREFIX, sponsorHeadlinePrefix).apply()
+            refreshOverlay()
+        }
+    }
+
+    private fun setupSizeSeekBar(seekBar: SeekBar, valueLabel: TextView, prefKey: String, apply: (Float) -> Unit) {
+        seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
+                valueLabel.text = getString(R.string.percent_format, progress)
+                if (!fromUser) return
+                val scale = progress / 100f
+                apply(scale)
+                prefs.edit().putFloat(prefKey, scale).apply()
+                refreshOverlay()
+            }
+
+            override fun onStartTrackingTouch(bar: SeekBar) = Unit
+            override fun onStopTrackingTouch(bar: SeekBar) = Unit
+        })
     }
 
     private fun applyPickedImage(uri: Uri?, prefKey: String, thumbnail: ImageView, apply: (Bitmap) -> Unit) {
@@ -713,5 +773,10 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         const val PREF_SPONSOR_HEADLINE_URI = "sponsor_headline_uri"
         const val PREF_SPONSOR_LEFT_URI = "sponsor_left_uri"
         const val PREF_SPONSOR_RIGHT_URI = "sponsor_right_uri"
+        const val PREF_LOGO_SCALE = "logo_scale"
+        const val PREF_SPONSOR_HEADLINE_SCALE = "sponsor_headline_scale"
+        const val PREF_SPONSOR_LEFT_SCALE = "sponsor_left_scale"
+        const val PREF_SPONSOR_RIGHT_SCALE = "sponsor_right_scale"
+        const val PREF_SPONSOR_HEADLINE_PREFIX = "sponsor_headline_prefix"
     }
 }

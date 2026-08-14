@@ -27,6 +27,7 @@ class TeamOverlayRenderer(private val width: Int, private val height: Int) {
     fun render(
         state: ScoreState,
         logo: OverlayAsset,
+        sponsorHeadlinePrefix: String,
         sponsorHeadline: OverlayAsset,
         sponsorLeft: OverlayAsset,
         sponsorRight: OverlayAsset
@@ -36,7 +37,7 @@ class TeamOverlayRenderer(private val width: Int, private val height: Int) {
         drawScoreboard(canvas, state)
         drawTimer(canvas, state)
         chrome.drawLogo(canvas, logo)
-        chrome.drawSponsors(canvas, sponsorHeadline, sponsorLeft, sponsorRight)
+        chrome.drawSponsors(canvas, sponsorHeadlinePrefix, sponsorHeadline, sponsorLeft, sponsorRight)
         return bitmap
     }
 

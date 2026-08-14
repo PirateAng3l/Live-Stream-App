@@ -25,6 +25,10 @@
     <string name="label_sponsor_right">Sponsor — bottom-right corner</string>
     <string name="choose_image">Choose Image</string>
     <string name="clear">Clear</string>
+    <string name="label_size">Size</string>
+    <string name="default_size_label">100%</string>
+    <string name="percent_format">%1$d%%</string>
+    <string name="hint_sponsor_prefix">Optional text, e.g. \"This match is sponsored by\"</string>
 
     <string name="hint_rtmp_url">rtmp://a.rtmp.youtube.com/live2</string>
     <string name="hint_rtmp_key">Stream key</string>

@@ -26,6 +26,7 @@ class CricketOverlayRenderer(private val width: Int, private val height: Int) {
     fun render(
         state: CricketState,
         logo: OverlayAsset,
+        sponsorHeadlinePrefix: String,
         sponsorHeadline: OverlayAsset,
         sponsorLeft: OverlayAsset,
         sponsorRight: OverlayAsset
@@ -34,7 +35,7 @@ class CricketOverlayRenderer(private val width: Int, private val height: Int) {
         val canvas = Canvas(bitmap)
         drawScoreboard(canvas, state)
         chrome.drawLogo(canvas, logo)
-        chrome.drawSponsors(canvas, sponsorHeadline, sponsorLeft, sponsorRight)
+        chrome.drawSponsors(canvas, sponsorHeadlinePrefix, sponsorHeadline, sponsorLeft, sponsorRight)
         return bitmap
     }
 
