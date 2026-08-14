@@ -46,6 +46,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private var suppressDisconnectUi = false
     private var reconnectAttempts = 0
     private var reconnectRunnable: Runnable? = null
+    private var reconnectWatchdog: Runnable? = null
 
     private val streamWidth = 1280
     private val streamHeight = 720
@@ -442,9 +443,11 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         reconnectRunnable?.let { uiHandler.removeCallbacks(it) }
         reconnectRunnable = null
         reconnectPending = false
+        cancelReconnectWatchdog()
     }
 
     private fun scheduleReconnect() {
+        cancelReconnectWatchdog()
         reconnectPending = true
         reconnectAttempts += 1
         val delayMs = reconnectDelayMillis(reconnectAttempts)
@@ -464,6 +467,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
                 }
                 if (prepareAndStartStream()) {
                     Log.i(TAG, "reconnect: prepareAndStartStream succeeded, awaiting connection result")
+                    armReconnectWatchdog()
                 } else {
                     Log.w(TAG, "reconnect: prepareAndStartStream returned false, retrying")
                     scheduleReconnect()
@@ -475,6 +479,32 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         }
         reconnectRunnable = runnable
         uiHandler.postDelayed(runnable, delayMs)
+    }
+
+    /**
+     * The Wi-Fi<->mobile-data test showed a reconnect attempt can send SPS/PPS and then
+     * just hang — no onConnectionSuccess, no onConnectionFailed, for as long as we waited.
+     * RootEncoder's own timeout for that specific stall (a TCP handshake stuck mid-network
+     * handoff) either doesn't cover this path or is too slow to be useful live, so this
+     * watchdog forces the next retry itself if an attempt never resolves either way.
+     */
+    private fun armReconnectWatchdog() {
+        cancelReconnectWatchdog()
+        val watchdog = Runnable {
+            reconnectWatchdog = null
+            Log.w(TAG, "reconnect watchdog fired: no result within ${RECONNECT_WATCHDOG_MS}ms, forcing retry")
+            if (rtmpCamera2.isStreaming) {
+                rtmpCamera2.stopStream()
+            }
+            scheduleReconnect()
+        }
+        reconnectWatchdog = watchdog
+        uiHandler.postDelayed(watchdog, RECONNECT_WATCHDOG_MS)
+    }
+
+    private fun cancelReconnectWatchdog() {
+        reconnectWatchdog?.let { uiHandler.removeCallbacks(it) }
+        reconnectWatchdog = null
     }
 
     private fun reconnectDelayMillis(attempt: Int): Long {
@@ -553,6 +583,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
             suppressDisconnectUi = false
             reconnectAttempts = 0
             reconnectPending = false
+            cancelReconnectWatchdog()
             binding.goLiveBtn.setText(R.string.end_stream)
             updateStatus(R.string.status_live, Color.parseColor("#3ECF6E"))
         }
@@ -573,6 +604,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
 
     private companion object {
         const val TAG = "Broadcaster"
+        const val RECONNECT_WATCHDOG_MS = 8000L
         const val PREF_RTMP_URL = "rtmp_url"
         const val PREF_RTMP_KEY = "rtmp_key"
         const val PREF_TEAM_A = "team_a"
