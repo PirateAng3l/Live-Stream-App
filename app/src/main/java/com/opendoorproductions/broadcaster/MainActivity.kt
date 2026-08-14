@@ -54,6 +54,11 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private val sponsorLeft = "SPONSOR A"
     private val sponsorRight = "SPONSOR B"
 
+    // Plain SharedPreferences, matching the rest of this POC's no-backend scope. A stream key
+    // here is only readable by this app's own sandboxed storage (not other apps, not over the
+    // network) — move to EncryptedSharedPreferences before this app handles real crew devices.
+    private val prefs by lazy { getSharedPreferences("broadcaster_prefs", MODE_PRIVATE) }
+
     private val permissionRequest = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
     ) { grants ->
@@ -83,12 +88,14 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         cricketOverlayRenderer = CricketOverlayRenderer(streamWidth, streamHeight)
         rtmpCamera2 = RtmpCamera2(binding.openGlView, this)
 
+        loadSavedFields()
         setupPanelToggle()
         setupSportSpinner()
         setupScoreControls()
         setupCricketControls()
         setupTimerControls()
         setupGoLiveButton()
+        setupFieldPersistence()
         onSportChanged()
         updateStatus(R.string.status_offline, Color.parseColor("#B7C2CC"))
 
@@ -161,6 +168,24 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         updateCricketPanelUi()
     }
 
+    private fun loadSavedFields() {
+        binding.rtmpUrlInput.setText(prefs.getString(PREF_RTMP_URL, ""))
+        binding.rtmpKeyInput.setText(prefs.getString(PREF_RTMP_KEY, ""))
+        binding.homeNameInput.setText(prefs.getString(PREF_TEAM_A, getString(R.string.default_home)))
+        binding.awayNameInput.setText(prefs.getString(PREF_TEAM_B, getString(R.string.default_away)))
+        val savedSport = prefs.getString(PREF_SPORT, Sport.RUGBY.name)
+        currentSport = Sport.entries.firstOrNull { it.name == savedSport } ?: Sport.RUGBY
+    }
+
+    private fun setupFieldPersistence() {
+        binding.rtmpUrlInput.doAfterTextChanged {
+            prefs.edit().putString(PREF_RTMP_URL, it?.toString().orEmpty()).apply()
+        }
+        binding.rtmpKeyInput.doAfterTextChanged {
+            prefs.edit().putString(PREF_RTMP_KEY, it?.toString().orEmpty()).apply()
+        }
+    }
+
     private fun setupPanelToggle() {
         binding.panelToggleBtn.setOnClickListener {
             panelOpen = !panelOpen
@@ -191,6 +216,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         binding.sportSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 currentSport = sports[position]
+                prefs.edit().putString(PREF_SPORT, currentSport.name).apply()
                 onSportChanged()
             }
 
@@ -325,6 +351,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         val teamB = binding.awayNameInput.text?.toString().orEmpty()
         scoreController.setNames(teamA, teamB)
         cricketController.setNames(teamA, teamB)
+        prefs.edit().putString(PREF_TEAM_A, teamA).putString(PREF_TEAM_B, teamB).apply()
         refreshAll()
     }
 
@@ -361,8 +388,34 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         autoReconnectEnabled = true
         reconnectAttempts = 0
         updateStatus(R.string.status_connecting, Color.parseColor("#F2B33D"))
+        if (prepareAndStartStream()) {
+            binding.goLiveBtn.setText(R.string.end_stream)
+        } else {
+            autoReconnectEnabled = false
+            updateStatus(R.string.status_failed, Color.parseColor("#E4392F"))
+            Toast.makeText(this, "Could not prepare the encoder to start streaming", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /**
+     * stopStream() fully releases the video/audio encoders (confirmed by RootEncoder
+     * throwing "VideoEncoder not prepared yet" when startStream() was called right
+     * after stopStream() without this) — so every restart, whether the operator's
+     * first Go Live, a manual restart after End Stream, or an auto-reconnect, has to
+     * re-prepare before it can start again. The camera preview itself keeps running
+     * throughout; only the streaming encoders get torn down and rebuilt here.
+     */
+    private fun prepareAndStartStream(): Boolean {
+        if (!rtmpCamera2.prepareAudio() || !rtmpCamera2.prepareVideo(streamWidth, streamHeight, 30, 4_000 * 1024, 0)) {
+            return false
+        }
+        overlayFilter = ImageObjectFilterRender()
+        rtmpCamera2.glInterface.setFilter(overlayFilter)
+        overlayFilter.setImage(renderCurrentOverlayBitmap())
+        overlayFilter.setScale(100f, 100f)
+        overlayFilter.setPosition(0f, 0f)
         rtmpCamera2.startStream(streamUrl)
-        binding.goLiveBtn.setText(R.string.end_stream)
+        return true
     }
 
     private fun stopStreamingManually() {
@@ -400,10 +453,16 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
             reconnectRunnable = null
             reconnectPending = false
             suppressDisconnectUi = true
-            if (rtmpCamera2.isStreaming) {
-                rtmpCamera2.stopStream()
+            try {
+                if (rtmpCamera2.isStreaming) {
+                    rtmpCamera2.stopStream()
+                }
+                if (!prepareAndStartStream()) {
+                    scheduleReconnect()
+                }
+            } catch (error: Exception) {
+                scheduleReconnect()
             }
-            rtmpCamera2.startStream(streamUrl)
         }
         reconnectRunnable = runnable
         uiHandler.postDelayed(runnable, reconnectDelayMillis(reconnectAttempts))
@@ -495,5 +554,13 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
 
     override fun onNewBitrate(bitrate: Long) {
         // Available for a future bitrate readout; not surfaced in the POC UI.
+    }
+
+    private companion object {
+        const val PREF_RTMP_URL = "rtmp_url"
+        const val PREF_RTMP_KEY = "rtmp_key"
+        const val PREF_TEAM_A = "team_a"
+        const val PREF_TEAM_B = "team_b"
+        const val PREF_SPORT = "sport"
     }
 }
