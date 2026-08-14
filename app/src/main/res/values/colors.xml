@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background">#0F1620</color>
+    <color name="panel_bg">#CC0F1620</color>
+    <color name="accent">#E4392F</color>
+    <color name="home_color">#2FA8E4</color>
+    <color name="away_color">#E4392F</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B7C2CC</color>
+    <color name="live_red">#E4392F</color>
+    <color name="ok_green">#3ECF6E</color>
+    <color name="warn_amber">#F2B33D</color>
+</resources>

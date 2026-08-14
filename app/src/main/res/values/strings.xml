@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Broadcaster POC</string>
+
+    <string name="status_offline">OFFLINE</string>
+    <string name="status_connecting">CONNECTING…</string>
+    <string name="status_live">LIVE</string>
+    <string name="status_failed">FAILED</string>
+
+    <string name="panel_toggle_show">Setup ▸</string>
+    <string name="panel_toggle_hide">Hide ▾</string>
+
+    <string name="section_setup">STREAM SETUP</string>
+    <string name="section_score">SCORE</string>
+    <string name="section_timer">TIMER</string>
+
+    <string name="hint_rtmp_url">rtmp://a.rtmp.youtube.com/live2</string>
+    <string name="hint_rtmp_key">Stream key</string>
+    <string name="hint_home_team">Home team name</string>
+    <string name="hint_away_team">Away team name</string>
+
+    <string name="default_home">HOME</string>
+    <string name="default_away">AWAY</string>
+
+    <string name="minus">−</string>
+    <string name="plus">+</string>
+    <string name="zero">0</string>
+    <string name="zero_clock">00:00</string>
+
+    <string name="undo">Undo</string>
+    <string name="swap">Swap</string>
+    <string name="reset">Reset</string>
+    <string name="start">Start</string>
+    <string name="pause">Pause</string>
+
+    <string name="go_live">GO LIVE</string>
+    <string name="end_stream">END STREAM</string>
+
+    <string name="reset_score_title">Reset score?</string>
+    <string name="reset_score_message">This sets both scores back to 0. This cannot be undone.</string>
+    <string name="cancel">Cancel</string>
+
+    <string name="camera_permission_required">Camera and microphone permission are required to stream.</string>
+    <string name="enter_rtmp_details">Enter an RTMP URL and stream key before going live.</string>
+</resources>
