@@ -15,9 +15,6 @@ import android.graphics.Typeface
  */
 class OverlayRenderer(private val width: Int, private val height: Int) {
 
-    private val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-    private val canvas = Canvas(bitmap)
-
     private val panelPaint = solid(160, "#0A1018")
     private val homeStripePaint = solid(255, "#2FA8E4")
     private val awayStripePaint = solid(255, "#E4392F")
@@ -40,15 +37,16 @@ class OverlayRenderer(private val width: Int, private val height: Int) {
         sponsorLeft: String,
         sponsorRight: String
     ): Bitmap {
-        bitmap.eraseColor(Color.TRANSPARENT)
-        drawScoreboard(state)
-        drawTimer(state)
-        drawLogo(businessLabel)
-        drawSponsors(sponsorHeadline, sponsorLeft, sponsorRight)
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        drawScoreboard(canvas, state)
+        drawTimer(canvas, state)
+        drawLogo(canvas, businessLabel)
+        drawSponsors(canvas, sponsorHeadline, sponsorLeft, sponsorRight)
         return bitmap
     }
 
-    private fun drawScoreboard(state: ScoreState) {
+    private fun drawScoreboard(canvas: Canvas, state: ScoreState) {
         val left = width * 0.02f
         val top = height * 0.04f
         val boardWidth = width * 0.30f
@@ -70,7 +68,7 @@ class OverlayRenderer(private val width: Int, private val height: Int) {
         canvas.drawText(state.awayScore.toString(), scoreCenterX, top + rowHeight * 1.68f, scorePaint)
     }
 
-    private fun drawTimer(state: ScoreState) {
+    private fun drawTimer(canvas: Canvas, state: ScoreState) {
         val minutes = state.elapsedSeconds / 60
         val seconds = state.elapsedSeconds % 60
         val text = String.format("%02d:%02d", minutes, seconds)
@@ -87,12 +85,12 @@ class OverlayRenderer(private val width: Int, private val height: Int) {
         canvas.drawText(text, centerX, top + pillHeight * 0.68f, timerPaint)
     }
 
-    private fun drawLogo(businessLabel: String) {
+    private fun drawLogo(canvas: Canvas, businessLabel: String) {
         if (businessLabel.isBlank()) return
         canvas.drawText(businessLabel.uppercase(), width * 0.98f, height * 0.08f, logoPaint)
     }
 
-    private fun drawSponsors(headline: String, left: String, right: String) {
+    private fun drawSponsors(canvas: Canvas, headline: String, left: String, right: String) {
         val barHeight = height * 0.09f
         if (headline.isNotBlank()) {
             val top = height - barHeight
