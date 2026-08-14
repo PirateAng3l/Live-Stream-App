@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
@@ -446,26 +447,34 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private fun scheduleReconnect() {
         reconnectPending = true
         reconnectAttempts += 1
+        val delayMs = reconnectDelayMillis(reconnectAttempts)
+        Log.i(TAG, "scheduleReconnect attempt=$reconnectAttempts delayMs=$delayMs")
         updateStatus(getString(R.string.status_reconnecting, reconnectAttempts), Color.parseColor("#F2B33D"))
         binding.goLiveBtn.setText(R.string.cancel_reconnect)
 
         val runnable = Runnable {
+            Log.i(TAG, "reconnect attempt=$reconnectAttempts firing now")
             reconnectRunnable = null
             reconnectPending = false
             suppressDisconnectUi = true
             try {
                 if (rtmpCamera2.isStreaming) {
+                    Log.i(TAG, "reconnect: stopping previous stream first")
                     rtmpCamera2.stopStream()
                 }
-                if (!prepareAndStartStream()) {
+                if (prepareAndStartStream()) {
+                    Log.i(TAG, "reconnect: prepareAndStartStream succeeded, awaiting connection result")
+                } else {
+                    Log.w(TAG, "reconnect: prepareAndStartStream returned false, retrying")
                     scheduleReconnect()
                 }
             } catch (error: Exception) {
+                Log.e(TAG, "reconnect attempt threw, retrying", error)
                 scheduleReconnect()
             }
         }
         reconnectRunnable = runnable
-        uiHandler.postDelayed(runnable, reconnectDelayMillis(reconnectAttempts))
+        uiHandler.postDelayed(runnable, delayMs)
     }
 
     private fun reconnectDelayMillis(attempt: Int): Long {
@@ -509,6 +518,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     }
 
     override fun onAuthError() {
+        Log.w(TAG, "onAuthError")
         runOnUiThread {
             autoReconnectEnabled = false
             cancelPendingReconnect()
@@ -519,10 +529,12 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     }
 
     override fun onAuthSuccess() {
+        Log.i(TAG, "onAuthSuccess")
         runOnUiThread { updateStatus(R.string.status_live, Color.parseColor("#3ECF6E")) }
     }
 
     override fun onConnectionFailed(reason: String) {
+        Log.w(TAG, "onConnectionFailed reason=$reason autoReconnectEnabled=$autoReconnectEnabled reconnectPending=$reconnectPending")
         runOnUiThread {
             suppressDisconnectUi = false
             if (!autoReconnectEnabled || reconnectPending) return@runOnUiThread
@@ -531,10 +543,12 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     }
 
     override fun onConnectionStarted(url: String) {
+        Log.i(TAG, "onConnectionStarted url=$url")
         runOnUiThread { updateStatus(R.string.status_connecting, Color.parseColor("#F2B33D")) }
     }
 
     override fun onConnectionSuccess() {
+        Log.i(TAG, "onConnectionSuccess")
         runOnUiThread {
             suppressDisconnectUi = false
             reconnectAttempts = 0
@@ -545,6 +559,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     }
 
     override fun onDisconnect() {
+        Log.w(TAG, "onDisconnect suppressDisconnectUi=$suppressDisconnectUi reconnectPending=$reconnectPending")
         runOnUiThread {
             if (suppressDisconnectUi || reconnectPending) return@runOnUiThread
             updateStatus(R.string.status_offline, Color.parseColor("#B7C2CC"))
@@ -557,6 +572,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     }
 
     private companion object {
+        const val TAG = "Broadcaster"
         const val PREF_RTMP_URL = "rtmp_url"
         const val PREF_RTMP_KEY = "rtmp_key"
         const val PREF_TEAM_A = "team_a"
