@@ -3,7 +3,9 @@ package com.opendoorproductions.broadcaster
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -12,9 +14,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -56,13 +61,18 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private val sponsorLeft = "SPONSOR A"
     private val sponsorRight = "SPONSOR B"
 
+    private var logoBitmap: Bitmap? = null
+    private var sponsorHeadlineBitmap: Bitmap? = null
+    private var sponsorLeftBitmap: Bitmap? = null
+    private var sponsorRightBitmap: Bitmap? = null
+
     // Plain SharedPreferences, matching the rest of this POC's no-backend scope. A stream key
     // here is only readable by this app's own sandboxed storage (not other apps, not over the
     // network) — move to EncryptedSharedPreferences before this app handles real crew devices.
     private val prefs by lazy { getSharedPreferences("broadcaster_prefs", MODE_PRIVATE) }
 
     private val permissionRequest = registerForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+        ActivityResultContracts.RequestMultiplePermissions()
     ) { grants ->
         val granted = grants[Manifest.permission.CAMERA] == true &&
             grants[Manifest.permission.RECORD_AUDIO] == true
@@ -71,6 +81,19 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         } else {
             Toast.makeText(this, R.string.camera_permission_required, Toast.LENGTH_LONG).show()
         }
+    }
+
+    private val pickLogoImage = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        applyPickedImage(uri, PREF_LOGO_URI, binding.logoThumbnail) { logoBitmap = it }
+    }
+    private val pickSponsorHeadlineImage = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        applyPickedImage(uri, PREF_SPONSOR_HEADLINE_URI, binding.sponsorHeadlineThumbnail) { sponsorHeadlineBitmap = it }
+    }
+    private val pickSponsorLeftImage = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        applyPickedImage(uri, PREF_SPONSOR_LEFT_URI, binding.sponsorLeftThumbnail) { sponsorLeftBitmap = it }
+    }
+    private val pickSponsorRightImage = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        applyPickedImage(uri, PREF_SPONSOR_RIGHT_URI, binding.sponsorRightThumbnail) { sponsorRightBitmap = it }
     }
 
     private val timerTick = object : Runnable {
@@ -98,6 +121,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         setupTimerControls()
         setupGoLiveButton()
         setupFieldPersistence()
+        setupSponsorImagePickers()
         onSportChanged()
         updateStatus(R.string.status_offline, Color.parseColor("#B7C2CC"))
 
@@ -150,13 +174,15 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         }
     }
 
-    private fun renderCurrentOverlayBitmap(): Bitmap = when (currentSport.layout) {
-        ScoreboardLayout.TWO_TEAM -> teamOverlayRenderer.render(
-            scoreController.state, businessLabel, sponsorHeadline, sponsorLeft, sponsorRight
-        )
-        ScoreboardLayout.CRICKET -> cricketOverlayRenderer.render(
-            cricketController.state, businessLabel, sponsorHeadline, sponsorLeft, sponsorRight
-        )
+    private fun renderCurrentOverlayBitmap(): Bitmap {
+        val logo = OverlayAsset(businessLabel, logoBitmap)
+        val headline = OverlayAsset(sponsorHeadline, sponsorHeadlineBitmap)
+        val left = OverlayAsset(sponsorLeft, sponsorLeftBitmap)
+        val right = OverlayAsset(sponsorRight, sponsorRightBitmap)
+        return when (currentSport.layout) {
+            ScoreboardLayout.TWO_TEAM -> teamOverlayRenderer.render(scoreController.state, logo, headline, left, right)
+            ScoreboardLayout.CRICKET -> cricketOverlayRenderer.render(cricketController.state, logo, headline, left, right)
+        }
     }
 
     private fun refreshOverlay() {
@@ -177,6 +203,78 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         binding.awayNameInput.setText(prefs.getString(PREF_TEAM_B, getString(R.string.default_away)))
         val savedSport = prefs.getString(PREF_SPORT, Sport.RUGBY.name)
         currentSport = Sport.entries.firstOrNull { it.name == savedSport } ?: Sport.RUGBY
+
+        loadSavedImage(PREF_LOGO_URI, binding.logoThumbnail) { logoBitmap = it }
+        loadSavedImage(PREF_SPONSOR_HEADLINE_URI, binding.sponsorHeadlineThumbnail) { sponsorHeadlineBitmap = it }
+        loadSavedImage(PREF_SPONSOR_LEFT_URI, binding.sponsorLeftThumbnail) { sponsorLeftBitmap = it }
+        loadSavedImage(PREF_SPONSOR_RIGHT_URI, binding.sponsorRightThumbnail) { sponsorRightBitmap = it }
+    }
+
+    private fun setupSponsorImagePickers() {
+        val imageOnly = PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+        binding.chooseLogoBtn.setOnClickListener { pickLogoImage.launch(imageOnly) }
+        binding.chooseSponsorHeadlineBtn.setOnClickListener { pickSponsorHeadlineImage.launch(imageOnly) }
+        binding.chooseSponsorLeftBtn.setOnClickListener { pickSponsorLeftImage.launch(imageOnly) }
+        binding.chooseSponsorRightBtn.setOnClickListener { pickSponsorRightImage.launch(imageOnly) }
+
+        binding.clearLogoBtn.setOnClickListener { clearPickedImage(PREF_LOGO_URI, binding.logoThumbnail) { logoBitmap = null } }
+        binding.clearSponsorHeadlineBtn.setOnClickListener {
+            clearPickedImage(PREF_SPONSOR_HEADLINE_URI, binding.sponsorHeadlineThumbnail) { sponsorHeadlineBitmap = null }
+        }
+        binding.clearSponsorLeftBtn.setOnClickListener {
+            clearPickedImage(PREF_SPONSOR_LEFT_URI, binding.sponsorLeftThumbnail) { sponsorLeftBitmap = null }
+        }
+        binding.clearSponsorRightBtn.setOnClickListener {
+            clearPickedImage(PREF_SPONSOR_RIGHT_URI, binding.sponsorRightThumbnail) { sponsorRightBitmap = null }
+        }
+    }
+
+    private fun applyPickedImage(uri: Uri?, prefKey: String, thumbnail: ImageView, apply: (Bitmap) -> Unit) {
+        if (uri == null) return
+        val bitmap = decodeSampledBitmap(uri)
+        if (bitmap == null) {
+            Toast.makeText(this, "Couldn't load that image", Toast.LENGTH_SHORT).show()
+            return
+        }
+        prefs.edit().putString(prefKey, uri.toString()).apply()
+        apply(bitmap)
+        thumbnail.setImageBitmap(bitmap)
+        thumbnail.visibility = View.VISIBLE
+        refreshOverlay()
+    }
+
+    private fun loadSavedImage(prefKey: String, thumbnail: ImageView, apply: (Bitmap) -> Unit) {
+        val uriString = prefs.getString(prefKey, null) ?: return
+        val bitmap = decodeSampledBitmap(Uri.parse(uriString)) ?: return
+        apply(bitmap)
+        thumbnail.setImageBitmap(bitmap)
+        thumbnail.visibility = View.VISIBLE
+    }
+
+    private fun clearPickedImage(prefKey: String, thumbnail: ImageView, apply: () -> Unit) {
+        prefs.edit().remove(prefKey).apply()
+        apply()
+        thumbnail.setImageDrawable(null)
+        thumbnail.visibility = View.GONE
+        refreshOverlay()
+    }
+
+    private fun decodeSampledBitmap(uri: Uri): Bitmap? {
+        return try {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+            var sampleSize = 1
+            while (bounds.outWidth / sampleSize > MAX_SPONSOR_IMAGE_DIMENSION ||
+                bounds.outHeight / sampleSize > MAX_SPONSOR_IMAGE_DIMENSION
+            ) {
+                sampleSize *= 2
+            }
+            val decodeOptions = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+            contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, decodeOptions) }
+        } catch (error: Exception) {
+            Log.e(TAG, "Failed to decode picked image $uri", error)
+            null
+        }
     }
 
     private fun setupFieldPersistence() {
@@ -605,10 +703,15 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private companion object {
         const val TAG = "Broadcaster"
         const val RECONNECT_WATCHDOG_MS = 8000L
+        const val MAX_SPONSOR_IMAGE_DIMENSION = 512
         const val PREF_RTMP_URL = "rtmp_url"
         const val PREF_RTMP_KEY = "rtmp_key"
         const val PREF_TEAM_A = "team_a"
         const val PREF_TEAM_B = "team_b"
         const val PREF_SPORT = "sport"
+        const val PREF_LOGO_URI = "logo_uri"
+        const val PREF_SPONSOR_HEADLINE_URI = "sponsor_headline_uri"
+        const val PREF_SPONSOR_LEFT_URI = "sponsor_left_uri"
+        const val PREF_SPONSOR_RIGHT_URI = "sponsor_right_uri"
     }
 }
