@@ -6,6 +6,10 @@
     <string name="status_connecting">CONNECTING…</string>
     <string name="status_live">LIVE</string>
     <string name="status_failed">FAILED</string>
+    <string name="status_reconnecting">RECONNECTING… (attempt %1$d)</string>
+
+    <string name="cancel_reconnect">Stop Reconnecting</string>
+    <string name="reconnect_cancelled">Reconnect cancelled</string>
 
     <string name="panel_toggle_show">Setup ▸</string>
     <string name="panel_toggle_hide">Hide ▾</string>

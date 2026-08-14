@@ -39,6 +39,13 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private val uiHandler = Handler(Looper.getMainLooper())
     private var panelOpen = false
 
+    private var streamUrl = ""
+    private var autoReconnectEnabled = false
+    private var reconnectPending = false
+    private var suppressDisconnectUi = false
+    private var reconnectAttempts = 0
+    private var reconnectRunnable: Runnable? = null
+
     private val streamWidth = 1280
     private val streamHeight = 720
 
@@ -104,6 +111,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
 
     override fun onDestroy() {
         super.onDestroy()
+        cancelPendingReconnect()
         if (rtmpCamera2.isStreaming) {
             rtmpCamera2.stopStream()
         }
@@ -334,23 +342,77 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
 
     private fun setupGoLiveButton() {
         binding.goLiveBtn.setOnClickListener {
-            if (rtmpCamera2.isStreaming) {
-                rtmpCamera2.stopStream()
-                binding.goLiveBtn.setText(R.string.go_live)
-                updateStatus(R.string.status_offline, Color.parseColor("#B7C2CC"))
-            } else {
-                val url = binding.rtmpUrlInput.text?.toString().orEmpty().trim()
-                val key = binding.rtmpKeyInput.text?.toString().orEmpty().trim()
-                if (url.isBlank() || key.isBlank()) {
-                    Toast.makeText(this, R.string.enter_rtmp_details, Toast.LENGTH_LONG).show()
-                    return@setOnClickListener
-                }
-                val fullUrl = if (url.endsWith("/")) url + key else "$url/$key"
-                updateStatus(R.string.status_connecting, Color.parseColor("#F2B33D"))
-                rtmpCamera2.startStream(fullUrl)
-                binding.goLiveBtn.setText(R.string.end_stream)
+            when {
+                reconnectPending -> cancelReconnect()
+                rtmpCamera2.isStreaming -> stopStreamingManually()
+                else -> startStreamingFresh()
             }
         }
+    }
+
+    private fun startStreamingFresh() {
+        val url = binding.rtmpUrlInput.text?.toString().orEmpty().trim()
+        val key = binding.rtmpKeyInput.text?.toString().orEmpty().trim()
+        if (url.isBlank() || key.isBlank()) {
+            Toast.makeText(this, R.string.enter_rtmp_details, Toast.LENGTH_LONG).show()
+            return
+        }
+        streamUrl = if (url.endsWith("/")) url + key else "$url/$key"
+        autoReconnectEnabled = true
+        reconnectAttempts = 0
+        updateStatus(R.string.status_connecting, Color.parseColor("#F2B33D"))
+        rtmpCamera2.startStream(streamUrl)
+        binding.goLiveBtn.setText(R.string.end_stream)
+    }
+
+    private fun stopStreamingManually() {
+        autoReconnectEnabled = false
+        cancelPendingReconnect()
+        rtmpCamera2.stopStream()
+        binding.goLiveBtn.setText(R.string.go_live)
+        updateStatus(R.string.status_offline, Color.parseColor("#B7C2CC"))
+    }
+
+    private fun cancelReconnect() {
+        autoReconnectEnabled = false
+        cancelPendingReconnect()
+        if (rtmpCamera2.isStreaming) {
+            rtmpCamera2.stopStream()
+        }
+        binding.goLiveBtn.setText(R.string.go_live)
+        updateStatus(R.string.status_offline, Color.parseColor("#B7C2CC"))
+        Toast.makeText(this, R.string.reconnect_cancelled, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun cancelPendingReconnect() {
+        reconnectRunnable?.let { uiHandler.removeCallbacks(it) }
+        reconnectRunnable = null
+        reconnectPending = false
+    }
+
+    private fun scheduleReconnect() {
+        reconnectPending = true
+        reconnectAttempts += 1
+        updateStatus(getString(R.string.status_reconnecting, reconnectAttempts), Color.parseColor("#F2B33D"))
+        binding.goLiveBtn.setText(R.string.cancel_reconnect)
+
+        val runnable = Runnable {
+            reconnectRunnable = null
+            reconnectPending = false
+            suppressDisconnectUi = true
+            if (rtmpCamera2.isStreaming) {
+                rtmpCamera2.stopStream()
+            }
+            rtmpCamera2.startStream(streamUrl)
+        }
+        reconnectRunnable = runnable
+        uiHandler.postDelayed(runnable, reconnectDelayMillis(reconnectAttempts))
+    }
+
+    private fun reconnectDelayMillis(attempt: Int): Long {
+        val backoffSeconds = longArrayOf(2, 4, 8, 15, 15)
+        val index = (attempt - 1).coerceAtMost(backoffSeconds.lastIndex)
+        return backoffSeconds[index] * 1000
     }
 
     private fun updateScorePanelUi() {
@@ -378,13 +440,19 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         }
     }
 
-    private fun updateStatus(textRes: Int, dotColor: Int) {
-        binding.statusText.setText(textRes)
+    private fun updateStatus(text: String, dotColor: Int) {
+        binding.statusText.text = text
         binding.statusDot.setBackgroundColor(dotColor)
+    }
+
+    private fun updateStatus(textRes: Int, dotColor: Int) {
+        updateStatus(getString(textRes), dotColor)
     }
 
     override fun onAuthError() {
         runOnUiThread {
+            autoReconnectEnabled = false
+            cancelPendingReconnect()
             updateStatus(R.string.status_failed, Color.parseColor("#E4392F"))
             binding.goLiveBtn.setText(R.string.go_live)
             Toast.makeText(this, "RTMP auth error — check the stream key", Toast.LENGTH_LONG).show()
@@ -397,9 +465,9 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
 
     override fun onConnectionFailed(reason: String) {
         runOnUiThread {
-            updateStatus(R.string.status_failed, Color.parseColor("#E4392F"))
-            binding.goLiveBtn.setText(R.string.go_live)
-            Toast.makeText(this, "Connection failed: $reason", Toast.LENGTH_LONG).show()
+            suppressDisconnectUi = false
+            if (!autoReconnectEnabled || reconnectPending) return@runOnUiThread
+            scheduleReconnect()
         }
     }
 
@@ -408,11 +476,18 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     }
 
     override fun onConnectionSuccess() {
-        runOnUiThread { updateStatus(R.string.status_live, Color.parseColor("#3ECF6E")) }
+        runOnUiThread {
+            suppressDisconnectUi = false
+            reconnectAttempts = 0
+            reconnectPending = false
+            binding.goLiveBtn.setText(R.string.end_stream)
+            updateStatus(R.string.status_live, Color.parseColor("#3ECF6E"))
+        }
     }
 
     override fun onDisconnect() {
         runOnUiThread {
+            if (suppressDisconnectUi || reconnectPending) return@runOnUiThread
             updateStatus(R.string.status_offline, Color.parseColor("#B7C2CC"))
             binding.goLiveBtn.setText(R.string.go_live)
         }
