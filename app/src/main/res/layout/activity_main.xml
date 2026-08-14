@@ -78,6 +78,16 @@
                 style="@style/SectionLabel"
                 android:text="@string/section_setup" />
 
+            <Spinner
+                android:id="@+id/sportSpinner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_chip"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:popupBackground="@color/panel_bg" />
+
             <EditText
                 android:id="@+id/rtmpUrlInput"
                 android:layout_width="match_parent"
@@ -128,115 +138,312 @@
 
             <View style="@style/Divider" />
 
-            <TextView
-                style="@style/SectionLabel"
-                android:text="@string/section_score" />
-
             <LinearLayout
+                android:id="@+id/teamScoreGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/homeScoreLabel"
-                    android:layout_width="0dp"
+                    style="@style/SectionLabel"
+                    android:text="@string/section_score" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/default_home"
-                    android:textColor="@color/home_color"
-                    android:textStyle="bold" />
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/homeMinusBtn"
-                    style="@style/ScoreButton"
-                    android:text="@string/minus" />
+                    <TextView
+                        android:id="@+id/homeScoreLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/default_home"
+                        android:textColor="@color/home_color"
+                        android:textStyle="bold" />
 
-                <TextView
-                    android:id="@+id/homeScoreValue"
-                    android:layout_width="40dp"
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/homeMinusBtn"
+                        style="@style/ScoreButton"
+                        android:text="@string/minus" />
+
+                    <TextView
+                        android:id="@+id/homeScoreValue"
+                        android:layout_width="40dp"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:text="@string/zero"
+                        android:textColor="@color/text_primary"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/homePlusBtn"
+                        style="@style/ScoreButton"
+                        android:text="@string/plus" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/homePresetsRow"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:text="@string/zero"
-                    android:textColor="@color/text_primary"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
+                    android:layout_marginTop="6dp"
+                    android:gravity="end"
+                    android:orientation="horizontal"
+                    android:visibility="gone" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/homePlusBtn"
-                    style="@style/ScoreButton"
-                    android:text="@string/plus" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/awayScoreLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/default_away"
+                        android:textColor="@color/away_color"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/awayMinusBtn"
+                        style="@style/ScoreButton"
+                        android:text="@string/minus" />
+
+                    <TextView
+                        android:id="@+id/awayScoreValue"
+                        android:layout_width="40dp"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:text="@string/zero"
+                        android:textColor="@color/text_primary"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/awayPlusBtn"
+                        style="@style/ScoreButton"
+                        android:text="@string/plus" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/awayPresetsRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:gravity="end"
+                    android:orientation="horizontal"
+                    android:visibility="gone" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/undoBtn"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/undo" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/swapBtn"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:text="@string/swap" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/resetScoreBtn"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:text="@string/reset" />
+                </LinearLayout>
             </LinearLayout>
 
             <LinearLayout
+                android:id="@+id/cricketGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:orientation="vertical"
+                android:visibility="gone">
 
                 <TextView
-                    android:id="@+id/awayScoreLabel"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/default_away"
-                    android:textColor="@color/away_color"
-                    android:textStyle="bold" />
+                    style="@style/SectionLabel"
+                    android:text="@string/section_cricket" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/awayMinusBtn"
-                    style="@style/ScoreButton"
-                    android:text="@string/minus" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/cricketBattingLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/default_home"
+                        android:textColor="@color/home_color"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/swapInningsBtn"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/swap_innings" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/cricketScoreValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/cricket_zero_score"
+                        android:textColor="@color/text_primary"
+                        android:textSize="26sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/cricketOversValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:text="@string/cricket_zero_overs"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp" />
+                </LinearLayout>
 
                 <TextView
-                    android:id="@+id/awayScoreValue"
-                    android:layout_width="40dp"
+                    android:id="@+id/cricketTargetValue"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:text="@string/zero"
-                    android:textColor="@color/text_primary"
-                    android:textSize="18sp"
+                    android:layout_marginTop="4dp"
+                    android:text=""
+                    android:textColor="@color/warn_amber"
+                    android:textSize="13sp"
                     android:textStyle="bold" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/awayPlusBtn"
-                    style="@style/ScoreButton"
-                    android:text="@string/plus" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/undoBtn"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="0dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/undo" />
+                    android:layout_marginTop="10dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/run0Btn"
+                        style="@style/RunButton"
+                        android:text="@string/run_0" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/run1Btn"
+                        style="@style/RunButton"
+                        android:text="@string/run_1" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/run2Btn"
+                        style="@style/RunButton"
+                        android:text="@string/run_2" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/run3Btn"
+                        style="@style/RunButton"
+                        android:text="@string/run_3" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/run4Btn"
+                        style="@style/RunButton"
+                        android:text="@string/run_4" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/run6Btn"
+                        style="@style/RunButton"
+                        android:text="@string/run_6" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/wideBtn"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/wide_no_ball" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/byeBtn"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:text="@string/bye" />
+                </LinearLayout>
 
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/swapBtn"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="0dp"
+                    android:id="@+id/wicketBtn"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:layout_weight="1"
-                    android:text="@string/swap" />
+                    android:layout_marginTop="10dp"
+                    android:text="@string/wicket"
+                    app:backgroundTint="@color/away_color" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/resetScoreBtn"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="0dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:layout_weight="1"
-                    android:text="@string/reset" />
+                    android:layout_marginTop="10dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/undoCricketBtn"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/undo" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/resetInningsBtn"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:text="@string/reset_innings" />
+                </LinearLayout>
             </LinearLayout>
 
             <View style="@style/Divider" />

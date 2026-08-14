@@ -8,27 +8,21 @@ import android.graphics.RectF
 import android.graphics.Typeface
 
 /**
- * Draws the broadcast HUD (scoreboard, timer, business logo, sponsor slots) onto a
- * transparent bitmap sized to the stream resolution. The bitmap is handed to
- * RootEncoder's full-frame image filter, so whatever this draws is baked into the
- * outgoing RTMP video and the live preview identically (WYSIWYG).
+ * Draws the two-team HUD (scoreboard, timer, business logo, sponsor slots) onto a
+ * transparent bitmap sized to the stream resolution. Used by every sport whose score
+ * is a simple home/away point count (rugby, soccer, netball, hockey, other) — cricket
+ * uses CricketOverlayRenderer instead since its scoreboard doesn't fit this shape.
  */
-class OverlayRenderer(private val width: Int, private val height: Int) {
+class TeamOverlayRenderer(private val width: Int, private val height: Int) {
 
-    private val panelPaint = solid(160, "#0A1018")
+    private val chrome = OverlayChrome(width, height)
+
     private val homeStripePaint = solid(255, "#2FA8E4")
     private val awayStripePaint = solid(255, "#E4392F")
-    private val cornerBgPaint = solid(170, "#14181E")
-    private val sponsorBarPaint = solid(180, "#14181E")
 
     private val namePaint = textPaint(height * 0.028f, Paint.Align.LEFT)
     private val scorePaint = textPaint(height * 0.045f, Paint.Align.CENTER)
     private val timerPaint = textPaint(height * 0.04f, Paint.Align.CENTER)
-    private val logoPaint = textPaint(height * 0.03f, Paint.Align.RIGHT)
-    private val cornerTextPaint = textPaint(height * 0.02f, Paint.Align.CENTER)
-    private val sponsorTextPaint = textPaint(height * 0.032f, Paint.Align.CENTER).apply {
-        color = Color.parseColor("#F2B33D")
-    }
 
     fun render(
         state: ScoreState,
@@ -41,8 +35,8 @@ class OverlayRenderer(private val width: Int, private val height: Int) {
         val canvas = Canvas(bitmap)
         drawScoreboard(canvas, state)
         drawTimer(canvas, state)
-        drawLogo(canvas, businessLabel)
-        drawSponsors(canvas, sponsorHeadline, sponsorLeft, sponsorRight)
+        chrome.drawLogo(canvas, businessLabel)
+        chrome.drawSponsors(canvas, sponsorHeadline, sponsorLeft, sponsorRight)
         return bitmap
     }
 
@@ -54,7 +48,7 @@ class OverlayRenderer(private val width: Int, private val height: Int) {
         val stripeWidth = boardWidth * 0.06f
 
         canvas.drawRoundRect(
-            RectF(left, top, left + boardWidth, top + rowHeight * 2), 14f, 14f, panelPaint
+            RectF(left, top, left + boardWidth, top + rowHeight * 2), 14f, 14f, chrome.panelPaint()
         )
         canvas.drawRect(left, top, left + stripeWidth, top + rowHeight, homeStripePaint)
         canvas.drawRect(left, top + rowHeight, left + stripeWidth, top + rowHeight * 2, awayStripePaint)
@@ -80,39 +74,9 @@ class OverlayRenderer(private val width: Int, private val height: Int) {
 
         canvas.drawRoundRect(
             RectF(centerX - pillWidth / 2f, top, centerX + pillWidth / 2f, top + pillHeight),
-            pillHeight / 2f, pillHeight / 2f, panelPaint
+            pillHeight / 2f, pillHeight / 2f, chrome.panelPaint()
         )
         canvas.drawText(text, centerX, top + pillHeight * 0.68f, timerPaint)
-    }
-
-    private fun drawLogo(canvas: Canvas, businessLabel: String) {
-        if (businessLabel.isBlank()) return
-        canvas.drawText(businessLabel.uppercase(), width * 0.98f, height * 0.08f, logoPaint)
-    }
-
-    private fun drawSponsors(canvas: Canvas, headline: String, left: String, right: String) {
-        val barHeight = height * 0.09f
-        if (headline.isNotBlank()) {
-            val top = height - barHeight
-            canvas.drawRect(0f, top, width.toFloat(), height.toFloat(), sponsorBarPaint)
-            canvas.drawText(headline.uppercase(), width / 2f, top + barHeight * 0.65f, sponsorTextPaint)
-        }
-
-        val cornerWidth = width * 0.11f
-        val cornerHeight = barHeight * 0.72f
-        val margin = height * 0.02f
-        val cornerTop = height - barHeight - margin - cornerHeight
-
-        if (left.isNotBlank()) {
-            val rect = RectF(margin, cornerTop, margin + cornerWidth, cornerTop + cornerHeight)
-            canvas.drawRoundRect(rect, 10f, 10f, cornerBgPaint)
-            canvas.drawText(left.uppercase(), rect.centerX(), rect.centerY() + cornerTextPaint.textSize * 0.35f, cornerTextPaint)
-        }
-        if (right.isNotBlank()) {
-            val rect = RectF(width - margin - cornerWidth, cornerTop, width - margin, cornerTop + cornerHeight)
-            canvas.drawRoundRect(rect, 10f, 10f, cornerBgPaint)
-            canvas.drawText(right.uppercase(), rect.centerX(), rect.centerY() + cornerTextPaint.textSize * 0.35f, cornerTextPaint)
-        }
     }
 
     private fun solid(alpha: Int, hex: String) = Paint(Paint.ANTI_ALIAS_FLAG).apply {

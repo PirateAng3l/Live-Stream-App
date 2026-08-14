@@ -12,15 +12,30 @@
 
     <string name="section_setup">STREAM SETUP</string>
     <string name="section_score">SCORE</string>
+    <string name="section_cricket">CRICKET</string>
     <string name="section_timer">TIMER</string>
 
     <string name="hint_rtmp_url">rtmp://a.rtmp.youtube.com/live2</string>
     <string name="hint_rtmp_key">Stream key</string>
-    <string name="hint_home_team">Home team name</string>
-    <string name="hint_away_team">Away team name</string>
+    <string name="hint_home_team">Team A name</string>
+    <string name="hint_away_team">Team B name</string>
 
-    <string name="default_home">HOME</string>
-    <string name="default_away">AWAY</string>
+    <string name="default_home">TEAM A</string>
+    <string name="default_away">TEAM B</string>
+
+    <string name="swap_innings">Swap Innings</string>
+    <string name="cricket_zero_score">0/0</string>
+    <string name="cricket_zero_overs">(0.0 ov)</string>
+    <string name="run_0">0</string>
+    <string name="run_1">1</string>
+    <string name="run_2">2</string>
+    <string name="run_3">3</string>
+    <string name="run_4">4</string>
+    <string name="run_6">6</string>
+    <string name="wide_no_ball">Wd/Nb +1</string>
+    <string name="bye">Bye +1</string>
+    <string name="wicket">WICKET</string>
+    <string name="reset_innings">Reset Innings</string>
 
     <string name="minus">−</string>
     <string name="plus">+</string>
