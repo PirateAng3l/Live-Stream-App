@@ -28,6 +28,9 @@
     <string name="label_size">Size</string>
     <string name="default_size_label">100%</string>
     <string name="percent_format">%1$d%%</string>
+    <string name="label_position">Position</string>
+    <string name="default_position_label">Center</string>
+    <string name="position_format">%1$+d%%</string>
     <string name="zoom_default_label">1.0x</string>
     <string name="zoom_format">%1$.1fx</string>
     <string name="hint_sponsor_prefix">Optional text, e.g. \"This match is sponsored by\"</string>

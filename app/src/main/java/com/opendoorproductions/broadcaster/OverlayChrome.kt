@@ -40,7 +40,7 @@ class OverlayChrome(private val width: Int, private val height: Int) {
             val right = width * 0.98f
             val top = height * 0.03f
             val bounds = RectF(right - width * 0.20f, top, right, top + height * 0.09f)
-            drawBitmapFit(canvas, logo.bitmap, bounds, logo.scale)
+            drawBitmapFit(canvas, logo.bitmap, bounds, logo.scale, logo.offsetY)
             return
         }
         if (logo.text.isBlank()) return
@@ -79,7 +79,7 @@ class OverlayChrome(private val width: Int, private val height: Int) {
         if (asset.bitmap != null) {
             val pad = barHeight * 0.12f
             val bounds = RectF(contentLeft, top + pad, contentRight, height - pad)
-            drawBitmapFit(canvas, asset.bitmap, bounds, asset.scale)
+            drawBitmapFit(canvas, asset.bitmap, bounds, asset.scale, asset.offsetY)
         } else {
             val centerX = (contentLeft + contentRight) / 2f
             canvas.drawText(asset.text.uppercase(), centerX, top + barHeight * 0.65f, sponsorTextPaint)
@@ -93,14 +93,14 @@ class OverlayChrome(private val width: Int, private val height: Int) {
             // transparency) should hover directly over the footage, not sit in a box.
             // The plate is still drawn for the text fallback below, since plain text
             // needs a legible backing over bright/busy video.
-            drawBitmapFit(canvas, asset.bitmap, rect, asset.scale)
+            drawBitmapFit(canvas, asset.bitmap, rect, asset.scale, asset.offsetY)
         } else {
             canvas.drawRoundRect(rect, 10f, 10f, cornerBgPaint)
             canvas.drawText(asset.text.uppercase(), rect.centerX(), rect.centerY() + cornerTextPaint.textSize * 0.35f, cornerTextPaint)
         }
     }
 
-    private fun drawBitmapFit(canvas: Canvas, bitmap: Bitmap, bounds: RectF, scale: Float) {
+    private fun drawBitmapFit(canvas: Canvas, bitmap: Bitmap, bounds: RectF, scale: Float, offsetY: Float = 0f) {
         val bitmapAspect = bitmap.width.toFloat() / bitmap.height.toFloat()
         val boundsAspect = bounds.width() / bounds.height()
         val fitted = if (bitmapAspect > boundsAspect) {
@@ -112,11 +112,12 @@ class OverlayChrome(private val width: Int, private val height: Int) {
         }
         val scaledWidth = fitted.width() * scale
         val scaledHeight = fitted.height() * scale
+        val centerY = fitted.centerY() + offsetY * height
         val dst = RectF(
             fitted.centerX() - scaledWidth / 2f,
-            fitted.centerY() - scaledHeight / 2f,
+            centerY - scaledHeight / 2f,
             fitted.centerX() + scaledWidth / 2f,
-            fitted.centerY() + scaledHeight / 2f
+            centerY + scaledHeight / 2f
         )
         canvas.drawBitmap(bitmap, null, dst, bitmapPaint)
     }

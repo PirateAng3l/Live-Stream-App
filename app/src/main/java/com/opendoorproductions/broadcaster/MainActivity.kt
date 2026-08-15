@@ -72,6 +72,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private var sponsorHeadlineScale = 1f
     private var sponsorLeftScale = 1f
     private var sponsorRightScale = 1f
+    private var sponsorHeadlineOffsetY = 0f
     private var sponsorHeadlinePrefix = ""
 
     // Plain SharedPreferences, matching the rest of this POC's no-backend scope. A stream key
@@ -225,7 +226,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
 
     private fun renderCurrentOverlayBitmap(): Bitmap {
         val logo = OverlayAsset(businessLabel, logoBitmap, logoScale)
-        val headline = OverlayAsset(sponsorHeadline, sponsorHeadlineBitmap, sponsorHeadlineScale)
+        val headline = OverlayAsset(sponsorHeadline, sponsorHeadlineBitmap, sponsorHeadlineScale, sponsorHeadlineOffsetY)
         val left = OverlayAsset(sponsorLeft, sponsorLeftBitmap, sponsorLeftScale)
         val right = OverlayAsset(sponsorRight, sponsorRightBitmap, sponsorRightScale)
         return when (currentSport.layout) {
@@ -277,6 +278,16 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
 
         sponsorHeadlinePrefix = prefs.getString(PREF_SPONSOR_HEADLINE_PREFIX, "").orEmpty()
         binding.sponsorHeadlinePrefixInput.setText(sponsorHeadlinePrefix)
+
+        sponsorHeadlineOffsetY = prefs.getFloat(PREF_SPONSOR_HEADLINE_OFFSET, 0f)
+        val positionProgress = 50 - (sponsorHeadlineOffsetY * 200f).toInt()
+        binding.sponsorHeadlinePositionSeekBar.progress = positionProgress
+        val positionPercent = positionProgress - 50
+        binding.sponsorHeadlinePositionValue.text = if (positionPercent == 0) {
+            getString(R.string.default_position_label)
+        } else {
+            getString(R.string.position_format, positionPercent)
+        }
     }
 
     private fun setupSponsorImagePickers() {
@@ -313,6 +324,25 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
             prefs.edit().putString(PREF_SPONSOR_HEADLINE_PREFIX, sponsorHeadlinePrefix).apply()
             refreshOverlay()
         }
+
+        binding.sponsorHeadlinePositionSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
+                val percent = progress - 50
+                binding.sponsorHeadlinePositionValue.text = if (percent == 0) {
+                    getString(R.string.default_position_label)
+                } else {
+                    getString(R.string.position_format, percent)
+                }
+                if (!fromUser) return
+                // Higher progress moves the image up, so the offset is inverted relative to progress.
+                sponsorHeadlineOffsetY = (50 - progress) / 200f
+                prefs.edit().putFloat(PREF_SPONSOR_HEADLINE_OFFSET, sponsorHeadlineOffsetY).apply()
+                refreshOverlay()
+            }
+
+            override fun onStartTrackingTouch(bar: SeekBar) = Unit
+            override fun onStopTrackingTouch(bar: SeekBar) = Unit
+        })
     }
 
     private fun setupSizeSeekBar(seekBar: SeekBar, valueLabel: TextView, prefKey: String, apply: (Float) -> Unit) {
@@ -820,5 +850,6 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         const val PREF_SPONSOR_LEFT_SCALE = "sponsor_left_scale"
         const val PREF_SPONSOR_RIGHT_SCALE = "sponsor_right_scale"
         const val PREF_SPONSOR_HEADLINE_PREFIX = "sponsor_headline_prefix"
+        const val PREF_SPONSOR_HEADLINE_OFFSET = "sponsor_headline_offset"
     }
 }
