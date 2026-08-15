@@ -42,6 +42,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private val scoreController = ScoreController()
     private val cricketController = CricketController()
     private var currentSport: Sport = Sport.RUGBY
+    private var deviceZoomRange = 1f..5f
 
     private val uiHandler = Handler(Looper.getMainLooper())
     private var panelOpen = false
@@ -129,6 +130,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         setupGoLiveButton()
         setupFieldPersistence()
         setupSponsorImagePickers()
+        setupZoomControl()
         onSportChanged()
         updateStatus(R.string.status_offline, Color.parseColor("#B7C2CC"))
 
@@ -175,10 +177,50 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
                 overlayFilter.setScale(100f, 100f)
                 overlayFilter.setPosition(0f, 0f)
                 rtmpCamera2.startPreview()
+                readDeviceZoomRange()
             } else {
                 Toast.makeText(this, "Could not open camera/mic for preview", Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    /**
+     * Every phone reports a different real zoom ceiling (CONTROL_ZOOM_RATIO_RANGE), so the
+     * slider always shows a fixed 1x-5x scale but the value actually sent to the camera is
+     * clamped to whatever this device supports, capped at 5x regardless of how much further
+     * the hardware could go — 5x is the requested UI ceiling, not the device's own limit.
+     */
+    private fun readDeviceZoomRange() {
+        try {
+            val range = rtmpCamera2.getZoomRange()
+            val lower = range.lower.coerceAtLeast(1f)
+            val upper = range.upper.coerceAtMost(5f).coerceAtLeast(lower)
+            deviceZoomRange = lower..upper
+            Log.i(TAG, "Camera zoom range: $deviceZoomRange")
+        } catch (error: Exception) {
+            Log.w(TAG, "Could not read camera zoom range, defaulting to 1x-5x", error)
+        }
+    }
+
+    private fun setupZoomControl() {
+        binding.zoomSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
+                applyZoom(1f + progress / 100f)
+            }
+
+            override fun onStartTrackingTouch(bar: SeekBar) = Unit
+            override fun onStopTrackingTouch(bar: SeekBar) = Unit
+        })
+    }
+
+    private fun applyZoom(requestedZoom: Float) {
+        val clamped = requestedZoom.coerceIn(deviceZoomRange)
+        try {
+            rtmpCamera2.setZoom(clamped)
+        } catch (error: Exception) {
+            Log.w(TAG, "setZoom($clamped) failed", error)
+        }
+        binding.zoomValueLabel.text = getString(R.string.zoom_format, clamped)
     }
 
     private fun renderCurrentOverlayBitmap(): Bitmap {

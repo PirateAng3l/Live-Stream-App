@@ -58,6 +58,46 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <TextView
+        android:id="@+id/zoomValueLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:background="@drawable/bg_chip"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:text="@string/zoom_default_label"
+        android:textColor="@color/text_primary"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="@id/zoomControlContainer"
+        app:layout_constraintEnd_toEndOf="@id/zoomControlContainer"
+        app:layout_constraintBottom_toTopOf="@id/zoomControlContainer" />
+
+    <FrameLayout
+        android:id="@+id/zoomControlContainer"
+        android:layout_width="44dp"
+        android:layout_height="220dp"
+        android:layout_marginStart="14dp"
+        android:background="@drawable/bg_chip"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <SeekBar
+            android:id="@+id/zoomSeekBar"
+            android:layout_width="220dp"
+            android:layout_height="44dp"
+            android:layout_gravity="center"
+            android:max="400"
+            android:progress="0"
+            android:progressTint="@color/accent"
+            android:rotation="270"
+            android:thumbTint="@color/text_primary" />
+    </FrameLayout>
+
     <ScrollView
         android:id="@+id/scorePanel"
         android:layout_width="320dp"
