@@ -88,12 +88,14 @@ class OverlayChrome(private val width: Int, private val height: Int) {
 
     private fun drawCorner(canvas: Canvas, asset: OverlayAsset, rect: RectF) {
         if (asset.bitmap == null && asset.text.isBlank()) return
-        canvas.drawRoundRect(rect, 10f, 10f, cornerBgPaint)
         if (asset.bitmap != null) {
-            val pad = rect.height() * 0.12f
-            val bounds = RectF(rect.left + pad, rect.top + pad, rect.right - pad, rect.bottom - pad)
-            drawBitmapFit(canvas, asset.bitmap, bounds, asset.scale)
+            // No backing plate for images: a real logo (especially a PNG with its own
+            // transparency) should hover directly over the footage, not sit in a box.
+            // The plate is still drawn for the text fallback below, since plain text
+            // needs a legible backing over bright/busy video.
+            drawBitmapFit(canvas, asset.bitmap, rect, asset.scale)
         } else {
+            canvas.drawRoundRect(rect, 10f, 10f, cornerBgPaint)
             canvas.drawText(asset.text.uppercase(), rect.centerX(), rect.centerY() + cornerTextPaint.textSize * 0.35f, cornerTextPaint)
         }
     }
