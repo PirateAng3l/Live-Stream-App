@@ -21,36 +21,38 @@
       Invisible touch target over the "GET STARTED" button baked into
       splash_background.png. Positioned by percentage guidelines (not fixed dp)
       to track the button's position in that 1080x1920 artwork across screen
-      sizes — update these Guide_percent values if the artwork is replaced and
-      the button sits somewhere else.
+      sizes. These percentages were measured directly from the button's neon
+      border pixels in the source PNG (button spans roughly y 0.858-0.945,
+      x 0.099-0.866 of the image), not eyeballed — update them the same way
+      (or re-measure) if the artwork is replaced.
     -->
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/getStartedTopGuide"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.83" />
+        app:layout_constraintGuide_percent="0.850" />
 
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/getStartedBottomGuide"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.905" />
+        app:layout_constraintGuide_percent="0.950" />
 
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/getStartedStartGuide"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.09" />
+        app:layout_constraintGuide_percent="0.085" />
 
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/getStartedEndGuide"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.88" />
+        app:layout_constraintGuide_percent="0.875" />
 
     <View
         android:id="@+id/getStartedBtn"
