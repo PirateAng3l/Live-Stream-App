@@ -14,6 +14,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.SeekBar
@@ -40,6 +41,8 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private lateinit var teamOverlayRenderer: TeamOverlayRenderer
     private lateinit var cricketOverlayRenderer: CricketOverlayRenderer
     private lateinit var overlayFilter: ImageObjectFilterRender
+    private lateinit var presetStore: SponsorPresetStore
+    private var presetSummaries: List<SponsorPresetSummary> = emptyList()
 
     private val scoreController = ScoreController()
     private val cricketController = CricketController()
@@ -126,6 +129,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         teamOverlayRenderer = TeamOverlayRenderer(streamWidth, streamHeight)
         cricketOverlayRenderer = CricketOverlayRenderer(streamWidth, streamHeight)
         rtmpCamera2 = RtmpCamera2(binding.openGlView, this)
+        presetStore = SponsorPresetStore(this)
 
         loadSavedFields()
         setupPanelToggle()
@@ -136,6 +140,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         setupGoLiveButton()
         setupFieldPersistence()
         setupSponsorImagePickers()
+        setupPresetControls()
         setupZoomControl()
         onSportChanged()
         updateStatus(R.string.status_offline, Color.parseColor("#B7C2CC"))
@@ -268,10 +273,34 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         loadSavedImage(SPONSOR_LEFT_IMAGE_FILE, binding.sponsorLeftThumbnail) { sponsorLeftBitmap = it }
         loadSavedImage(SPONSOR_RIGHT_IMAGE_FILE, binding.sponsorRightThumbnail) { sponsorRightBitmap = it }
 
-        logoScale = prefs.getFloat(PREF_LOGO_SCALE, 1f)
-        sponsorHeadlineScale = prefs.getFloat(PREF_SPONSOR_HEADLINE_SCALE, 1f)
-        sponsorLeftScale = prefs.getFloat(PREF_SPONSOR_LEFT_SCALE, 1f)
-        sponsorRightScale = prefs.getFloat(PREF_SPONSOR_RIGHT_SCALE, 1f)
+        applySponsorMetaToUi(
+            logoScale = prefs.getFloat(PREF_LOGO_SCALE, 1f),
+            sponsorHeadlineScale = prefs.getFloat(PREF_SPONSOR_HEADLINE_SCALE, 1f),
+            sponsorLeftScale = prefs.getFloat(PREF_SPONSOR_LEFT_SCALE, 1f),
+            sponsorRightScale = prefs.getFloat(PREF_SPONSOR_RIGHT_SCALE, 1f),
+            sponsorHeadlineOffsetY = prefs.getFloat(PREF_SPONSOR_HEADLINE_OFFSET, 0f),
+            sponsorHeadlinePrefix = prefs.getString(PREF_SPONSOR_HEADLINE_PREFIX, "").orEmpty()
+        )
+    }
+
+    // Shared by loadSavedFields (reading from prefs on startup) and preset loading
+    // (reading from a saved preset) so both paths update every size/position control
+    // and persist the values the same way, instead of keeping two copies of this logic.
+    private fun applySponsorMetaToUi(
+        logoScale: Float,
+        sponsorHeadlineScale: Float,
+        sponsorLeftScale: Float,
+        sponsorRightScale: Float,
+        sponsorHeadlineOffsetY: Float,
+        sponsorHeadlinePrefix: String
+    ) {
+        this.logoScale = logoScale
+        this.sponsorHeadlineScale = sponsorHeadlineScale
+        this.sponsorLeftScale = sponsorLeftScale
+        this.sponsorRightScale = sponsorRightScale
+        this.sponsorHeadlineOffsetY = sponsorHeadlineOffsetY
+        this.sponsorHeadlinePrefix = sponsorHeadlinePrefix
+
         binding.logoSizeSeekBar.progress = (logoScale * 100).toInt()
         binding.sponsorHeadlineSizeSeekBar.progress = (sponsorHeadlineScale * 100).toInt()
         binding.sponsorLeftSizeSeekBar.progress = (sponsorLeftScale * 100).toInt()
@@ -281,10 +310,8 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         binding.sponsorLeftSizeValue.text = getString(R.string.percent_format, binding.sponsorLeftSizeSeekBar.progress)
         binding.sponsorRightSizeValue.text = getString(R.string.percent_format, binding.sponsorRightSizeSeekBar.progress)
 
-        sponsorHeadlinePrefix = prefs.getString(PREF_SPONSOR_HEADLINE_PREFIX, "").orEmpty()
         binding.sponsorHeadlinePrefixInput.setText(sponsorHeadlinePrefix)
 
-        sponsorHeadlineOffsetY = prefs.getFloat(PREF_SPONSOR_HEADLINE_OFFSET, 0f)
         val positionProgress = 50 - (sponsorHeadlineOffsetY * 200f).toInt()
         binding.sponsorHeadlinePositionSeekBar.progress = positionProgress
         val positionPercent = positionProgress - 50
@@ -293,6 +320,15 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         } else {
             getString(R.string.position_format, positionPercent)
         }
+
+        prefs.edit()
+            .putFloat(PREF_LOGO_SCALE, logoScale)
+            .putFloat(PREF_SPONSOR_HEADLINE_SCALE, sponsorHeadlineScale)
+            .putFloat(PREF_SPONSOR_LEFT_SCALE, sponsorLeftScale)
+            .putFloat(PREF_SPONSOR_RIGHT_SCALE, sponsorRightScale)
+            .putFloat(PREF_SPONSOR_HEADLINE_OFFSET, sponsorHeadlineOffsetY)
+            .putString(PREF_SPONSOR_HEADLINE_PREFIX, sponsorHeadlinePrefix)
+            .apply()
     }
 
     private fun setupSponsorImagePickers() {
@@ -366,6 +402,134 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         })
     }
 
+    private fun setupPresetControls() {
+        refreshPresetSpinner()
+
+        binding.savePresetBtn.setOnClickListener { promptSavePreset() }
+
+        binding.loadPresetBtn.setOnClickListener {
+            val summary = selectedPreset()
+            if (summary == null) {
+                Toast.makeText(this, R.string.select_preset_first, Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            loadPreset(summary.id)
+        }
+
+        binding.deletePresetBtn.setOnClickListener {
+            val summary = selectedPreset()
+            if (summary == null) {
+                Toast.makeText(this, R.string.select_preset_first, Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            AlertDialog.Builder(this)
+                .setTitle(R.string.delete_preset_title)
+                .setMessage(R.string.delete_preset_message)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.delete_preset) { _, _ ->
+                    presetStore.delete(summary.id)
+                    refreshPresetSpinner()
+                }
+                .show()
+        }
+    }
+
+    private fun selectedPreset(): SponsorPresetSummary? =
+        presetSummaries.getOrNull(binding.presetSpinner.selectedItemPosition)
+
+    private fun promptSavePreset() {
+        val input = EditText(this).apply {
+            hint = getString(R.string.preset_name_hint)
+            setSingleLine()
+        }
+        val padding = (16 * resources.displayMetrics.density).toInt()
+        val container = LinearLayout(this).apply {
+            setPadding(padding, padding, padding, 0)
+            addView(input)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.save_preset_title)
+            .setView(container)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.save_preset) { _, _ ->
+                val name = input.text?.toString()?.trim().orEmpty()
+                if (name.isEmpty()) {
+                    Toast.makeText(this, R.string.preset_name_required, Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                val id = presetStore.save(
+                    name = name,
+                    logoBitmap = logoBitmap,
+                    sponsorHeadlineBitmap = sponsorHeadlineBitmap,
+                    sponsorLeftBitmap = sponsorLeftBitmap,
+                    sponsorRightBitmap = sponsorRightBitmap,
+                    logoScale = logoScale,
+                    sponsorHeadlineScale = sponsorHeadlineScale,
+                    sponsorLeftScale = sponsorLeftScale,
+                    sponsorRightScale = sponsorRightScale,
+                    sponsorHeadlineOffsetY = sponsorHeadlineOffsetY,
+                    sponsorHeadlinePrefix = sponsorHeadlinePrefix
+                )
+                refreshPresetSpinner(selectId = id)
+                Toast.makeText(this, R.string.preset_saved, Toast.LENGTH_SHORT).show()
+            }
+            .show()
+    }
+
+    private fun loadPreset(id: String) {
+        val data = presetStore.load(id) ?: return
+
+        setSponsorSlotImage(data.logoBitmap, LOGO_IMAGE_FILE, binding.logoThumbnail)
+        logoBitmap = data.logoBitmap
+        setSponsorSlotImage(data.sponsorHeadlineBitmap, SPONSOR_HEADLINE_IMAGE_FILE, binding.sponsorHeadlineThumbnail)
+        sponsorHeadlineBitmap = data.sponsorHeadlineBitmap
+        setSponsorSlotImage(data.sponsorLeftBitmap, SPONSOR_LEFT_IMAGE_FILE, binding.sponsorLeftThumbnail)
+        sponsorLeftBitmap = data.sponsorLeftBitmap
+        setSponsorSlotImage(data.sponsorRightBitmap, SPONSOR_RIGHT_IMAGE_FILE, binding.sponsorRightThumbnail)
+        sponsorRightBitmap = data.sponsorRightBitmap
+
+        applySponsorMetaToUi(
+            logoScale = data.logoScale,
+            sponsorHeadlineScale = data.sponsorHeadlineScale,
+            sponsorLeftScale = data.sponsorLeftScale,
+            sponsorRightScale = data.sponsorRightScale,
+            sponsorHeadlineOffsetY = data.sponsorHeadlineOffsetY,
+            sponsorHeadlinePrefix = data.sponsorHeadlinePrefix
+        )
+
+        refreshOverlay()
+        Toast.makeText(this, R.string.preset_loaded, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun refreshPresetSpinner(selectId: String? = null) {
+        presetSummaries = presetStore.list()
+        val names = if (presetSummaries.isEmpty()) {
+            listOf(getString(R.string.no_presets_saved))
+        } else {
+            presetSummaries.map { it.name }
+        }
+        val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, names) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getView(position, convertView, parent) as TextView
+                view.setTextColor(Color.WHITE)
+                return view
+            }
+
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getDropDownView(position, convertView, parent) as TextView
+                view.setTextColor(Color.WHITE)
+                view.setPadding(24, 20, 24, 20)
+                return view
+            }
+        }
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        binding.presetSpinner.adapter = adapter
+        val selectPosition = selectId?.let { id -> presetSummaries.indexOfFirst { it.id == id } } ?: -1
+        if (selectPosition >= 0) {
+            binding.presetSpinner.setSelection(selectPosition)
+        }
+    }
+
     // The photo picker only grants temporary read access to the URI it returns — that
     // access doesn't reliably survive the app process being killed and restarted, which
     // is why previously-picked sponsor images silently failed to reload after a restart
@@ -380,10 +544,8 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
             Toast.makeText(this, "Couldn't load that image", Toast.LENGTH_SHORT).show()
             return
         }
-        saveImageToInternalStorage(bitmap, fileName)
+        setSponsorSlotImage(bitmap, fileName, thumbnail)
         apply(bitmap)
-        thumbnail.setImageBitmap(bitmap)
-        thumbnail.visibility = View.VISIBLE
         refreshOverlay()
     }
 
@@ -397,11 +559,24 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     }
 
     private fun clearPickedImage(fileName: String, thumbnail: ImageView, apply: () -> Unit) {
-        File(filesDir, fileName).delete()
+        setSponsorSlotImage(null, fileName, thumbnail)
         apply()
-        thumbnail.setImageDrawable(null)
-        thumbnail.visibility = View.GONE
         refreshOverlay()
+    }
+
+    // Shared by applyPickedImage/clearPickedImage and preset loading: writes (or removes)
+    // the slot's app-private cache file and updates its thumbnail. Callers still set their
+    // own in-memory Bitmap field themselves since which field that is varies per slot.
+    private fun setSponsorSlotImage(bitmap: Bitmap?, fileName: String, thumbnail: ImageView) {
+        if (bitmap != null) {
+            saveImageToInternalStorage(bitmap, fileName)
+            thumbnail.setImageBitmap(bitmap)
+            thumbnail.visibility = View.VISIBLE
+        } else {
+            File(filesDir, fileName).delete()
+            thumbnail.setImageDrawable(null)
+            thumbnail.visibility = View.GONE
+        }
     }
 
     private fun saveImageToInternalStorage(bitmap: Bitmap, fileName: String) {
