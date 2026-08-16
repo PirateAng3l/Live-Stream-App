@@ -30,6 +30,8 @@ import com.opendoorproductions.broadcaster.databinding.ActivityMainBinding
 import com.pedro.common.ConnectChecker
 import com.pedro.encoder.input.gl.render.filters.`object`.ImageObjectFilterRender
 import com.pedro.library.rtmp.RtmpCamera2
+import java.io.File
+import java.io.FileOutputStream
 
 class MainActivity : AppCompatActivity(), ConnectChecker {
 
@@ -58,10 +60,13 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private val streamWidth = 1280
     private val streamHeight = 720
 
-    private val businessLabel = "OPEN DOOR"
-    private val sponsorHeadline = "HEADLINE SPONSOR"
-    private val sponsorLeft = "SPONSOR A"
-    private val sponsorRight = "SPONSOR B"
+    // Blank on purpose: OverlayChrome only draws these as a text fallback when a slot
+    // has no image, and an unused/not-yet-set-up sponsor slot should be invisible on
+    // the overlay rather than showing a generic placeholder label.
+    private val businessLabel = ""
+    private val sponsorHeadline = ""
+    private val sponsorLeft = ""
+    private val sponsorRight = ""
 
     private var logoBitmap: Bitmap? = null
     private var sponsorHeadlineBitmap: Bitmap? = null
@@ -93,16 +98,16 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     }
 
     private val pickLogoImage = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        applyPickedImage(uri, PREF_LOGO_URI, binding.logoThumbnail) { logoBitmap = it }
+        applyPickedImage(uri, LOGO_IMAGE_FILE, binding.logoThumbnail) { logoBitmap = it }
     }
     private val pickSponsorHeadlineImage = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        applyPickedImage(uri, PREF_SPONSOR_HEADLINE_URI, binding.sponsorHeadlineThumbnail) { sponsorHeadlineBitmap = it }
+        applyPickedImage(uri, SPONSOR_HEADLINE_IMAGE_FILE, binding.sponsorHeadlineThumbnail) { sponsorHeadlineBitmap = it }
     }
     private val pickSponsorLeftImage = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        applyPickedImage(uri, PREF_SPONSOR_LEFT_URI, binding.sponsorLeftThumbnail) { sponsorLeftBitmap = it }
+        applyPickedImage(uri, SPONSOR_LEFT_IMAGE_FILE, binding.sponsorLeftThumbnail) { sponsorLeftBitmap = it }
     }
     private val pickSponsorRightImage = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        applyPickedImage(uri, PREF_SPONSOR_RIGHT_URI, binding.sponsorRightThumbnail) { sponsorRightBitmap = it }
+        applyPickedImage(uri, SPONSOR_RIGHT_IMAGE_FILE, binding.sponsorRightThumbnail) { sponsorRightBitmap = it }
     }
 
     private val timerTick = object : Runnable {
@@ -258,10 +263,10 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         val savedSport = prefs.getString(PREF_SPORT, Sport.RUGBY.name)
         currentSport = Sport.entries.firstOrNull { it.name == savedSport } ?: Sport.RUGBY
 
-        loadSavedImage(PREF_LOGO_URI, binding.logoThumbnail) { logoBitmap = it }
-        loadSavedImage(PREF_SPONSOR_HEADLINE_URI, binding.sponsorHeadlineThumbnail) { sponsorHeadlineBitmap = it }
-        loadSavedImage(PREF_SPONSOR_LEFT_URI, binding.sponsorLeftThumbnail) { sponsorLeftBitmap = it }
-        loadSavedImage(PREF_SPONSOR_RIGHT_URI, binding.sponsorRightThumbnail) { sponsorRightBitmap = it }
+        loadSavedImage(LOGO_IMAGE_FILE, binding.logoThumbnail) { logoBitmap = it }
+        loadSavedImage(SPONSOR_HEADLINE_IMAGE_FILE, binding.sponsorHeadlineThumbnail) { sponsorHeadlineBitmap = it }
+        loadSavedImage(SPONSOR_LEFT_IMAGE_FILE, binding.sponsorLeftThumbnail) { sponsorLeftBitmap = it }
+        loadSavedImage(SPONSOR_RIGHT_IMAGE_FILE, binding.sponsorRightThumbnail) { sponsorRightBitmap = it }
 
         logoScale = prefs.getFloat(PREF_LOGO_SCALE, 1f)
         sponsorHeadlineScale = prefs.getFloat(PREF_SPONSOR_HEADLINE_SCALE, 1f)
@@ -297,15 +302,15 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         binding.chooseSponsorLeftBtn.setOnClickListener { pickSponsorLeftImage.launch(imageOnly) }
         binding.chooseSponsorRightBtn.setOnClickListener { pickSponsorRightImage.launch(imageOnly) }
 
-        binding.clearLogoBtn.setOnClickListener { clearPickedImage(PREF_LOGO_URI, binding.logoThumbnail) { logoBitmap = null } }
+        binding.clearLogoBtn.setOnClickListener { clearPickedImage(LOGO_IMAGE_FILE, binding.logoThumbnail) { logoBitmap = null } }
         binding.clearSponsorHeadlineBtn.setOnClickListener {
-            clearPickedImage(PREF_SPONSOR_HEADLINE_URI, binding.sponsorHeadlineThumbnail) { sponsorHeadlineBitmap = null }
+            clearPickedImage(SPONSOR_HEADLINE_IMAGE_FILE, binding.sponsorHeadlineThumbnail) { sponsorHeadlineBitmap = null }
         }
         binding.clearSponsorLeftBtn.setOnClickListener {
-            clearPickedImage(PREF_SPONSOR_LEFT_URI, binding.sponsorLeftThumbnail) { sponsorLeftBitmap = null }
+            clearPickedImage(SPONSOR_LEFT_IMAGE_FILE, binding.sponsorLeftThumbnail) { sponsorLeftBitmap = null }
         }
         binding.clearSponsorRightBtn.setOnClickListener {
-            clearPickedImage(PREF_SPONSOR_RIGHT_URI, binding.sponsorRightThumbnail) { sponsorRightBitmap = null }
+            clearPickedImage(SPONSOR_RIGHT_IMAGE_FILE, binding.sponsorRightThumbnail) { sponsorRightBitmap = null }
         }
 
         setupSizeSeekBar(binding.logoSizeSeekBar, binding.logoSizeValue, PREF_LOGO_SCALE) { logoScale = it }
@@ -361,34 +366,52 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         })
     }
 
-    private fun applyPickedImage(uri: Uri?, prefKey: String, thumbnail: ImageView, apply: (Bitmap) -> Unit) {
+    // The photo picker only grants temporary read access to the URI it returns — that
+    // access doesn't reliably survive the app process being killed and restarted, which
+    // is why previously-picked sponsor images silently failed to reload after a restart
+    // while text prefs (stored in SharedPreferences, no URI involved) kept working fine.
+    // Copying the decoded bitmap into our own app-private file the moment it's picked
+    // sidesteps that entirely: internal files are always ours to read, no permission or
+    // URI lifetime to worry about.
+    private fun applyPickedImage(uri: Uri?, fileName: String, thumbnail: ImageView, apply: (Bitmap) -> Unit) {
         if (uri == null) return
         val bitmap = decodeSampledBitmap(uri)
         if (bitmap == null) {
             Toast.makeText(this, "Couldn't load that image", Toast.LENGTH_SHORT).show()
             return
         }
-        prefs.edit().putString(prefKey, uri.toString()).apply()
+        saveImageToInternalStorage(bitmap, fileName)
         apply(bitmap)
         thumbnail.setImageBitmap(bitmap)
         thumbnail.visibility = View.VISIBLE
         refreshOverlay()
     }
 
-    private fun loadSavedImage(prefKey: String, thumbnail: ImageView, apply: (Bitmap) -> Unit) {
-        val uriString = prefs.getString(prefKey, null) ?: return
-        val bitmap = decodeSampledBitmap(Uri.parse(uriString)) ?: return
+    private fun loadSavedImage(fileName: String, thumbnail: ImageView, apply: (Bitmap) -> Unit) {
+        val file = File(filesDir, fileName)
+        if (!file.exists()) return
+        val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return
         apply(bitmap)
         thumbnail.setImageBitmap(bitmap)
         thumbnail.visibility = View.VISIBLE
     }
 
-    private fun clearPickedImage(prefKey: String, thumbnail: ImageView, apply: () -> Unit) {
-        prefs.edit().remove(prefKey).apply()
+    private fun clearPickedImage(fileName: String, thumbnail: ImageView, apply: () -> Unit) {
+        File(filesDir, fileName).delete()
         apply()
         thumbnail.setImageDrawable(null)
         thumbnail.visibility = View.GONE
         refreshOverlay()
+    }
+
+    private fun saveImageToInternalStorage(bitmap: Bitmap, fileName: String) {
+        try {
+            FileOutputStream(File(filesDir, fileName)).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+            }
+        } catch (error: Exception) {
+            Log.e(TAG, "Failed to cache $fileName to internal storage", error)
+        }
     }
 
     private fun decodeSampledBitmap(uri: Uri): Bitmap? {
@@ -841,10 +864,10 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         const val PREF_TEAM_A = "team_a"
         const val PREF_TEAM_B = "team_b"
         const val PREF_SPORT = "sport"
-        const val PREF_LOGO_URI = "logo_uri"
-        const val PREF_SPONSOR_HEADLINE_URI = "sponsor_headline_uri"
-        const val PREF_SPONSOR_LEFT_URI = "sponsor_left_uri"
-        const val PREF_SPONSOR_RIGHT_URI = "sponsor_right_uri"
+        const val LOGO_IMAGE_FILE = "logo_image.png"
+        const val SPONSOR_HEADLINE_IMAGE_FILE = "sponsor_headline_image.png"
+        const val SPONSOR_LEFT_IMAGE_FILE = "sponsor_left_image.png"
+        const val SPONSOR_RIGHT_IMAGE_FILE = "sponsor_right_image.png"
         const val PREF_LOGO_SCALE = "logo_scale"
         const val PREF_SPONSOR_HEADLINE_SCALE = "sponsor_headline_scale"
         const val PREF_SPONSOR_LEFT_SCALE = "sponsor_left_scale"
