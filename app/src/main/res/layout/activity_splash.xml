@@ -18,11 +18,11 @@
         app:layout_constraintEnd_toEndOf="parent" />
 
     <!--
-      Invisible touch target over the "GET STARTED" button baked into the splash
-      image. Positioned by percentage guidelines (not fixed dp) so it tracks the
-      button regardless of screen size, matching where the button sits in the
-      supplied artwork — adjust these Guide_percent values if you swap in a
-      differently proportioned image and the tap area drifts off the button.
+      Invisible touch target over the "GET STARTED" button baked into
+      splash_background.png. Positioned by percentage guidelines (not fixed dp)
+      to track the button's position in that 1080x1920 artwork across screen
+      sizes — update these Guide_percent values if the artwork is replaced and
+      the button sits somewhere else.
     -->
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/getStartedTopGuide"
