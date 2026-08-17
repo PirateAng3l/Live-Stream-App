@@ -161,6 +161,41 @@ sponsor fetch shouldn't take that down too.
   source image will serve it at full size, just visually constrained by
   CSS.
 
+## Subscription status
+
+Surfaces (and, on the backend, enforces) the business decision already
+locked in: subscription status gates *operations*, never viewing past
+replays (see `backend/README.md`). "Operations" is now concrete for the
+first time — creating a new fixture:
+
+- A `school_operator`'s status badge (Trial/Active/Expired/Cancelled)
+  shows in the `/admin` header (`app/admin/layout.tsx`,
+  `_subscription-badge.tsx`). A `platform_admin` doesn't get one — they
+  have no single school to show a badge for, same reasoning as why they
+  get a school picker everywhere else instead of an implicit school.
+- `/admin/fixtures/new` checks the resolved school's subscription before
+  rendering the create form: expired/cancelled shows an explanatory
+  message instead of the form. `createFixtureAction` re-runs the same
+  check server-side before inserting (defense in depth, same pattern as
+  every other write in this panel) with a friendly error message rather
+  than surfacing RLS's raw denial text.
+- The real backstop is backend migration `0005_gate_fixture_creation_on_subscription.sql`:
+  `fixtures_write_own_school` was one `for all` policy covering
+  insert/update/delete together, which would have blocked *updating* an
+  existing fixture (e.g. entering a final score) once a subscription
+  lapsed — not what was decided. Split into per-command policies so only
+  INSERT carries the subscription check; UPDATE/DELETE are unaffected by
+  status. Validated locally with real `authenticated`-role impersonation:
+  active → insert succeeds, expired → insert rejected, no subscription row
+  at all → insert still succeeds (fail-open on a missing row, since
+  schools are still created by hand and nothing guarantees a row exists
+  the moment one does — see `backend/README.md`), and an update on an
+  already-lapsed school's existing fixture still succeeds.
+- `lib/subscriptions.ts` (pure: `isSubscriptionOperational()`,
+  `subscriptionStatusLabel()`, unit-tested in `lib/subscriptions.test.ts`)
+  /  `lib/subscriptions-server.ts` (`loadSubscriptionForSchool`) — same
+  pure-logic/I-O split as sponsors and fixtures elsewhere in this app.
+
 ## Architecture
 
 Same split as the backend edge function and the Android app's networking
@@ -216,6 +251,11 @@ project:
   Splitting these out wasn't optional — the first version had them in one
   file and `next build` failed the moment a Client Component imported a
   constant from it, since that import graph also pulled in `next/headers`.
+- **`lib/subscriptions.ts`** / **`lib/subscriptions-server.ts`** — same
+  split again: `subscriptions.ts` holds the status type,
+  `isSubscriptionOperational()`, and `subscriptionStatusLabel()` (pure,
+  unit-tested in `lib/subscriptions.test.ts` — see "Subscription status"
+  above); `subscriptions-server.ts` holds `loadSubscriptionForSchool`.
 - **`lib/sports.ts`** — the sport catalog, kept in sync by hand with the
   Android app's `Sport` enum (comment in the file explains why: a
   fixture's `sport` string has to match one of that enum's names for the
@@ -292,11 +332,13 @@ worth doing before this goes anywhere near real production traffic.
 - **Crew account management** — creating a school_operator account (or
   assigning `fixtures.assigned_operator_id` to a specific one) is still a
   manual/SQL step; there's no "invite a crew member" flow anywhere.
-- **Subscription status isn't shown or enforced anywhere in the UI** — the
-  `subscriptions` table exists and school-scoped RLS is in place, but
-  nothing here surfaces a school's billing state or blocks fixture
-  creation if it's lapsed (per the earlier decision, viewing old replays
-  should never be blocked by this either way — see `backend/README.md`).
+- **No self-serve subscription renewal** — a school_operator now sees their
+  status badge and a clear "renew to create fixtures" message once lapsed
+  (see "Subscription status" below), but there's no billing/payment flow
+  anywhere in this app to actually act on it; renewing is still a
+  platform_admin-side SQL update to the `subscriptions` row, same as
+  everything else in the "concierge onboarding" model this project is on
+  for now.
 - Local timezone display — kickoff times are shown in a fixed UTC format
   (deliberately, to avoid a server/client hydration mismatch); converting to
   the visitor's local time would need a small client component.
