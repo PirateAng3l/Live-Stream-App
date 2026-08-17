@@ -51,8 +51,35 @@ export interface SponsorOption {
 export interface FixtureSponsorAssignment {
   sponsorId: string;
   sponsorName: string;
+  logoUrl: string | null;
+  clickUrl: string | null;
   position: SponsorPosition;
   tier: SponsorTier;
   layer: SponsorLayer;
+}
+
+/**
+ * Only the `web_overlay` layer belongs on this site — `baked_in` is the
+ * broadcaster app's territory (not wired to this table yet, see
+ * web/README.md), and showing it here too would double it up once that
+ * wiring exists.
+ */
+export function webOverlaySponsors<T extends { layer: SponsorLayer }>(assignments: T[]): T[] {
+  return assignments.filter((assignment) => assignment.layer === "web_overlay");
+}
+
+/** Buckets sponsors by their placement slot, preserving assignment order within each. */
+export function groupByPosition<T extends { position: SponsorPosition }>(
+  sponsors: T[],
+): Record<SponsorPosition, T[]> {
+  const grouped: Record<SponsorPosition, T[]> = {
+    lower_third: [],
+    bottom_left: [],
+    bottom_right: [],
+  };
+  for (const sponsor of sponsors) {
+    grouped[sponsor.position].push(sponsor);
+  }
+  return grouped;
 }
 

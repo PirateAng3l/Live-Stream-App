@@ -18,7 +18,13 @@ separate product).
   The same video ID serves both the live stream and the replay once it ends
   (that's how a YouTube Live broadcast works), so there's no "is this live or
   a replay" branch — a signed-in visitor sees the embed whenever the ID
-  exists, live or not.
+  exists, live or not. Also shows that fixture's `web_overlay`-layer sponsor
+  badges (logo if set, else a text pill; clickable if a click-through URL is
+  set), absolutely positioned over the video area in the same three slots
+  (lower-third/bottom-left/bottom-right) the broadcaster app's baked-in
+  overlay uses — see "Web-layer sponsor overlay" below. Shown regardless of
+  sign-in state, since the video is what's gated, not the sponsor badges
+  sitting on top of its placeholder.
 - **`/sign-up`**, **`/sign-in`** — email/password via Supabase Auth. Every
   account created here becomes a `parent`-role profile automatically
   (`handle_new_user` in the backend); there's no path from this site to a
@@ -123,6 +129,38 @@ page always lands back on `/admin` itself, not the specific sub-page (e.g.
 fixable later with a middleware-injected path header if it's ever annoying
 enough to bother with.
 
+## Web-layer sponsor overlay (`/matches/[id]`)
+
+`SponsorOverlay` (`app/matches/[id]/sponsor-overlay.tsx`) renders a
+fixture's `web_overlay`-layer sponsors as absolutely-positioned badges over
+the video container — the "web-layer sponsor slots" spec 7.3.3 calls out
+and the counterpart to the broadcaster app's baked-in overlay (the app
+still isn't wired to `fixture_sponsors` at all, so a `baked_in`-layer
+assignment made in `/admin` doesn't show up anywhere yet — see the
+top-level README). `webOverlaySponsors()` and `groupByPosition()`
+(`lib/sponsors.ts`) are the pure logic behind it — filtering to the right
+layer and bucketing by slot — and are unit-tested (`lib/sponsors.test.ts`)
+the same way `lib/fixtures.ts`'s helpers are.
+
+Loading the sponsor list fails soft: a Supabase error there logs nothing
+special and just falls back to an empty overlay rather than `LoadError`-ing
+the whole page, since the video is why anyone's on this page — a broken
+sponsor fetch shouldn't take that down too.
+
+**Known rough edges:**
+- No collision handling — if a school assigns more sponsors to one slot
+  than comfortably fit (say five bottom-right badges), they'll just wrap
+  and stack awkwardly. Fine for the handful of sponsors a school
+  realistically has; would need a cap or carousel at real scale.
+- No dark/light contrast tuning beyond a flat `bg-black/60` — assumes a
+  reasonably dark video frame behind it, which is usually true for a live
+  sports stream but not guaranteed.
+- Sponsor logos are rendered as plain `<img>`, not `next/image` (arbitrary
+  external URLs `next/image` would need domain-allow-listed ahead of time),
+  so there's no automatic resizing/optimization — a school linking a huge
+  source image will serve it at full size, just visually constrained by
+  CSS.
+
 ## Architecture
 
 Same split as the backend edge function and the Android app's networking
@@ -167,10 +205,13 @@ project:
   above).
 - **`lib/sponsors.ts`** / **`lib/sponsors-server.ts`** — same pure-logic /
   I/O split as `lib/fixtures.ts` vs `lib/supabase.ts`: `sponsors.ts` holds
-  the tier/position/layer constants, types, and label functions (no
-  Supabase import, so the Client Component forms can import it directly);
-  `sponsors-server.ts` holds `loadSponsorsForSchool` and
-  `loadFixtureSponsors`, which do need `next/headers` through
+  the tier/position/layer constants, types, label functions, and now also
+  `webOverlaySponsors()`/`groupByPosition()` (the filtering/bucketing logic
+  behind the `/matches/[id]` sponsor overlay) — no Supabase import, so
+  Client Component forms and the overlay component can both import it
+  directly and it's unit-tested without a live database
+  (`lib/sponsors.test.ts`); `sponsors-server.ts` holds `loadSponsorsForSchool`
+  and `loadFixtureSponsors`, which do need `next/headers` through
   `supabase-server.ts` and so can only be imported from Server Components.
   Splitting these out wasn't optional — the first version had them in one
   file and `next build` failed the moment a Client Component imported a
@@ -230,9 +271,6 @@ worth doing before this goes anywhere near real production traffic.
   yet.
 - **"Notify me" for upcoming fixtures** (spec 7.3.2) and the countdown-to-kickoff
   display.
-- **Web-layer sponsor slots** around the player (spec 7.3.3) — the baked-in
-  overlay from the broadcaster app is the only sponsor placement live right
-  now.
 - **Editing or deleting a sponsor, or editing/cancelling a fixture** —
   `/admin/sponsors/new` and `/admin/fixtures/new` only cover create; a
   sponsor's assignment to a specific fixture can be removed
@@ -244,14 +282,13 @@ worth doing before this goes anywhere near real production traffic.
   field; a school has to host the image somewhere else first and paste the
   link in. Fine for now, matches the "no file upload" scope call already
   made for `click_url`/`logo_url` when this was built.
-- **Nothing actually renders `fixture_sponsors` yet** — the admin panel can
-  now create the assignments (which sponsor, what tier/position, baked-in
-  vs. web-overlay), but neither the broadcaster app's overlay nor this
-  site's `/matches/[id]` page reads from that table — the app's sponsor
-  slots are still local image picks (see the top-level README), and there's
-  no web-layer sponsor UI around the player. This round is data-model +
-  admin-panel plumbing; actually displaying a sponsor anywhere is a
-  separate slice.
+- **`baked_in`-layer sponsors still don't render anywhere** — the
+  `web_overlay` layer now shows on `/matches/[id]` (see "Web-layer sponsor
+  overlay" above), but the broadcaster app's video overlay still isn't
+  wired to `fixture_sponsors` at all; its sponsor slots are still local
+  image picks made on the device (see the top-level README), independent
+  of anything set in `/admin`. Connecting the two means the app fetching
+  fixture_sponsors + resolved logo URLs during setup, which it doesn't do.
 - **Crew account management** — creating a school_operator account (or
   assigning `fixtures.assigned_operator_id` to a specific one) is still a
   manual/SQL step; there's no "invite a crew member" flow anywhere.

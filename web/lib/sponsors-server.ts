@@ -40,17 +40,22 @@ export async function loadFixtureSponsors(fixtureId: string): Promise<FixtureSpo
   const sponsorIds = Array.from(new Set(rows.map((row) => row.sponsor_id)));
   const { data: sponsors, error: sponsorsError } = await supabase
     .from("sponsors")
-    .select("id, name")
+    .select("id, name, logo_url, click_url")
     .in("id", sponsorIds);
-  if (sponsorsError) throw new Error(`Could not load sponsor names: ${sponsorsError.message}`);
+  if (sponsorsError) throw new Error(`Could not load sponsor details: ${sponsorsError.message}`);
 
-  const nameById = new Map((sponsors ?? []).map((sponsor) => [sponsor.id, sponsor.name]));
+  const sponsorById = new Map((sponsors ?? []).map((sponsor) => [sponsor.id, sponsor]));
 
-  return rows.map((row) => ({
-    sponsorId: row.sponsor_id,
-    sponsorName: nameById.get(row.sponsor_id) ?? "Unknown sponsor",
-    position: row.position,
-    tier: row.tier,
-    layer: row.layer,
-  }));
+  return rows.map((row) => {
+    const sponsor = sponsorById.get(row.sponsor_id);
+    return {
+      sponsorId: row.sponsor_id,
+      sponsorName: sponsor?.name ?? "Unknown sponsor",
+      logoUrl: sponsor?.logo_url ?? null,
+      clickUrl: sponsor?.click_url ?? null,
+      position: row.position,
+      tier: row.tier,
+      layer: row.layer,
+    };
+  });
 }

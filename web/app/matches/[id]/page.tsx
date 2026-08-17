@@ -3,7 +3,10 @@ import { notFound } from "next/navigation";
 import { BackendNotConfigured, LoadError } from "../../_components";
 import { getCurrentParent } from "@/lib/auth";
 import { formatKickoff } from "@/lib/fixtures";
+import type { FixtureSponsorAssignment } from "@/lib/sponsors";
+import { loadFixtureSponsors } from "@/lib/sponsors-server";
 import { isBackendConfigured, loadFixtureById } from "@/lib/supabase";
+import { SponsorOverlay } from "./sponsor-overlay";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +39,16 @@ export default async function MatchPage({ params }: MatchPageProps) {
   // metadata public is what makes the schedule shareable at all.
   const parent = await getCurrentParent();
 
+  // Sponsor badges are decorative, not the reason anyone's on this page —
+  // a failure loading them shouldn't take out the match/video itself, so
+  // this fails soft to an empty overlay instead of LoadError-ing the page.
+  let sponsorAssignments: FixtureSponsorAssignment[] = [];
+  try {
+    sponsorAssignments = await loadFixtureSponsors(fixture.id);
+  } catch {
+    sponsorAssignments = [];
+  }
+
   return (
     <div>
       <p className="text-xs uppercase tracking-wide text-textsecondary">
@@ -46,7 +59,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
       </h1>
       <p className="mt-1 text-sm text-textsecondary">{formatKickoff(fixture.scheduledStart)}</p>
 
-      <div className="mt-6">
+      <div className="relative mt-6">
         {fixture.youtubeVideoId ? (
           parent ? (
             // Same video ID serves both the live stream and, once it ends,
@@ -79,6 +92,10 @@ export default async function MatchPage({ params }: MatchPageProps) {
               : "No video available for this fixture yet."}
           </div>
         )}
+        {/* Only over the aspect-video-sized states above — the "no video
+            yet" box is a different shape and sponsors placed on it would
+            just look wrong, not just unnecessary. */}
+        {fixture.youtubeVideoId && <SponsorOverlay assignments={sponsorAssignments} />}
       </div>
 
       {hasFinalScore && (
