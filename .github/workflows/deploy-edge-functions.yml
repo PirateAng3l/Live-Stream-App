@@ -28,5 +28,5 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           supabase functions deploy provision-fixture-broadcast \
-            --project-ref frezhkvgwujcxnqxebic \
+            --project-ref frezhkvgwujcxnqoebic \
             --use-api
