@@ -15,7 +15,7 @@ export { isBackendConfigured };
  * Android app's SupabaseClient: simpler typing, doesn't depend on
  * foreign-key constraint names staying stable.
  */
-async function resolveNames(
+export async function resolveNames(
   fixtures: FixtureRow[],
 ): Promise<{ teams: TeamRow[]; schools: SchoolRow[] }> {
   const supabase = createSupabaseServerClient();

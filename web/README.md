@@ -1,8 +1,9 @@
 # Open Door Live — Web Platform
 
-The public-facing schedule + replay site (Component C, spec Section 7). Covers
-the match schedule, match/replay pages, and login-gated viewing (spec
-7.3.1–7.3.3, 4.4). No admin panel yet — see "Not built yet" below.
+Component C (spec Section 7): the public schedule/replay site, login-gated
+viewing, and the internal admin panel — all one Next.js app, matching how
+the spec itself groups them (7.3.6 is a subsection of Component C, not a
+separate product).
 
 ## What's here
 
@@ -53,6 +54,53 @@ YouTube URL (view source, browser devtools) could bypass this login wall
 entirely and watch directly on YouTube. That's spec 4.4's own documented
 tradeoff for v1, not something introduced here.
 
+## Admin panel (`/admin`)
+
+Gated to `platform_admin` and `school_operator` accounts only — a parent
+account (or nobody) hitting `/admin` gets redirected to `/sign-in`.
+Unlike the public site, **these accounts don't self-serve sign up**: per
+`backend/README.md`, elevating a profile to school_operator or
+platform_admin is a deliberate admin action (concierge, today — someone
+runs a SQL update after the account exists). This panel is where they
+land once they have one.
+
+- **`/admin`** — the fixture list. A `school_operator` sees only their own
+  school's fixtures (an actual query filter, not just relying on RLS to
+  hide the rest — see `loadFixturesForStaff` in `lib/admin.ts`); a
+  `platform_admin` sees every fixture, across every school. Each row shows
+  "Ready to stream" or "Provisioning…" based on whether
+  `youtube_video_id` has landed yet.
+- **`/admin/fixtures/new`** — create a fixture. This is the whole
+  "scheduling feature" the spec calls out (7.3.6) — the form does nothing
+  but insert a row into `fixtures`; the YouTube broadcast gets provisioned
+  automatically from there by the database trigger already built in
+  `backend/` (migration 0002). Needs at least two teams to exist for the
+  school first.
+- **`/admin/teams`**, **`/admin/teams/new`** — list/create teams for a
+  school. A prerequisite for creating a fixture (a fixture needs two
+  existing team IDs), so it had to come first.
+- A `platform_admin` has no school of their own, so `/admin/teams` and
+  `/admin/fixtures/new` show a school picker first (`?school=<id>` in the
+  URL) rather than assuming one. A `school_operator` never sees this step —
+  `resolveSchoolContext` (`lib/admin.ts`) always resolves straight to their
+  own school, and **ignores any school the client tries to submit**, even
+  from a tampered hidden form field. That function is the one piece of
+  real authorization-adjacent logic in the admin panel, which is why it's
+  pure and unit-tested (`lib/admin.test.ts`) on exactly that case, on top
+  of RLS backing it up as a second layer either way.
+- Writes (`createTeamAction`, `createFixtureAction` in each section's
+  `actions.ts`) are Next.js Server Actions — the App Router's mechanism for
+  a form mutation that needs the real signed-in session, wired up with
+  `useFormState`/`useFormStatus` so a rejected submission (missing field,
+  RLS denial, whatever) shows inline instead of a blank failure.
+
+**Known rough edge:** the sign-in redirect after hitting a gated `/admin`
+page always lands back on `/admin` itself, not the specific sub-page (e.g.
+`/admin/teams/new`) that triggered it — the redirect lives in the shared
+`app/admin/layout.tsx`, which doesn't know which page asked for it. Minor;
+fixable later with a middleware-injected path header if it's ever annoying
+enough to bother with.
+
 ## Architecture
 
 Same split as the backend edge function and the Android app's networking
@@ -84,6 +132,22 @@ project:
 - **`lib/auth.ts`** — `getCurrentParent()`: is there a valid session, full
   stop. No `profiles` table lookup — a session on this site already implies
   parent, see above.
+- **`lib/staff.ts`** — `getCurrentStaffProfile()`: the admin-panel
+  counterpart to `getCurrentParent()`. Actually reads `profiles` (role,
+  school_id), since staff accounts aren't self-serve and the panel needs to
+  know who it's dealing with. Both this and `getCurrentParent()` are
+  wrapped in React's `cache()` so a request that reads the session from
+  both a layout and a page (normal in this app) only hits Supabase once.
+- **`lib/admin.ts`** — the admin panel's data access (`loadAllSchools`,
+  `loadTeamsForSchool`, `loadFixturesForStaff`) plus
+  `resolveSchoolContext()`, the one pure/testable piece of
+  authorization-adjacent logic in the panel (see the Admin panel section
+  above).
+- **`lib/sports.ts`** — the sport catalog, kept in sync by hand with the
+  Android app's `Sport` enum (comment in the file explains why: a
+  fixture's `sport` string has to match one of that enum's names for the
+  app to auto-select the right scoreboard layout when a crew member loads
+  it).
 - **`middleware.ts`** — refreshes the session cookie on every request.
   Standard Supabase + Next.js requirement: without it, a session nearing
   expiry can go stale mid-visit, since Server Components mostly can't write
@@ -137,10 +201,23 @@ worth doing before this goes anywhere near real production traffic.
 - **Web-layer sponsor slots** around the player (spec 7.3.3) — the baked-in
   overlay from the broadcaster app is the only sponsor placement live right
   now.
-- **The admin panel** (spec 7.3.6) — fixtures currently only get created via
-  a direct SQL insert (or, once it exists, whatever creates them will need
-  to also call the provisioning edge function or rely on the database
-  trigger, both already built in `backend/`).
+- **Sponsor management in the admin panel** — the backend already has full
+  `sponsors` and `fixture_sponsors` tables with RLS (a school manages its
+  own sponsor inventory, per the subscription/licensing model this project
+  settled on), but nothing in `/admin` reads or writes them yet. Natural
+  next slice.
+- **Editing or cancelling a fixture** — `/admin/fixtures/new` only covers
+  create. No edit form, no cancel action, no re-provisioning if a mistake
+  needs fixing after the fact (the edge function's own README already
+  flags re-provisioning as unbuilt).
+- **Crew account management** — creating a school_operator account (or
+  assigning `fixtures.assigned_operator_id` to a specific one) is still a
+  manual/SQL step; there's no "invite a crew member" flow anywhere.
+- **Subscription status isn't shown or enforced anywhere in the UI** — the
+  `subscriptions` table exists and school-scoped RLS is in place, but
+  nothing here surfaces a school's billing state or blocks fixture
+  creation if it's lapsed (per the earlier decision, viewing old replays
+  should never be blocked by this either way — see `backend/README.md`).
 - Local timezone display — kickoff times are shown in a fixed UTC format
   (deliberately, to avoid a server/client hydration mismatch); converting to
   the visitor's local time would need a small client component.

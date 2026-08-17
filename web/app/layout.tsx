@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { SignOutButton } from "./_sign-out-button";
 import "./globals.css";
 import { getCurrentParent } from "@/lib/auth";
+import { getCurrentStaffProfile } from "@/lib/staff";
 
 export const metadata: Metadata = {
   title: "Open Door Live",
@@ -11,7 +12,14 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const parent = await getCurrentParent();
+  // Both read the same underlying session (each cache()'d per-request, see
+  // lib/auth.ts / lib/staff.ts) — this just decides what the header shows,
+  // it's not where any real access control happens. A staff account is
+  // also a valid session for getCurrentParent's purposes (nothing stops a
+  // school_operator from being shown as "signed in" here too); the only
+  // consequence is their email showing in this header like a parent's
+  // would, which is harmless.
+  const [parent, staff] = await Promise.all([getCurrentParent(), getCurrentStaffProfile()]);
 
   return (
     <html lang="en">
@@ -20,7 +28,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <a href="/" className="text-lg font-bold tracking-wide">
             OPEN DOOR <span className="text-accent">LIVE</span>
           </a>
-          <nav className="text-sm">
+          <nav className="flex items-center gap-4 text-sm">
+            {staff && (
+              <Link href="/admin" className="font-semibold text-textsecondary hover:text-textprimary">
+                Admin
+              </Link>
+            )}
             {parent ? (
               <div className="flex items-center gap-3">
                 <span className="hidden text-textsecondary sm:inline">{parent.email}</span>
