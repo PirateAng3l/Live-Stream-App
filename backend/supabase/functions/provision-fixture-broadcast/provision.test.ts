@@ -111,7 +111,11 @@ Deno.test("provisionFixtureBroadcast runs the full flow and persists the result"
   assert.deepEqual(savedCredentials, [
     {
       fixtureId: "fixture-1",
-      credentials: { broadcastId: "bcast-1", streamKey: "the-stream-key" },
+      credentials: {
+        broadcastId: "bcast-1",
+        streamKey: "the-stream-key",
+        ingestionAddress: "rtmp://a.rtmp.youtube.com/live2",
+      },
     },
   ]);
   assert.deepEqual(savedVideoIds, [{

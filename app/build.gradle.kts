@@ -1,6 +1,21 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+}
+
+// SUPABASE_URL / SUPABASE_ANON_KEY come from local.properties (gitignored,
+// never committed) rather than being hardcoded, same reasoning as the
+// Android SDK path Android Studio already puts there. Missing values just
+// build empty strings — BackendConfig.isConfigured checks for that so the
+// crew sign-in feature degrades to "unavailable" instead of crashing when
+// nobody's set up a Supabase project yet. See backend/README.md.
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
 }
 
 android {
@@ -13,6 +28,9 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "0.1.0-poc"
+
+        buildConfigField("String", "SUPABASE_URL", "\"${localProperties.getProperty("SUPABASE_URL", "")}\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${localProperties.getProperty("SUPABASE_ANON_KEY", "")}\"")
     }
 
     buildTypes {
@@ -33,6 +51,7 @@ android {
 
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 }
 

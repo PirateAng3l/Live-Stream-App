@@ -70,10 +70,6 @@ This repo now holds two components of the platform described in `PROJECT_SPEC.md
 
 ## What it deliberately does NOT do (yet)
 
-- No login, no fixture list, no backend — per spec Section 9, this validates the hard
-  compositing+RTMP piece in isolation before the rest is built.
-- No YouTube Live API automation — you create the broadcast in YouTube Studio manually
-  and paste in the RTMP URL + stream key it gives you (Studio → Go Live → Stream).
 - No SRT fallback, no adaptive bitrate, no thermal/battery instrumentation.
 - Sponsor/logo *text* (the fallback shown when no image is picked) is still hardcoded
   in `MainActivity.kt` (`businessLabel`, `sponsorHeadline`, `sponsorLeft`,
@@ -94,6 +90,31 @@ This repo now holds two components of the platform described in `PROJECT_SPEC.md
 
 Any other RTMP-accepting target (e.g. a local `nginx-rtmp` / `MediaMTX` server, or
 restream.io) works the same way for a first no-YouTube-account test.
+
+## Crew sign-in (optional) — pulling a fixture from the backend
+
+The manual RTMP URL/key entry above always works and is untouched — but there's now
+an optional "CREW SIGN-IN" section above it in the setup panel that talks to the
+`backend/` project (see its own README): sign in with a crew email/password, pick an
+upcoming fixture for your school from a dropdown, tap **Load Fixture**, and it fills
+in the RTMP URL/key (pulled from `fixture_broadcast_credentials`, provisioned
+automatically when the fixture was created — see
+`backend/supabase/functions/provision-fixture-broadcast/`), plus the team names and
+sport, exactly the way manual entry would. Sign out to clear the stored session.
+
+**Setup:** the app needs a Supabase project URL + anon key to talk to, read from
+`local.properties` (gitignored, never committed) at build time — add:
+```
+SUPABASE_URL=https://<your-project-ref>.supabase.co
+SUPABASE_ANON_KEY=<your project's anon key>
+```
+Without these, the sign-in button just shows "Backend not configured" instead of
+crashing — this feature is additive, not a requirement to use the app.
+
+**Known limitation:** only `school_operator` accounts get a fixture list right now —
+a `platform_admin` account can sign in but sees no fixtures, since there's no
+school-picker yet for an admin covering more than one school. Not a priority until
+there's an admin panel to build one against.
 
 ## Building it
 
@@ -119,6 +140,10 @@ app/src/main/java/com/opendoorproductions/broadcaster/
   OverlayChrome.kt            logo + sponsor drawing shared by both overlay renderers
   TeamOverlayRenderer.kt      two-team scoreboard HUD (rugby/soccer/netball/hockey/other)
   CricketOverlayRenderer.kt   runs/wickets/overs HUD with target/chase line
+  SponsorPresetStore.kt       named save/load/delete of a full sponsor setup
+  backend/
+    BackendConfig.kt          reads SUPABASE_URL/SUPABASE_ANON_KEY from BuildConfig
+    SupabaseClient.kt         blocking HTTP client: crew sign-in, fixtures, credentials
 app/src/main/res/layout/activity_main.xml   camera view + status chip + score panel
 ```
 

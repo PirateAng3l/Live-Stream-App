@@ -27,6 +27,11 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.widget.doAfterTextChanged
 import com.google.android.material.button.MaterialButton
+import com.opendoorproductions.broadcaster.backend.BackendConfig
+import com.opendoorproductions.broadcaster.backend.BroadcastCredentials
+import com.opendoorproductions.broadcaster.backend.CrewSession
+import com.opendoorproductions.broadcaster.backend.FixtureSummary
+import com.opendoorproductions.broadcaster.backend.SupabaseClient
 import com.opendoorproductions.broadcaster.databinding.ActivityMainBinding
 import com.pedro.common.ConnectChecker
 import com.pedro.encoder.input.gl.render.filters.`object`.ImageObjectFilterRender
@@ -43,6 +48,9 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private lateinit var overlayFilter: ImageObjectFilterRender
     private lateinit var presetStore: SponsorPresetStore
     private var presetSummaries: List<SponsorPresetSummary> = emptyList()
+
+    private val supabaseClient by lazy { SupabaseClient(BackendConfig.supabaseUrl, BackendConfig.supabaseAnonKey) }
+    private var crewFixtures: List<FixtureSummary> = emptyList()
 
     private val scoreController = ScoreController()
     private val cricketController = CricketController()
@@ -142,6 +150,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         setupSponsorImagePickers()
         setupPresetControls()
         setupZoomControl()
+        setupCrewSignIn()
         onSportChanged()
         updateStatus(R.string.status_offline, Color.parseColor("#B7C2CC"))
 
@@ -232,6 +241,201 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
             Log.w(TAG, "setZoom($clamped) failed", error)
         }
         binding.zoomValueLabel.text = getString(R.string.zoom_format, clamped)
+    }
+
+    // Entirely optional layer on top of the manual RTMP URL/key entry, which keeps
+    // working exactly as before whether or not anyone signs in — there's no live
+    // Supabase project to test this against yet (see BackendConfig), and the app
+    // must still work standalone regardless. Loading a fixture just fills in the
+    // same fields+prefs the manual flow already writes to, via setText(), which is
+    // why loading one also persists it the same way manual entry always has.
+    private fun setupCrewSignIn() {
+        updateCrewSignInUi()
+        if (loadStoredCrewSession() != null) {
+            refreshCrewFixturesInBackground()
+        }
+
+        binding.crewSignInBtn.setOnClickListener { performCrewSignIn() }
+        binding.crewSignOutBtn.setOnClickListener {
+            clearCrewSession()
+            updateCrewSignInUi()
+        }
+        binding.loadFixtureBtn.setOnClickListener { performLoadFixture() }
+    }
+
+    private fun performCrewSignIn() {
+        val email = binding.crewEmailInput.text?.toString()?.trim().orEmpty()
+        val password = binding.crewPasswordInput.text?.toString().orEmpty()
+        if (email.isEmpty() || password.isEmpty()) {
+            Toast.makeText(this, R.string.crew_enter_credentials, Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (!BackendConfig.isConfigured) {
+            Toast.makeText(this, R.string.backend_not_configured, Toast.LENGTH_LONG).show()
+            return
+        }
+        binding.crewSignInBtn.isEnabled = false
+        Thread {
+            try {
+                val session = supabaseClient.signIn(email, password)
+                saveCrewSession(session, email)
+                val profile = supabaseClient.getMyProfile(session.accessToken)
+                prefs.edit().putString(PREF_CREW_SCHOOL_ID, profile.schoolId).apply()
+                val fixtures = profile.schoolId
+                    ?.let { supabaseClient.getUpcomingFixtures(session.accessToken, it) }
+                    .orEmpty()
+                uiHandler.post {
+                    binding.crewSignInBtn.isEnabled = true
+                    crewFixtures = fixtures
+                    updateCrewSignInUi()
+                    refreshFixtureSpinner()
+                    Toast.makeText(this, getString(R.string.signed_in_as, email), Toast.LENGTH_SHORT).show()
+                }
+            } catch (error: Exception) {
+                Log.e(TAG, "Crew sign-in failed", error)
+                uiHandler.post {
+                    binding.crewSignInBtn.isEnabled = true
+                    Toast.makeText(
+                        this,
+                        getString(R.string.sign_in_failed, error.message ?: "unknown error"),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
+        }.start()
+    }
+
+    private fun refreshCrewFixturesInBackground() {
+        val session = loadStoredCrewSession() ?: return
+        val schoolId = prefs.getString(PREF_CREW_SCHOOL_ID, null) ?: return
+        Thread {
+            try {
+                val fresh = ensureFreshSessionBlocking(session)
+                val fixtures = supabaseClient.getUpcomingFixtures(fresh.accessToken, schoolId)
+                uiHandler.post {
+                    crewFixtures = fixtures
+                    refreshFixtureSpinner()
+                }
+            } catch (error: Exception) {
+                // Silent: this runs automatically on startup for an already-signed-in
+                // operator, and a stale/offline failure here shouldn't nag them before
+                // they've even asked to do anything. performCrewSignIn/performLoadFixture
+                // surface real errors when the operator actually takes an action.
+                Log.w(TAG, "Could not refresh crew fixtures in background", error)
+            }
+        }.start()
+    }
+
+    private fun performLoadFixture() {
+        val fixture = crewFixtures.getOrNull(binding.crewFixtureSpinner.selectedItemPosition)
+        val session = loadStoredCrewSession()
+        if (fixture == null || session == null) {
+            Toast.makeText(this, R.string.select_fixture_first, Toast.LENGTH_SHORT).show()
+            return
+        }
+        binding.loadFixtureBtn.isEnabled = false
+        Thread {
+            try {
+                val fresh = ensureFreshSessionBlocking(session)
+                val credentials = supabaseClient.getBroadcastCredentials(fresh.accessToken, fixture.id)
+                uiHandler.post {
+                    binding.loadFixtureBtn.isEnabled = true
+                    applyLoadedFixture(fixture, credentials)
+                }
+            } catch (error: Exception) {
+                Log.e(TAG, "Load fixture failed", error)
+                uiHandler.post {
+                    binding.loadFixtureBtn.isEnabled = true
+                    Toast.makeText(
+                        this,
+                        getString(R.string.crew_load_error, error.message ?: "unknown error"),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
+        }.start()
+    }
+
+    private fun applyLoadedFixture(fixture: FixtureSummary, credentials: BroadcastCredentials) {
+        binding.rtmpUrlInput.setText(credentials.ingestionAddress)
+        binding.rtmpKeyInput.setText(credentials.streamKey)
+        binding.homeNameInput.setText(fixture.homeTeamName)
+        binding.awayNameInput.setText(fixture.awayTeamName)
+        Sport.entries.firstOrNull { it.name.equals(fixture.sport, ignoreCase = true) }?.let { matchedSport ->
+            currentSport = matchedSport
+            binding.sportSpinner.setSelection(Sport.entries.indexOf(matchedSport))
+            onSportChanged()
+        }
+        Toast.makeText(this, R.string.fixture_loaded, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun refreshFixtureSpinner() {
+        val labels = if (crewFixtures.isEmpty()) {
+            listOf(getString(R.string.no_fixtures_found))
+        } else {
+            crewFixtures.map { "${it.homeTeamName} vs ${it.awayTeamName}" }
+        }
+        val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, labels) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getView(position, convertView, parent) as TextView
+                view.setTextColor(Color.WHITE)
+                return view
+            }
+
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getDropDownView(position, convertView, parent) as TextView
+                view.setTextColor(Color.WHITE)
+                view.setPadding(24, 20, 24, 20)
+                return view
+            }
+        }
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        binding.crewFixtureSpinner.adapter = adapter
+    }
+
+    private fun updateCrewSignInUi() {
+        val signedIn = loadStoredCrewSession() != null
+        binding.crewSignedOutGroup.visibility = if (signedIn) View.GONE else View.VISIBLE
+        binding.crewSignedInGroup.visibility = if (signedIn) View.VISIBLE else View.GONE
+        if (signedIn) {
+            binding.crewStatusLabel.text =
+                getString(R.string.signed_in_as, prefs.getString(PREF_CREW_EMAIL, "").orEmpty())
+        }
+    }
+
+    private fun loadStoredCrewSession(): CrewSession? {
+        val accessToken = prefs.getString(PREF_CREW_ACCESS_TOKEN, null) ?: return null
+        val refreshToken = prefs.getString(PREF_CREW_REFRESH_TOKEN, null) ?: return null
+        return CrewSession(accessToken, refreshToken, prefs.getLong(PREF_CREW_EXPIRES_AT, 0L))
+    }
+
+    private fun saveCrewSession(session: CrewSession, email: String) {
+        prefs.edit()
+            .putString(PREF_CREW_ACCESS_TOKEN, session.accessToken)
+            .putString(PREF_CREW_REFRESH_TOKEN, session.refreshToken)
+            .putLong(PREF_CREW_EXPIRES_AT, session.expiresAtEpochSeconds)
+            .putString(PREF_CREW_EMAIL, email)
+            .apply()
+    }
+
+    private fun clearCrewSession() {
+        prefs.edit()
+            .remove(PREF_CREW_ACCESS_TOKEN)
+            .remove(PREF_CREW_REFRESH_TOKEN)
+            .remove(PREF_CREW_EXPIRES_AT)
+            .remove(PREF_CREW_EMAIL)
+            .remove(PREF_CREW_SCHOOL_ID)
+            .apply()
+        crewFixtures = emptyList()
+    }
+
+    /** Refreshes only when close to/past expiry — called from a background thread. */
+    private fun ensureFreshSessionBlocking(session: CrewSession): CrewSession {
+        val nowPlusBuffer = System.currentTimeMillis() / 1000 + 60
+        if (session.expiresAtEpochSeconds > nowPlusBuffer) return session
+        val refreshed = supabaseClient.refreshSession(session.refreshToken)
+        saveCrewSession(refreshed, prefs.getString(PREF_CREW_EMAIL, "").orEmpty())
+        return refreshed
     }
 
     private fun renderCurrentOverlayBitmap(): Bitmap {
@@ -1049,5 +1253,10 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         const val PREF_SPONSOR_RIGHT_SCALE = "sponsor_right_scale"
         const val PREF_SPONSOR_HEADLINE_PREFIX = "sponsor_headline_prefix"
         const val PREF_SPONSOR_HEADLINE_OFFSET = "sponsor_headline_offset"
+        const val PREF_CREW_ACCESS_TOKEN = "crew_access_token"
+        const val PREF_CREW_REFRESH_TOKEN = "crew_refresh_token"
+        const val PREF_CREW_EXPIRES_AT = "crew_expires_at"
+        const val PREF_CREW_EMAIL = "crew_email"
+        const val PREF_CREW_SCHOOL_ID = "crew_school_id"
     }
 }

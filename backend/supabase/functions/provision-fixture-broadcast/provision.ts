@@ -35,7 +35,11 @@ export interface ProvisionDb {
   getYoutubeAccountForSchool(schoolId: string): Promise<YoutubeAccount>;
   saveBroadcastCredentials(
     fixtureId: string,
-    credentials: { broadcastId: string; streamKey: string },
+    credentials: {
+      broadcastId: string;
+      streamKey: string;
+      ingestionAddress: string;
+    },
   ): Promise<void>;
   setFixtureVideoId(fixtureId: string, videoId: string): Promise<void>;
 }
@@ -99,6 +103,7 @@ export async function provisionFixtureBroadcast(
   await deps.db.saveBroadcastCredentials(fixtureId, {
     broadcastId: broadcast.id,
     streamKey: stream.streamName,
+    ingestionAddress: stream.ingestionAddress,
   });
   await deps.db.setFixtureVideoId(fixtureId, broadcast.id);
 

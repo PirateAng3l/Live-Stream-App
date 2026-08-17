@@ -93,13 +93,23 @@ see the edge function's own README for the exact commands. Until those
 are set, fixture inserts still succeed; the trigger just logs a warning
 and skips provisioning.
 
+## The Android app now reads from this backend (optional)
+
+The broadcaster app's "CREW SIGN-IN" section (see the top-level README) signs a
+crew member in against Supabase Auth, lists their school's upcoming fixtures, and
+pulls a selected fixture's RTMP URL/key from `fixture_broadcast_credentials` —
+instead of the operator typing them in by hand. It's additive: manual entry still
+works exactly as before if nobody signs in, and the feature quietly disables itself
+if the app isn't built with a Supabase URL/anon key configured.
+
+Only `school_operator` accounts get a fixture list right now (a `platform_admin`
+signing in from the app sees none — no school-picker exists yet for that case).
+
 ## Not built yet
 
-- Auth wiring for the broadcaster Android app to pull a crew member's
-  assigned fixtures + that fixture's stream key from this backend, instead
-  of the current manual RTMP URL/key entry.
 - The admin panel and public web platform (Component C) — this backend
   is what they'll both read from once built. Right now the only way to
   create a fixture is a direct SQL insert.
 - Re-provisioning or cleanup when a fixture changes or is cancelled after
   it's already been provisioned.
+- A school-picker for platform_admin accounts in the Android app (see above).

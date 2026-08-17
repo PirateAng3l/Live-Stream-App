@@ -108,6 +108,7 @@ export function createSupabaseProvisionDb(client: SupabaseClient): ProvisionDb {
           fixture_id: fixtureId,
           youtube_broadcast_id: credentials.broadcastId,
           youtube_stream_key: credentials.streamKey,
+          youtube_ingestion_address: credentials.ingestionAddress,
         });
       if (error) {
         throw new Error(
