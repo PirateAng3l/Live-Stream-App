@@ -1,0 +1,32 @@
+name: Deploy edge functions
+
+# Same idea as the Supabase GitHub integration already handling migrations
+# (backend/supabase/migrations/) on push to this branch — but that
+# integration only covers migrations, not edge functions, so this fills the
+# gap. Auth is a repo secret (SUPABASE_ACCESS_TOKEN), never anything checked
+# into the repo or passed through this workflow's logs.
+on:
+  push:
+    branches: [claude/android-app-discovery-b8joya]
+    paths:
+      - "backend/supabase/functions/**"
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy provision-fixture-broadcast
+        working-directory: backend
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase functions deploy provision-fixture-broadcast \
+            --project-ref frezhkvgwujcxnqxebic \
+            --use-api
