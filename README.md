@@ -16,9 +16,9 @@ This repo now holds all three components of the platform described in
 - **`web/` — the public site + admin panel.** The match schedule (Upcoming /
   Completed, filterable by sport), per-match pages with a login-gated embedded
   YouTube player, parent sign-up/sign-in, and an internal `/admin` panel
-  (create fixtures/teams — creating a fixture is what triggers YouTube
-  provisioning) for `platform_admin`/`school_operator` accounts. See
-  `web/README.md`.
+  (create fixtures/teams/sponsors — creating a fixture is what triggers
+  YouTube provisioning — and assign sponsors to individual fixtures) for
+  `platform_admin`/`school_operator` accounts. See `web/README.md`.
 
 ## Broadcaster POC (Android)
 

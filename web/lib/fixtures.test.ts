@@ -41,6 +41,7 @@ describe("resolveFixtureSummaries", () => {
         sport: "rugby",
         scheduledStart: "2026-08-20T14:30:00Z",
         status: "scheduled",
+        hostSchoolId: "school-1",
         homeTeamName: "Riverside 1st XV",
         awayTeamName: "Oak Park 1st XV",
         schoolName: "Riverside High",

@@ -40,28 +40,30 @@ export default async function AdminFixturesPage() {
       ) : (
         <ul className="space-y-3">
           {fixtures.map((fixture) => (
-            <li
-              key={fixture.id}
-              className="rounded-lg border border-white/10 bg-panel px-4 py-3"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs uppercase tracking-wide text-textsecondary">{fixture.sport}</span>
-                <StatusBadge status={fixture.status} />
-              </div>
-              <div className="mt-1 font-semibold">
-                {fixture.homeTeamName} <span className="text-textsecondary">vs</span> {fixture.awayTeamName}
-              </div>
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-textsecondary">
-                <span>{fixture.schoolName}</span>
-                <span>·</span>
-                <span>{formatKickoff(fixture.scheduledStart)}</span>
-                <span>·</span>
-                {fixture.youtubeVideoId ? (
-                  <span className="text-ok">Ready to stream</span>
-                ) : (
-                  <span>Provisioning…</span>
-                )}
-              </div>
+            <li key={fixture.id}>
+              <Link
+                href={`/admin/fixtures/${fixture.id}`}
+                className="block rounded-lg border border-white/10 bg-panel px-4 py-3 hover:border-accent"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs uppercase tracking-wide text-textsecondary">{fixture.sport}</span>
+                  <StatusBadge status={fixture.status} />
+                </div>
+                <div className="mt-1 font-semibold">
+                  {fixture.homeTeamName} <span className="text-textsecondary">vs</span> {fixture.awayTeamName}
+                </div>
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-textsecondary">
+                  <span>{fixture.schoolName}</span>
+                  <span>·</span>
+                  <span>{formatKickoff(fixture.scheduledStart)}</span>
+                  <span>·</span>
+                  {fixture.youtubeVideoId ? (
+                    <span className="text-ok">Ready to stream</span>
+                  ) : (
+                    <span>Provisioning…</span>
+                  )}
+                </div>
+              </Link>
             </li>
           ))}
         </ul>

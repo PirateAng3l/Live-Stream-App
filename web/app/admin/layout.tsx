@@ -19,6 +19,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           <Link href="/admin/teams" className="hover:text-accent">
             Teams
           </Link>
+          <Link href="/admin/sponsors" className="hover:text-accent">
+            Sponsors
+          </Link>
         </nav>
         <span className="text-xs text-textsecondary">
           {staff.role === "platform_admin" ? "Platform admin" : "School operator"}

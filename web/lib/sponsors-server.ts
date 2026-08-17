@@ -1,0 +1,56 @@
+import type { FixtureSponsorAssignment, SponsorOption } from "./sponsors";
+import { createSupabaseServerClient } from "./supabase-server";
+
+export async function loadSponsorsForSchool(schoolId: string): Promise<SponsorOption[]> {
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("sponsors")
+    .select("id, name, tier, default_position, click_url, logo_url")
+    .eq("school_id", schoolId)
+    .order("name");
+  if (error) throw new Error(`Could not load sponsors: ${error.message}`);
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    tier: row.tier,
+    defaultPosition: row.default_position,
+    clickUrl: row.click_url,
+    logoUrl: row.logo_url,
+  }));
+}
+
+/**
+ * Two flat queries (fixture_sponsors, then sponsors by id) rather than an
+ * embedded-relation select — same reasoning as resolveNames in supabase.ts:
+ * a shared `.select()` literal breaks supabase-js's type inference, and this
+ * avoids depending on the FK constraint name either way.
+ */
+export async function loadFixtureSponsors(fixtureId: string): Promise<FixtureSponsorAssignment[]> {
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("fixture_sponsors")
+    .select("sponsor_id, position, tier, layer")
+    .eq("fixture_id", fixtureId);
+  if (error) throw new Error(`Could not load fixture sponsors: ${error.message}`);
+
+  const rows = data ?? [];
+  if (rows.length === 0) return [];
+
+  const sponsorIds = Array.from(new Set(rows.map((row) => row.sponsor_id)));
+  const { data: sponsors, error: sponsorsError } = await supabase
+    .from("sponsors")
+    .select("id, name")
+    .in("id", sponsorIds);
+  if (sponsorsError) throw new Error(`Could not load sponsor names: ${sponsorsError.message}`);
+
+  const nameById = new Map((sponsors ?? []).map((sponsor) => [sponsor.id, sponsor.name]));
+
+  return rows.map((row) => ({
+    sponsorId: row.sponsor_id,
+    sponsorName: nameById.get(row.sponsor_id) ?? "Unknown sponsor",
+    position: row.position,
+    tier: row.tier,
+    layer: row.layer,
+  }));
+}

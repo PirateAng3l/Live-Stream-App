@@ -69,30 +69,52 @@ land once they have one.
   hide the rest — see `loadFixturesForStaff` in `lib/admin.ts`); a
   `platform_admin` sees every fixture, across every school. Each row shows
   "Ready to stream" or "Provisioning…" based on whether
-  `youtube_video_id` has landed yet.
+  `youtube_video_id` has landed yet, and links through to
+  `/admin/fixtures/[id]`.
 - **`/admin/fixtures/new`** — create a fixture. This is the whole
   "scheduling feature" the spec calls out (7.3.6) — the form does nothing
   but insert a row into `fixtures`; the YouTube broadcast gets provisioned
   automatically from there by the database trigger already built in
   `backend/` (migration 0002). Needs at least two teams to exist for the
   school first.
+- **`/admin/fixtures/[id]`** — a single fixture's detail page: kickoff
+  time, status, streaming readiness, and its sponsor placements. Shows
+  which sponsors are currently assigned (tier, position, and whether the
+  placement is baked into the video or web-only), a remove button per
+  assignment, and a form to assign another sponsor from that fixture's own
+  school. A `school_operator` hitting another school's fixture ID gets a
+  404 (`notFound()`), on top of RLS already stopping the read — belt and
+  braces, not load-bearing on its own.
 - **`/admin/teams`**, **`/admin/teams/new`** — list/create teams for a
   school. A prerequisite for creating a fixture (a fixture needs two
   existing team IDs), so it had to come first.
-- A `platform_admin` has no school of their own, so `/admin/teams` and
-  `/admin/fixtures/new` show a school picker first (`?school=<id>` in the
-  URL) rather than assuming one. A `school_operator` never sees this step —
+- **`/admin/sponsors`**, **`/admin/sponsors/new`** — list/create a
+  school's sponsor inventory (name, tier, default position, optional logo
+  and click-through URLs). This is the "who" — which sponsors a school has
+  under contract; assigning one of them to a specific fixture happens on
+  that fixture's own detail page (`/admin/fixtures/[id]`), since the same
+  sponsor can appear on many fixtures with different placements each time.
+- A `platform_admin` has no school of their own, so `/admin/teams`,
+  `/admin/sponsors`, and `/admin/fixtures/new` show a school picker first
+  (`?school=<id>` in the URL) rather than assuming one. A `school_operator`
+  never sees this step —
   `resolveSchoolContext` (`lib/admin.ts`) always resolves straight to their
   own school, and **ignores any school the client tries to submit**, even
   from a tampered hidden form field. That function is the one piece of
   real authorization-adjacent logic in the admin panel, which is why it's
   pure and unit-tested (`lib/admin.test.ts`) on exactly that case, on top
   of RLS backing it up as a second layer either way.
-- Writes (`createTeamAction`, `createFixtureAction` in each section's
+- Writes (`createTeamAction`, `createFixtureAction`, `createSponsorAction`,
+  `assignSponsorAction`/`removeSponsorAction` in each section's
   `actions.ts`) are Next.js Server Actions — the App Router's mechanism for
   a form mutation that needs the real signed-in session, wired up with
   `useFormState`/`useFormStatus` so a rejected submission (missing field,
-  RLS denial, whatever) shows inline instead of a blank failure.
+  RLS denial, whatever) shows inline instead of a blank failure. The
+  fixture-detail actions re-derive the fixture's host school from the
+  `fixtures` table itself (there's no school picker on that page — a
+  fixture's school is fixed at creation) rather than trusting anything the
+  form submits, same defense-in-depth pattern as `resolveSchoolContext`
+  above.
 
 **Known rough edge:** the sign-in redirect after hitting a gated `/admin`
 page always lands back on `/admin` itself, not the specific sub-page (e.g.
@@ -143,6 +165,16 @@ project:
   `resolveSchoolContext()`, the one pure/testable piece of
   authorization-adjacent logic in the panel (see the Admin panel section
   above).
+- **`lib/sponsors.ts`** / **`lib/sponsors-server.ts`** — same pure-logic /
+  I/O split as `lib/fixtures.ts` vs `lib/supabase.ts`: `sponsors.ts` holds
+  the tier/position/layer constants, types, and label functions (no
+  Supabase import, so the Client Component forms can import it directly);
+  `sponsors-server.ts` holds `loadSponsorsForSchool` and
+  `loadFixtureSponsors`, which do need `next/headers` through
+  `supabase-server.ts` and so can only be imported from Server Components.
+  Splitting these out wasn't optional — the first version had them in one
+  file and `next build` failed the moment a Client Component imported a
+  constant from it, since that import graph also pulled in `next/headers`.
 - **`lib/sports.ts`** — the sport catalog, kept in sync by hand with the
   Android app's `Sport` enum (comment in the file explains why: a
   fixture's `sport` string has to match one of that enum's names for the
@@ -201,15 +233,25 @@ worth doing before this goes anywhere near real production traffic.
 - **Web-layer sponsor slots** around the player (spec 7.3.3) — the baked-in
   overlay from the broadcaster app is the only sponsor placement live right
   now.
-- **Sponsor management in the admin panel** — the backend already has full
-  `sponsors` and `fixture_sponsors` tables with RLS (a school manages its
-  own sponsor inventory, per the subscription/licensing model this project
-  settled on), but nothing in `/admin` reads or writes them yet. Natural
-  next slice.
-- **Editing or cancelling a fixture** — `/admin/fixtures/new` only covers
-  create. No edit form, no cancel action, no re-provisioning if a mistake
-  needs fixing after the fact (the edge function's own README already
+- **Editing or deleting a sponsor, or editing/cancelling a fixture** —
+  `/admin/sponsors/new` and `/admin/fixtures/new` only cover create; a
+  sponsor's assignment to a specific fixture can be removed
+  (`/admin/fixtures/[id]`), but the sponsor record itself can't be edited
+  or deleted once created, and there's still no fixture edit/cancel/
+  re-provisioning path either (the edge function's own README already
   flags re-provisioning as unbuilt).
+- **No logo file upload for sponsors** — `logo_url` is a plain URL text
+  field; a school has to host the image somewhere else first and paste the
+  link in. Fine for now, matches the "no file upload" scope call already
+  made for `click_url`/`logo_url` when this was built.
+- **Nothing actually renders `fixture_sponsors` yet** — the admin panel can
+  now create the assignments (which sponsor, what tier/position, baked-in
+  vs. web-overlay), but neither the broadcaster app's overlay nor this
+  site's `/matches/[id]` page reads from that table — the app's sponsor
+  slots are still local image picks (see the top-level README), and there's
+  no web-layer sponsor UI around the player. This round is data-model +
+  admin-panel plumbing; actually displaying a sponsor anywhere is a
+  separate slice.
 - **Crew account management** — creating a school_operator account (or
   assigning `fixtures.assigned_operator_id` to a specific one) is still a
   manual/SQL step; there's no "invite a crew member" flow anywhere.
