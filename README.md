@@ -1,11 +1,18 @@
-# Broadcaster POC (Android)
+# Open Door Live
 
-A narrow proof-of-concept for the broadcaster app described in `PROJECT_SPEC.md`: live
-camera preview with a baked-in scoreboard/timer/sponsor overlay, per-sport scoring, a
-resilient RTMP push to YouTube Live (or any RTMP target), and setup that survives a
-restart. No backend, no accounts, no YouTube API automation — this is Stage 3's hard
-piece, isolated, so you can see it actually work before anything else gets built
-around it.
+This repo now holds two components of the platform described in `PROJECT_SPEC.md`:
+
+- **`app/` — the Android broadcaster app** (documented below). Live camera preview
+  with a baked-in scoreboard/timer/sponsor overlay, per-sport scoring, resilient
+  RTMP push, and setup that survives a restart. Still runs standalone — no backend,
+  no accounts, manual RTMP entry — this is Stage 3's hard piece, isolated, so it
+  could be proven out before anything else got built around it.
+- **`backend/` — the Supabase-backed backend.** Schools, fixtures/scheduling,
+  sponsors, subscriptions, and the platform-admin / school-operator / parent account
+  model. Not yet wired up to the app or a public web platform — see
+  `backend/README.md` for what's there and what isn't yet.
+
+## Broadcaster POC (Android)
 
 ## What it does
 
