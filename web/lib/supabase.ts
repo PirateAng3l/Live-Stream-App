@@ -1,4 +1,3 @@
-import { createClient } from "@supabase/supabase-js";
 import {
   type FixtureRow,
   type FixtureSummary,
@@ -6,27 +5,9 @@ import {
   type SchoolRow,
   type TeamRow,
 } from "./fixtures";
+import { createSupabaseServerClient, isBackendConfigured } from "./supabase-server";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-
-/**
- * The anon key is meant to be public (it ships to every browser) — real
- * access control is the RLS policies in backend/supabase/migrations, not
- * keeping this secret. fixtures/teams/schools are all publicly readable by
- * design (that's the point of a public schedule site); nothing sensitive
- * (like a stream key) is ever fetched through this client.
- */
-export const isBackendConfigured = supabaseUrl.length > 0 && supabaseAnonKey.length > 0;
-
-function getSupabaseClient() {
-  if (!isBackendConfigured) {
-    throw new Error(
-      "Supabase is not configured — set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY (see web/README.md)",
-    );
-  }
-  return createClient(supabaseUrl, supabaseAnonKey);
-}
+export { isBackendConfigured };
 
 /**
  * Two flat follow-up queries (teams, schools) instead of an embedded-
@@ -37,7 +18,7 @@ function getSupabaseClient() {
 async function resolveNames(
   fixtures: FixtureRow[],
 ): Promise<{ teams: TeamRow[]; schools: SchoolRow[] }> {
-  const supabase = getSupabaseClient();
+  const supabase = createSupabaseServerClient();
   const teamIds = Array.from(new Set(fixtures.flatMap((f) => [f.home_team_id, f.away_team_id])));
   const schoolIds = Array.from(new Set(fixtures.map((f) => f.host_school_id)));
 
@@ -57,7 +38,7 @@ async function resolveNames(
 }
 
 export async function loadFixtures(): Promise<FixtureSummary[]> {
-  const supabase = getSupabaseClient();
+  const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("fixtures")
     .select(
@@ -74,7 +55,7 @@ export async function loadFixtures(): Promise<FixtureSummary[]> {
 }
 
 export async function loadFixtureById(id: string): Promise<FixtureSummary | null> {
-  const supabase = getSupabaseClient();
+  const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("fixtures")
     .select(

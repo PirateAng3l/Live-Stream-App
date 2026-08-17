@@ -1,5 +1,11 @@
 import type { FixtureStatus } from "@/lib/fixtures";
 
+export const authInputClass =
+  "w-full rounded-lg border border-white/10 bg-background px-3 py-2 text-sm text-textprimary placeholder:text-textsecondary focus:border-accent focus:outline-none";
+
+export const authButtonClass =
+  "w-full rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition-opacity disabled:opacity-50";
+
 const STATUS_STYLES: Record<FixtureStatus, string> = {
   live: "bg-live text-white",
   scheduled: "bg-white/10 text-textsecondary",
