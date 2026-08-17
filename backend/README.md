@@ -73,13 +73,17 @@ project is connected yet — that needs your own Supabase account.
    update public.profiles set role = 'platform_admin' where id = '<your-auth-user-id>';
    ```
 
+## Edge functions
+
+- **`supabase/functions/provision-fixture-broadcast/`** — calls the YouTube
+  Live API to turn a fixture into an actual broadcast (create the event,
+  create a fresh ingest stream, bind them, save the results). See its own
+  README for details, design decisions, and how to run its unit tests.
+
 ## Not built yet
 
-- The API/edge functions that actually call the YouTube Live API to
-  provision a broadcast + stream + bind when a fixture is created
-  (`liveBroadcasts.insert` → `liveStreams.insert` → `bind`). Right now the
-  schema has a place to store the results (`fixture_broadcast_credentials`,
-  `fixtures.youtube_video_id`) but nothing populates them yet.
+- Nothing calls `provision-fixture-broadcast` automatically yet — no admin
+  panel action or trigger wires it up to fixture creation.
 - Auth wiring for the broadcaster Android app to pull a crew member's
   assigned fixtures + that fixture's stream key from this backend, instead
   of the current manual RTMP URL/key entry.
