@@ -77,15 +77,29 @@ project is connected yet — that needs your own Supabase account.
 
 - **`supabase/functions/provision-fixture-broadcast/`** — calls the YouTube
   Live API to turn a fixture into an actual broadcast (create the event,
-  create a fresh ingest stream, bind them, save the results). See its own
-  README for details, design decisions, and how to run its unit tests.
+  create a fresh ingest stream, bind them, save the results). Fires
+  automatically on fixture creation via a database trigger (see the next
+  section). See its own README for details, design decisions, and how to
+  run its unit tests.
+
+## Fixture creation triggers provisioning automatically
+
+`0002_provision_on_fixture_insert.sql` adds a trigger on `fixtures` that
+calls `provision-fixture-broadcast` (via `pg_net`, fire-and-forget) right
+after any fixture is inserted — no matter what created it. It needs two
+Vault secrets populated once per project before it'll actually do
+anything (the function's URL and the service-role key it calls with) —
+see the edge function's own README for the exact commands. Until those
+are set, fixture inserts still succeed; the trigger just logs a warning
+and skips provisioning.
 
 ## Not built yet
 
-- Nothing calls `provision-fixture-broadcast` automatically yet — no admin
-  panel action or trigger wires it up to fixture creation.
 - Auth wiring for the broadcaster Android app to pull a crew member's
   assigned fixtures + that fixture's stream key from this backend, instead
   of the current manual RTMP URL/key entry.
 - The admin panel and public web platform (Component C) — this backend
-  is what they'll both read from once built.
+  is what they'll both read from once built. Right now the only way to
+  create a fixture is a direct SQL insert.
+- Re-provisioning or cleanup when a fixture changes or is cancelled after
+  it's already been provisioned.
