@@ -47,10 +47,12 @@
             android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- Opens/closes settingsPanel (Camera / Sponsor Ads / Sports / Stream Setup) —
+    <!-- Opens settingsPanel (Camera / Sponsor Ads / Sports / Stream Setup) —
          everything that's "configure once, rarely touched mid-match". Icon-only
          (gear, white) rather than text — background stays the same translucent
-         chip (app:backgroundTint), so the transparency look is unchanged. -->
+         chip (app:backgroundTint), so the transparency look is unchanged.
+         Hidden once the panel is open (settingsCloseBtn closes it from inside)
+         so it never sits on top of the panel's own controls. -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/panelToggleBtn"
         style="@style/Widget.MaterialComponents.Button.Icon"
@@ -67,10 +69,13 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Opens/closes liveControlPanel (score, timer, Go Live) — the crew's
-         actual in-the-moment controls while running a broadcast. Visible by
-         default (see MainActivity's liveControlOpen), since that's the
-         "easily accessible" surface, unlike Settings which starts hidden. -->
+    <!-- Opens liveControlPanel (score, timer, Go Live) — the crew's actual
+         in-the-moment controls while running a broadcast. Hidden once that
+         panel is open (its own in-panel close button — liveControlCloseBtn —
+         is how you close it from there) so this floating button never sits
+         on top of the panel's own controls (was covering the timer's Reset
+         button once the panel moved to the right edge). Starts hidden too,
+         since liveControlPanel is open by default. -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/liveControlToggleBtn"
         style="@style/Widget.MaterialComponents.Button.Icon"
@@ -78,7 +83,12 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:layout_marginEnd="16dp"
-        android:text="@string/panel_toggle_hide"
+        android:contentDescription="@string/live_panel_toggle_show"
+        app:icon="@drawable/ic_scoreboard"
+        app:iconTint="@color/text_primary"
+        app:iconPadding="0dp"
+        android:insetLeft="0dp"
+        android:insetRight="0dp"
         app:backgroundTint="@color/panel_bg"
         app:layout_constraintTop_toBottomOf="@id/panelToggleBtn"
         app:layout_constraintEnd_toEndOf="parent" />
@@ -143,6 +153,23 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="20dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/settingsCloseBtn"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:text="@string/close_symbol"
+                android:textColor="@color/text_primary"
+                android:textSize="20sp"
+                android:contentDescription="@string/close" />
 
             <com.google.android.material.tabs.TabLayout
                 android:id="@+id/settingsTabLayout"
@@ -801,6 +828,23 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="20dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/liveControlCloseBtn"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:text="@string/close_symbol"
+                android:textColor="@color/text_primary"
+                android:textSize="20sp"
+                android:contentDescription="@string/close" />
 
             <LinearLayout
                 android:id="@+id/teamScoreGroup"

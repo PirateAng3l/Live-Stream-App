@@ -57,10 +57,14 @@ This repo now holds all three components of the platform described in
   via the device photo picker — aspect-fit, centered, drawn straight into the same slot
   the placeholder text used to occupy. No image picked falls back to placeholder text,
   so the app still works with zero setup. Picks persist across restarts.
-- **Two panels sharing the same right-edge slot, each with its own
-  top-right toggle** — opening one always closes the other, so they never
-  overlap the camera preview or each other:
-  - **"Score ▸" — the live control panel, open by default.** Score
+- **Two panels sharing the same right-edge slot, opened by a floating icon
+  button and closed by a ✕ inside the panel itself.** The floating button
+  hides the moment its panel opens (it used to sit on top of the panel's
+  own controls — a real bug, not cosmetic: it covered the timer's Reset
+  button once both lived in the same corner) and reappears once that panel
+  closes. Opening one always closes the other, so they never overlap the
+  camera preview or each other:
+  - **A scoreboard icon — the live control panel, open by default.** Score
     controls (undo/swap/reset), the timer, and Go Live / End Stream
     (becomes "Stop Reconnecting" mid-retry). This is what actually gets
     touched during a match, right on the edge rather than sitting over the
@@ -102,6 +106,10 @@ This repo now holds all three components of the platform described in
 - No position/tier reassignment (spec 5.5's headline-vs-corner tiering) — each of the
   4 slots is fixed to its named position; you can change *what* image is shown, not
   *where* it appears.
+- **No swappable light/dark theme.** Explicitly requested and deliberately deferred —
+  the whole app's look (backgrounds, text, panel chrome) is hardcoded dark-only
+  throughout `colors.xml`, not built on a theme system that could swap at runtime.
+  A real fix means introducing that system, not just flipping a few colors.
 
 ## Getting a stream key to test with
 

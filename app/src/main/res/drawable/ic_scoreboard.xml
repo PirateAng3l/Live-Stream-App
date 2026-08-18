@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simple scoreboard icon: a rectangular frame (outer rect minus inner rect,
+     evenOdd fill) split by a vertical divider — reads as a home/away score
+     panel. Plain rectangles only, no arcs, same low-risk approach as
+     ic_settings.xml. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M3,6 L21,6 L21,18 L3,18 Z M5,8 L19,8 L19,16 L5,16 Z" />
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M11.25,8 L12.75,8 L12.75,16 L11.25,16 Z" />
+</vector>
