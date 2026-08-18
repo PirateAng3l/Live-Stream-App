@@ -58,14 +58,15 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private val scoreController = ScoreController()
     private val cricketController = CricketController()
     private var currentSport: Sport = Sport.RUGBY
-    private var deviceZoomRange = 1f..5f
+    private var deviceZoomRange = 0.6f..5f
 
     private val uiHandler = Handler(Looper.getMainLooper())
     private var panelOpen = false
 
-    // Starts open (unlike the settings panel) — score/timer/Go Live are the
-    // crew's actual in-the-moment controls, not a one-time setup step.
-    private var liveControlOpen = true
+    // Starts closed, same as the settings panel — a clean, unobstructed
+    // camera view on launch, both floating toggle buttons visible, nothing
+    // open until the operator actually wants score/timer controls or settings.
+    private var liveControlOpen = false
 
     private var streamUrl = ""
     private var autoReconnectEnabled = false
@@ -216,27 +217,35 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     }
 
     /**
-     * Every phone reports a different real zoom ceiling (CONTROL_ZOOM_RATIO_RANGE), so the
-     * slider always shows a fixed 1x-5x scale but the value actually sent to the camera is
-     * clamped to whatever this device supports, capped at 5x regardless of how much further
-     * the hardware could go — 5x is the requested UI ceiling, not the device's own limit.
+     * Every phone reports a different real zoom ceiling and floor
+     * (CONTROL_ZOOM_RATIO_RANGE) — some go below 1x via an ultra-wide lens,
+     * most don't — so the slider always shows a fixed 0.6x-5x scale but the
+     * value actually sent to the camera is clamped to whatever this device
+     * supports. 0.5x is just a sanity floor against a malformed device
+     * value, not the intended wide-angle target (0.6x is); on a device
+     * with no ultra-wide lens, dragging below its real floor (often 1x)
+     * just holds at that floor rather than doing anything — same as the
+     * 5x UI ceiling already did for phones with a lower real maximum.
      */
     private fun readDeviceZoomRange() {
         try {
             val range = rtmpCamera2.getZoomRange()
-            val lower = range.lower.coerceAtLeast(1f)
+            val lower = range.lower.coerceAtLeast(0.5f)
             val upper = range.upper.coerceAtMost(5f).coerceAtLeast(lower)
             deviceZoomRange = lower..upper
             Log.i(TAG, "Camera zoom range: $deviceZoomRange")
         } catch (error: Exception) {
-            Log.w(TAG, "Could not read camera zoom range, defaulting to 1x-5x", error)
+            Log.w(TAG, "Could not read camera zoom range, defaulting to 0.6x-5x", error)
         }
     }
 
     private fun setupZoomControl() {
         binding.zoomSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
-                applyZoom(1f + progress / 100f)
+                // 0.6x (wide) + progress/100 — matches zoomSeekBar's
+                // android:max="440"/android:progress="40" in the layout, so
+                // progress 40 is exactly 1.0x, the default on launch.
+                applyZoom(0.6f + progress / 100f)
             }
 
             override fun onStartTrackingTouch(bar: SeekBar) = Unit

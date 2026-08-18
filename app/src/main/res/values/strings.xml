@@ -73,6 +73,7 @@
     <string name="position_format">%1$+d%%</string>
     <string name="zoom_default_label">1.0x</string>
     <string name="zoom_format">%1$.1fx</string>
+    <string name="zoom_default_marker">1x default zoom marker</string>
     <string name="hint_sponsor_prefix">Optional text, e.g. \"This match is sponsored by\"</string>
 
     <string name="hint_rtmp_url">rtmp://a.rtmp.youtube.com/live2</string>

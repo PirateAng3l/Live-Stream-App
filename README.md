@@ -57,22 +57,34 @@ This repo now holds all three components of the platform described in
   via the device photo picker — aspect-fit, centered, drawn straight into the same slot
   the placeholder text used to occupy. No image picked falls back to placeholder text,
   so the app still works with zero setup. Picks persist across restarts.
+- **Zoom, 0.6x (wide) to 5x**, a vertical slider on the left edge of the preview —
+  always visible, not tucked in Settings, since it's a live framing adjustment made
+  while watching the shot, not a one-time setting. A static tick marks the 1.0x
+  position — the slider always starts there on launch (not persisted, unlike every
+  other setup field, so a restart mid-match doesn't leave the last operator's zoom
+  choice as a surprise starting point for whoever's on the phone next). The 0.6x end
+  only does something on a device with an ultra-wide lens reporting that range —
+  otherwise the real hardware floor (usually 1x) clamps it, same as the 5x ceiling
+  already did on phones with a lower real maximum.
 - **Two panels sharing the same right-edge slot, opened by a floating icon
-  button and closed by a ✕ inside the panel itself.** Both floating icon
-  buttons hide together the moment either panel opens, and both reappear
-  once it's closed — not just "its own" button, because they're stacked in
-  the same corner and a MaterialButton renders above plain content
-  regardless of XML order (elevation), so leaving the *other* one visible
-  meant it could actually catch a tap meant for the ✕ underneath and
-  reopen/switch instead of closing. Opening one panel always closes the
-  other, so they never overlap the camera preview or each other:
-  - **A scoreboard icon — the live control panel, open by default.** Score
+  button and closed by a ✕ inside the panel itself. Both closed on
+  launch** — a clean, unobstructed preview until you actually open
+  something, not a settings tab or the score panel already sitting open.
+  Both floating icon buttons hide together the moment either panel
+  opens, and both reappear once it's closed — not just "its own" button,
+  because they're stacked in the same corner and a MaterialButton renders
+  above plain content regardless of XML order (elevation), so leaving the
+  *other* one visible meant it could actually catch a tap meant for the ✕
+  underneath and reopen/switch instead of closing. Opening one panel
+  always closes the other, so they never overlap the camera preview or
+  each other:
+  - **A scoreboard icon — the live control panel.** Score
     controls (undo/swap/reset), the timer, and Go Live / End Stream
     (becomes "Stop Reconnecting" mid-retry). This is what actually gets
     touched during a match, right on the edge rather than sitting over the
     middle of the shot.
-  - **A gear icon — the settings panel, closed by default, tabbed in
-    setup order** (open by default on *Stream Setup*, the natural first
+  - **A gear icon — the settings panel, tabbed in setup order**
+    (opens on *Stream Setup*, the natural first
     step):
     - *Stream Setup* — crew sign-in, RTMP URL + stream key entry.
     - *Sports* — sport selector, team name entry (or a single event name

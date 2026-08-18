@@ -122,16 +122,32 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_bias="0.6">
 
+        <!-- Range is 0.6x (wide) to 5.0x, progress in 0.01x steps: value =
+             0.6 + progress/100. Default progress 40 = exactly 1.0x, matching
+             zoom_default_label below and where the 1x marker sits. -->
         <SeekBar
             android:id="@+id/zoomSeekBar"
             android:layout_width="220dp"
             android:layout_height="44dp"
             android:layout_gravity="center"
-            android:max="400"
-            android:progress="0"
+            android:max="440"
+            android:progress="40"
             android:progressTint="@color/accent"
             android:rotation="270"
             android:thumbTint="@color/text_primary" />
+
+        <!-- Static "1x" tick — 20dp up from the bottom of a 220dp track is
+             exactly progress 40/440 (same 1.0x default the slider starts
+             at), so this marks where the thumb sits on launch and where it
+             lands again if you drag back to the default zoom. -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:layout_gravity="bottom"
+            android:layout_marginBottom="20dp"
+            android:alpha="0.8"
+            android:background="@color/text_primary"
+            android:contentDescription="@string/zoom_default_marker" />
     </FrameLayout>
 
     <!-- ============================================================
