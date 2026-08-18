@@ -38,7 +38,17 @@ jobs:
           echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> local.properties
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        # Retries: Maven Central rate-limits (429) a fair number of GitHub
+        # Actions runners globally, unrelated to anything in this repo — the
+        # first run here hit it on a transitive dependency (jsr305). Not
+        # worth a full alternate-mirror setup for something this transient.
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew assembleDebug --stacktrace && break
+            if [ "$attempt" = 3 ]; then exit 1; fi
+            echo "Build attempt $attempt failed, retrying in 30s..."
+            sleep 30
+          done
 
       - uses: actions/upload-artifact@v4
         with:
