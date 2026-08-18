@@ -29,12 +29,20 @@ This repo now holds all three components of the platform described in
   placements (lower-third + two corners) **onto the video itself**, live — what you see
   on screen is what gets streamed and what ends up in the YouTube recording.
 - **Per-sport scoring**, chosen from a dropdown in setup:
-  - Rugby / Soccer / Netball / Hockey / Other — a shared home-vs-away scoreboard, with
+  - Rugby / Soccer / Netball / Hockey — a shared home-vs-away scoreboard, with
     rugby additionally getting named scoring-event chips (Try +5, Con +2, Pen +3,
     Drop +3) alongside the plain +/-1.
   - Cricket — a genuinely different model and overlay: runs/wickets/overs with legal-ball
     rollover, extras (wide/no-ball, bye), a wicket cap at 10, swap-innings with a
     target/chase line, and its own undo/reset.
+  - **Clean Slate / Event** — no scoreboard at all, for a broadcast that isn't a
+    team-vs-team match: a school assembly, concert, play, or other cultural
+    event. The single name field becomes a free-text event name (e.g. "Spring
+    Concert") instead of a team name, and the overlay shows just that name
+    plus the usual logo/sponsor chrome — no score panel, no timer pill.
+    (`EventOverlayRenderer.kt`; still `Sport.OTHER` under the hood, so a
+    fixture's `sport` string stays `"other"` and nothing on the backend/web
+    side needed to change.)
 - **RTMP auto-reconnect.** A dropped connection (network switch, dead zone, wifi↔mobile
   handoff) is detected and retried automatically with backoff, including an 8s watchdog
   that forces a retry if an attempt hangs instead of failing outright. Field-tested:
@@ -145,9 +153,10 @@ app/src/main/java/com/opendoorproductions/broadcaster/
   ScoreState.kt               home/away score + timer state, no Android dependencies
   CricketState.kt              runs/wickets/overs state, separate from ScoreState
   OverlayAsset.kt              one overlay slot's content: fallback text + optional image
-  OverlayChrome.kt            logo + sponsor drawing shared by both overlay renderers
-  TeamOverlayRenderer.kt      two-team scoreboard HUD (rugby/soccer/netball/hockey/other)
+  OverlayChrome.kt            logo + sponsor drawing shared by all overlay renderers
+  TeamOverlayRenderer.kt      two-team scoreboard HUD (rugby/soccer/netball/hockey)
   CricketOverlayRenderer.kt   runs/wickets/overs HUD with target/chase line
+  EventOverlayRenderer.kt     no-scoreboard HUD for Clean Slate / Event (just a name + chrome)
   SponsorPresetStore.kt       named save/load/delete of a full sponsor setup
   backend/
     BackendConfig.kt          reads SUPABASE_URL/SUPABASE_ANON_KEY from BuildConfig

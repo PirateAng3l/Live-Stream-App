@@ -9,6 +9,6 @@ export const SPORTS = ["rugby", "soccer", "netball", "hockey", "cricket", "other
 export type SportOption = (typeof SPORTS)[number];
 
 export function sportLabel(sport: string): string {
-  if (sport === "other") return "Other / Cultural Event";
+  if (sport === "other") return "Clean Slate / Event";
   return sport.length > 0 ? sport.charAt(0).toUpperCase() + sport.slice(1) : sport;
 }

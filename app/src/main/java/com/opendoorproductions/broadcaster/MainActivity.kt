@@ -45,6 +45,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private lateinit var rtmpCamera2: RtmpCamera2
     private lateinit var teamOverlayRenderer: TeamOverlayRenderer
     private lateinit var cricketOverlayRenderer: CricketOverlayRenderer
+    private lateinit var eventOverlayRenderer: EventOverlayRenderer
     private lateinit var overlayFilter: ImageObjectFilterRender
     private lateinit var presetStore: SponsorPresetStore
     private var presetSummaries: List<SponsorPresetSummary> = emptyList()
@@ -136,6 +137,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
 
         teamOverlayRenderer = TeamOverlayRenderer(streamWidth, streamHeight)
         cricketOverlayRenderer = CricketOverlayRenderer(streamWidth, streamHeight)
+        eventOverlayRenderer = EventOverlayRenderer(streamWidth, streamHeight)
         rtmpCamera2 = RtmpCamera2(binding.openGlView, this)
         presetStore = SponsorPresetStore(this)
 
@@ -449,6 +451,12 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
             )
             ScoreboardLayout.CRICKET -> cricketOverlayRenderer.render(
                 cricketController.state, logo, sponsorHeadlinePrefix, headline, left, right
+            )
+            // scoreController.state.homeName doubles as the event name here —
+            // it's the same field the "Event name" input (repurposed
+            // homeNameInput, see onSportChanged) already writes to.
+            ScoreboardLayout.NONE -> eventOverlayRenderer.render(
+                scoreController.state.homeName, logo, sponsorHeadlinePrefix, headline, left, right
             )
         }
     }
@@ -860,8 +868,19 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
 
     private fun onSportChanged() {
         val isCricket = currentSport.layout == ScoreboardLayout.CRICKET
-        binding.teamScoreGroup.visibility = if (isCricket) View.GONE else View.VISIBLE
+        val isCleanSlate = currentSport.layout == ScoreboardLayout.NONE
+        binding.teamScoreGroup.visibility = if (isCricket || isCleanSlate) View.GONE else View.VISIBLE
         binding.cricketGroup.visibility = if (isCricket) View.VISIBLE else View.GONE
+
+        // Clean slate has nothing to call "away" — repurpose homeNameInput as
+        // a single free-text event name and hide the away field entirely,
+        // rather than adding a whole separate input just for this mode.
+        binding.awayNameInput.visibility = if (isCleanSlate) View.GONE else View.VISIBLE
+        binding.homeNameInput.hint = getString(if (isCleanSlate) R.string.hint_event_name else R.string.hint_home_team)
+        binding.homeNameInput.setTextColor(
+            ContextCompat.getColor(this, if (isCleanSlate) R.color.text_primary else R.color.home_color)
+        )
+
         rebuildPresetRows()
         syncNamesFromInputs()
     }

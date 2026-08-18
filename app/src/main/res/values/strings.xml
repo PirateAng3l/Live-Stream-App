@@ -68,6 +68,7 @@
     <string name="hint_rtmp_key">Stream key</string>
     <string name="hint_home_team">Team A name</string>
     <string name="hint_away_team">Team B name</string>
+    <string name="hint_event_name">Event name (e.g. Spring Concert)</string>
 
     <string name="default_home">TEAM A</string>
     <string name="default_away">TEAM B</string>
