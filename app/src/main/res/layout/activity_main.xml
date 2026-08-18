@@ -147,10 +147,14 @@
 
         <!-- Static "1x" tick — subtle on purpose (short, low-alpha) since
              it's a hint, not a dominant element; the live zoomValueLabel
-             above already shows "1.0x" precisely when you're there. 20dp up
-             from the bottom of a 220dp track is exactly progress 40/440
-             (the same 1.0x default the slider starts at). -->
+             above already shows "1.0x" precisely when you're there. 20dp is
+             just a starting guess (progress 40/440 of the 220dp track) —
+             MainActivity.alignZoomTickToThumb() corrects it after layout
+             using the SeekBar's own actual drawn thumb bounds, since two
+             rounds of guessing the stock thumb's internal inset didn't
+             land exactly on the real thumb position. -->
         <View
+            android:id="@+id/zoomDefaultTick"
             android:layout_width="18dp"
             android:layout_height="1.5dp"
             android:layout_gravity="bottom|center_horizontal"

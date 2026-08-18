@@ -62,9 +62,13 @@ This repo now holds all three components of the platform described in
   while watching the shot, not a one-time setting. **Snaps to exactly 1.0x** when
   dragged within about ±0.15x of it — landing on the true default stop by touch
   alone is fiddly now that it isn't at either end of the track, so the slider does
-  the precision for you. A subtle static tick also marks that spot (aligned to the
-  actual thumb position by zeroing out the stock SeekBar thumb's built-in inset,
-  `android:thumbOffset="0dp"`, rather than guessing an offset). The slider always
+  the precision for you. A subtle static tick also marks that spot — positioned by
+  reading the SeekBar's own `thumb.bounds` at runtime (`alignZoomTickToThumb()`)
+  rather than a hand-calculated margin, since two rounds of guessing the stock
+  thumb's internal inset by eye (including `android:thumbOffset="0dp"`, which
+  helps but wasn't the whole story) didn't land it exactly; asking Android
+  directly where it actually drew the thumb is the one source of truth that
+  can't be off. The slider always
   starts at 1.0x on launch (not persisted, unlike every other setup field, so a
   restart mid-match doesn't leave the last operator's zoom choice as a surprise
   starting point for whoever's on the phone next). The 0.6x end only does something

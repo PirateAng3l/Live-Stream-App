@@ -15,6 +15,7 @@ import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.SeekBar
@@ -267,6 +268,40 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
             override fun onStartTrackingTouch(bar: SeekBar) = Unit
             override fun onStopTrackingTouch(bar: SeekBar) = Unit
         })
+
+        // The XML's 20dp margin on zoomDefaultTick is only a starting guess
+        // (progress/max of the container's height) — it doesn't account for
+        // the stock SeekBar thumb's own internal inset, which isn't fully
+        // documented and turned out not to be fully removed by
+        // thumbOffset=0dp either (two rounds of guessing that number by eye
+        // didn't land it). Once the SeekBar has actually been laid out, ask
+        // it directly where its thumb is really drawn instead of guessing a
+        // third number.
+        binding.zoomSeekBar.post { alignZoomTickToThumb() }
+    }
+
+    /**
+     * Reads the SeekBar's own thumb.bounds — the exact rectangle Android
+     * just drew the thumb in, in the SeekBar's local (pre-rotation)
+     * coordinate space — and repositions zoomDefaultTick to match that
+     * same fraction of the track, translated into "margin up from the
+     * bottom of the vertical-looking container" (progress 0 renders at the
+     * bottom after the 270° rotation, max at the top — same orientation
+     * the tick's own layout_gravity="bottom" already assumes). The tick
+     * itself is static at the DEFAULT_ZOOM_PROGRESS position; the SeekBar
+     * is guaranteed to be at exactly that progress when this runs (called
+     * once, right after setup, before any user drag).
+     */
+    private fun alignZoomTickToThumb() {
+        val seekBar = binding.zoomSeekBar
+        val thumbBounds = seekBar.thumb?.bounds ?: return
+        if (seekBar.width == 0) return
+        val fraction = thumbBounds.centerX().toFloat() / seekBar.width.toFloat()
+        val containerHeightPx = binding.zoomControlContainer.height.toFloat()
+        if (containerHeightPx == 0f) return
+        val params = binding.zoomDefaultTick.layoutParams as FrameLayout.LayoutParams
+        params.bottomMargin = (fraction * containerHeightPx).toInt()
+        binding.zoomDefaultTick.layoutParams = params
     }
 
     private fun applyZoom(requestedZoom: Float) {
