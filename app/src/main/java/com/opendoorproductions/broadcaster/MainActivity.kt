@@ -12,6 +12,7 @@ import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.EditText
@@ -277,7 +278,25 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         // didn't land it). Once the SeekBar has actually been laid out, ask
         // it directly where its thumb is really drawn instead of guessing a
         // third number.
-        binding.zoomSeekBar.post { alignZoomTickToThumb() }
+        //
+        // A plain `.post{}` isn't late enough: called this early (from
+        // onCreate, before the SeekBar is attached to the window), it just
+        // queues the runnable to fire on attach — not after the first real
+        // layout/measure pass that actually positions the thumb at
+        // progress=40. It was firing while the thumb was still at its
+        // pre-layout default position (effectively progress=0), which is
+        // why the tick landed at the 0.6x end instead of 1x. A one-shot
+        // OnGlobalLayoutListener guarantees a completed layout pass —
+        // thumb.bounds reflects the real progress=40 position — before
+        // reading it.
+        binding.zoomSeekBar.viewTreeObserver.addOnGlobalLayoutListener(
+            object : ViewTreeObserver.OnGlobalLayoutListener {
+                override fun onGlobalLayout() {
+                    binding.zoomSeekBar.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                    alignZoomTickToThumb()
+                }
+            }
+        )
     }
 
     /**
