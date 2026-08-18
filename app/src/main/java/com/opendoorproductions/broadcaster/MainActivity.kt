@@ -27,6 +27,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.widget.doAfterTextChanged
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.tabs.TabLayout
 import com.opendoorproductions.broadcaster.backend.BackendConfig
 import com.opendoorproductions.broadcaster.backend.BroadcastCredentials
 import com.opendoorproductions.broadcaster.backend.CrewSession
@@ -60,6 +61,10 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
 
     private val uiHandler = Handler(Looper.getMainLooper())
     private var panelOpen = false
+
+    // Starts open (unlike the settings panel) — score/timer/Go Live are the
+    // crew's actual in-the-moment controls, not a one-time setup step.
+    private var liveControlOpen = true
 
     private var streamUrl = ""
     private var autoReconnectEnabled = false
@@ -143,6 +148,8 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
 
         loadSavedFields()
         setupPanelToggle()
+        setupLiveControlToggle()
+        setupSettingsTabs()
         setupSportSpinner()
         setupScoreControls()
         setupCricketControls()
@@ -831,9 +838,55 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private fun setupPanelToggle() {
         binding.panelToggleBtn.setOnClickListener {
             panelOpen = !panelOpen
-            binding.scorePanel.visibility = if (panelOpen) View.VISIBLE else View.GONE
+            binding.settingsPanel.visibility = if (panelOpen) View.VISIBLE else View.GONE
             binding.panelToggleBtn.setText(if (panelOpen) R.string.panel_toggle_hide else R.string.panel_toggle_show)
         }
+    }
+
+    private fun setupLiveControlToggle() {
+        binding.liveControlPanel.visibility = if (liveControlOpen) View.VISIBLE else View.GONE
+        binding.liveControlToggleBtn.setOnClickListener {
+            liveControlOpen = !liveControlOpen
+            binding.liveControlPanel.visibility = if (liveControlOpen) View.VISIBLE else View.GONE
+            binding.liveControlToggleBtn.setText(
+                if (liveControlOpen) R.string.panel_toggle_hide else R.string.live_panel_toggle_show
+            )
+        }
+    }
+
+    /**
+     * Settings panel is now four sub-sections (Camera / Sponsor Ads / Sports /
+     * Stream Setup) switched by a TabLayout instead of one long scroll — same
+     * show-one-hide-the-rest pattern already used for teamScoreGroup vs.
+     * cricketGroup, just at the panel level instead of per-sport. Every
+     * control inside each group keeps the exact id it always had, so nothing
+     * else in this file needed to change — only which parent it lives in.
+     */
+    private fun setupSettingsTabs() {
+        val tabGroups = listOf(
+            binding.cameraSettingsGroup,
+            binding.sponsorAdsGroup,
+            binding.sportsSettingsGroup,
+            binding.streamSetupGroup,
+        )
+        val tabTitles = listOf(
+            R.string.tab_camera,
+            R.string.tab_sponsor_ads,
+            R.string.tab_sports,
+            R.string.tab_stream_setup,
+        )
+        tabTitles.forEach { titleRes ->
+            binding.settingsTabLayout.addTab(binding.settingsTabLayout.newTab().setText(titleRes))
+        }
+        binding.settingsTabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) {
+                tabGroups.forEachIndexed { index, group ->
+                    group.visibility = if (index == tab.position) View.VISIBLE else View.GONE
+                }
+            }
+            override fun onTabUnselected(tab: TabLayout.Tab) = Unit
+            override fun onTabReselected(tab: TabLayout.Tab) = Unit
+        })
     }
 
     private fun setupSportSpinner() {

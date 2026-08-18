@@ -57,14 +57,21 @@ This repo now holds all three components of the platform described in
   via the device photo picker — aspect-fit, centered, drawn straight into the same slot
   the placeholder text used to occupy. No image picked falls back to placeholder text,
   so the app still works with zero setup. Picks persist across restarts.
-- A collapsible side panel (tap "Setup ▸" top-right) holds:
-  - Sport selector
-  - RTMP URL + stream key entry
-  - Team A / Team B name entry
-  - Sport-specific score controls, undo, swap/reset
-  - Timer start/pause/reset
-  - Sponsors & Logo: pick/clear an image for each of the 4 slots
-  - Go Live / End Stream (becomes "Stop Reconnecting" mid-retry)
+- **Two independent panels, each with its own toggle (top-right)**, so the
+  crew's live controls stay reachable without digging through settings:
+  - **"Score ▸" — the live control panel, open by default.** Score
+    controls (undo/swap/reset), the timer, and Go Live / End Stream
+    (becomes "Stop Reconnecting" mid-retry). This is what actually gets
+    touched during a match.
+  - **"Settings ▸" — the settings panel, closed by default, tabbed:**
+    - *Camera* — currently just a note; zoom itself is the always-visible
+      slider on the left edge of the preview, not tucked in here (it's a
+      live framing adjustment, not a one-time setting).
+    - *Sponsor Ads* — logo + all three sponsor slots (pick/clear/size/
+      position), sponsor presets.
+    - *Sports* — sport selector, team name entry (or a single event name
+      when Clean Slate / Event is selected).
+    - *Stream Setup* — crew sign-in, RTMP URL + stream key entry.
 
 ## Connection resilience — what it actually covers
 
@@ -110,8 +117,8 @@ restream.io) works the same way for a first no-YouTube-account test.
 ## Crew sign-in (optional) — pulling a fixture from the backend
 
 The manual RTMP URL/key entry above always works and is untouched — but there's now
-an optional "CREW SIGN-IN" section above it in the setup panel that talks to the
-`backend/` project (see its own README): sign in with a crew email/password, pick an
+an optional "CREW SIGN-IN" section above it, in the Settings panel's Stream Setup
+tab, that talks to the `backend/` project (see its own README): sign in with a crew email/password, pick an
 upcoming fixture for your school from a dropdown, tap **Load Fixture**, and it fills
 in the RTMP URL/key (pulled from `fixture_broadcast_credentials`, provisioned
 automatically when the fixture was created — see
@@ -161,7 +168,9 @@ app/src/main/java/com/opendoorproductions/broadcaster/
   backend/
     BackendConfig.kt          reads SUPABASE_URL/SUPABASE_ANON_KEY from BuildConfig
     SupabaseClient.kt         blocking HTTP client: crew sign-in, fixtures, credentials
-app/src/main/res/layout/activity_main.xml   camera view + status chip + score panel
+app/src/main/res/layout/activity_main.xml   camera view + status chip + live control
+                                              panel (score/timer/Go Live) + tabbed
+                                              settings panel
 ```
 
 ## Known rough edges (expected, for a "just see it work" POC)

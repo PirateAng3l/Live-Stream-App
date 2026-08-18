@@ -12,8 +12,16 @@
     <string name="cancel_reconnect">Stop Reconnecting</string>
     <string name="reconnect_cancelled">Reconnect cancelled</string>
 
-    <string name="panel_toggle_show">Setup ▸</string>
+    <string name="panel_toggle_show">Settings ▸</string>
     <string name="panel_toggle_hide">Hide ▾</string>
+    <string name="live_panel_toggle_show">Score ▸</string>
+
+    <string name="tab_camera">Camera</string>
+    <string name="tab_sponsor_ads">Sponsor Ads</string>
+    <string name="tab_sports">Sports</string>
+    <string name="tab_stream_setup">Stream Setup</string>
+    <string name="section_sport">SPORT</string>
+    <string name="camera_settings_note">Zoom is available any time via the slider on the left edge of the preview — nothing else to configure here yet.</string>
 
     <string name="section_crew_signin">CREW SIGN-IN</string>
     <string name="hint_crew_email">Email</string>
