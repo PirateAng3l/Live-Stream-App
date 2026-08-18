@@ -200,6 +200,17 @@ If `app/build.gradle.kts`'s pinned `com.github.pedroSG94.RootEncoder:library` ve
 ever stops resolving, check https://github.com/pedroSG94/RootEncoder/releases for the
 current tag and bump it.
 
+### Getting a built APK without Android Studio
+
+`.github/workflows/build-apk.yml` builds a debug APK on every push to this branch that
+touches `app/`, or on demand via the Actions tab's "Run workflow" button. Grab the
+result from that workflow run's Summary page → Artifacts → `broadcaster-debug-apk`,
+unzip it, and sideload `app-debug.apk` onto a device (unknown sources must be allowed).
+It's a debug build (auto-generated debug keystore, `isMinifyEnabled = false`) — fine for
+testing, not for a Play Store submission. `SUPABASE_URL`/`SUPABASE_ANON_KEY` repo secrets
+are wired in if set; otherwise the build degrades the same way an unconfigured
+`local.properties` does locally — crew sign-in unavailable, everything else unaffected.
+
 ## Files
 
 ```

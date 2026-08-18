@@ -1,0 +1,47 @@
+name: Build Android APK
+
+# Runs the real Gradle build we can't run in the dev sandbox — that
+# environment's egress policy blocks dl.google.com, which the Android SDK
+# and AndroidX/Material artifacts both need, so this workflow is the only
+# place the app has actually been compiled. SUPABASE_URL/SUPABASE_ANON_KEY
+# are optional repo secrets; if unset they resolve to empty strings, same
+# graceful "crew sign-in unavailable" degradation local.properties gives a
+# dev machine with no Supabase project configured (see app/build.gradle.kts).
+on:
+  push:
+    branches: [claude/android-app-discovery-b8joya]
+    paths:
+      - "app/**"
+      - "gradle/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Write local.properties
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" >> local.properties
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> local.properties
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> local.properties
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: broadcaster-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
