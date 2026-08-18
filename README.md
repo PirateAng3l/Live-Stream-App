@@ -59,13 +59,18 @@ This repo now holds all three components of the platform described in
   so the app still works with zero setup. Picks persist across restarts.
 - **Zoom, 0.6x (wide) to 5x**, a vertical slider on the left edge of the preview —
   always visible, not tucked in Settings, since it's a live framing adjustment made
-  while watching the shot, not a one-time setting. A static tick marks the 1.0x
-  position — the slider always starts there on launch (not persisted, unlike every
-  other setup field, so a restart mid-match doesn't leave the last operator's zoom
-  choice as a surprise starting point for whoever's on the phone next). The 0.6x end
-  only does something on a device with an ultra-wide lens reporting that range —
-  otherwise the real hardware floor (usually 1x) clamps it, same as the 5x ceiling
-  already did on phones with a lower real maximum.
+  while watching the shot, not a one-time setting. **Snaps to exactly 1.0x** when
+  dragged within about ±0.15x of it — landing on the true default stop by touch
+  alone is fiddly now that it isn't at either end of the track, so the slider does
+  the precision for you. A subtle static tick also marks that spot (aligned to the
+  actual thumb position by zeroing out the stock SeekBar thumb's built-in inset,
+  `android:thumbOffset="0dp"`, rather than guessing an offset). The slider always
+  starts at 1.0x on launch (not persisted, unlike every other setup field, so a
+  restart mid-match doesn't leave the last operator's zoom choice as a surprise
+  starting point for whoever's on the phone next). The 0.6x end only does something
+  on a device with an ultra-wide lens reporting that range — otherwise the real
+  hardware floor (usually 1x) clamps it, same as the 5x ceiling already did on
+  phones with a lower real maximum.
 - **Two panels sharing the same right-edge slot, opened by a floating icon
   button and closed by a ✕ inside the panel itself. Both closed on
   launch** — a clean, unobstructed preview until you actually open

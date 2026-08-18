@@ -40,6 +40,7 @@ import com.pedro.encoder.input.gl.render.filters.`object`.ImageObjectFilterRende
 import com.pedro.library.rtmp.RtmpCamera2
 import java.io.File
 import java.io.FileOutputStream
+import kotlin.math.abs
 
 class MainActivity : AppCompatActivity(), ConnectChecker {
 
@@ -242,10 +243,25 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private fun setupZoomControl() {
         binding.zoomSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
+                // Snaps a user drag within ZOOM_SNAP_WINDOW of 1x to exactly
+                // DEFAULT_ZOOM_PROGRESS — without this, landing on the true
+                // 1x stop by touch is fiddly now that it isn't at either end
+                // of the track. Computed once as `snapped` and applied from
+                // that (not by relying on the reentrant listener call from
+                // `bar.progress = snapped` below) because that call is a
+                // no-op — and never re-fires — when progress is already
+                // exactly DEFAULT_ZOOM_PROGRESS, which would otherwise skip
+                // applying the zoom entirely on that touch.
+                val snapped = if (fromUser && abs(progress - DEFAULT_ZOOM_PROGRESS) <= ZOOM_SNAP_WINDOW) {
+                    DEFAULT_ZOOM_PROGRESS
+                } else {
+                    progress
+                }
+                if (snapped != progress) bar.progress = snapped
                 // 0.6x (wide) + progress/100 — matches zoomSeekBar's
                 // android:max="440"/android:progress="40" in the layout, so
                 // progress 40 is exactly 1.0x, the default on launch.
-                applyZoom(0.6f + progress / 100f)
+                applyZoom(0.6f + snapped / 100f)
             }
 
             override fun onStartTrackingTouch(bar: SeekBar) = Unit
@@ -1391,6 +1407,11 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private companion object {
         const val TAG = "Broadcaster"
         const val RECONNECT_WATCHDOG_MS = 8000L
+        // zoomSeekBar's default progress (= exactly 1.0x, see setupZoomControl)
+        // and how many progress units on either side count as "close enough
+        // to snap" — matches the layout comment on zoomSeekBar/its tick mark.
+        const val DEFAULT_ZOOM_PROGRESS = 40
+        const val ZOOM_SNAP_WINDOW = 15
         const val MAX_SPONSOR_IMAGE_DIMENSION = 512
         const val PREF_RTMP_URL = "rtmp_url"
         const val PREF_RTMP_KEY = "rtmp_key"
