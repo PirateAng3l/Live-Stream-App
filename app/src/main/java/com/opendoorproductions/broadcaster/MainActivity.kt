@@ -903,17 +903,20 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
      * else in this file needed to change — only which parent it lives in.
      */
     private fun setupSettingsTabs() {
+        // Order follows the natural setup flow: pick a stream source, pick a
+        // sport, pick sponsors, then camera (last since it has no controls
+        // yet beyond the note — see cameraSettingsGroup's content).
         val tabGroups = listOf(
-            binding.cameraSettingsGroup,
-            binding.sponsorAdsGroup,
-            binding.sportsSettingsGroup,
             binding.streamSetupGroup,
+            binding.sportsSettingsGroup,
+            binding.sponsorAdsGroup,
+            binding.cameraSettingsGroup,
         )
         val tabTitles = listOf(
-            R.string.tab_camera,
-            R.string.tab_sponsor_ads,
-            R.string.tab_sports,
             R.string.tab_stream_setup,
+            R.string.tab_sports,
+            R.string.tab_sponsor_ads,
+            R.string.tab_camera,
         )
         tabTitles.forEach { titleRes ->
             binding.settingsTabLayout.addTab(binding.settingsTabLayout.newTab().setText(titleRes))

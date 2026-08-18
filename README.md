@@ -71,15 +71,19 @@ This repo now holds all three components of the platform described in
     (becomes "Stop Reconnecting" mid-retry). This is what actually gets
     touched during a match, right on the edge rather than sitting over the
     middle of the shot.
-  - **A gear icon — the settings panel, closed by default, tabbed:**
-    - *Camera* — currently just a note; zoom itself is the always-visible
-      slider on the left edge of the preview, not tucked in here (it's a
-      live framing adjustment, not a one-time setting).
-    - *Sponsor Ads* — logo + all three sponsor slots (pick/clear/size/
-      position), sponsor presets.
+  - **A gear icon — the settings panel, closed by default, tabbed in
+    setup order** (open by default on *Stream Setup*, the natural first
+    step):
+    - *Stream Setup* — crew sign-in, RTMP URL + stream key entry.
     - *Sports* — sport selector, team name entry (or a single event name
       when Clean Slate / Event is selected).
-    - *Stream Setup* — crew sign-in, RTMP URL + stream key entry.
+    - *Sponsor Ads* — logo + all three sponsor slots (pick/clear/size/
+      position), sponsor presets.
+    - *Camera* — last, since it's the one tab with nothing to configure
+      yet — currently just a note; zoom itself is the always-visible
+      slider on the left edge of the preview, not tucked in here (it's a
+      live framing adjustment, not a one-time setting). Placeholder for
+      resolution/bitrate/fps controls once those stop being hardcoded.
 - **Dark/light theme, switchable in-app** (Settings panel, top, above the
   tabs) — a real Android day/night resource split
   (`values/colors.xml` = light, `values-night/colors.xml` = dark), not
@@ -194,7 +198,8 @@ app/src/main/java/com/opendoorproductions/broadcaster/
   backend/
     BackendConfig.kt          reads SUPABASE_URL/SUPABASE_ANON_KEY from BuildConfig
     SupabaseClient.kt         blocking HTTP client: crew sign-in, fixtures, credentials
-app/src/main/res/layout/activity_main.xml   camera view + status chip + live control
+app/src/main/res/layout/activity_main.xml   camera view + status chip (bottom-left,
+                                              moved off the team names) + live control
                                               panel (score/timer/Go Live) + tabbed
                                               settings panel
 app/src/main/res/values/colors.xml          light theme palette (the default resource set)
