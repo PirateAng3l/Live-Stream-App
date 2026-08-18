@@ -24,6 +24,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.core.widget.doAfterTextChanged
 import com.google.android.material.button.MaterialButton
@@ -150,6 +151,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         setupPanelToggle()
         setupLiveControlToggle()
         setupSettingsTabs()
+        setupThemeToggle()
         setupSportSpinner()
         setupScoreControls()
         setupCricketControls()
@@ -925,6 +927,36 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
             override fun onTabUnselected(tab: TabLayout.Tab) = Unit
             override fun onTabReselected(tab: TabLayout.Tab) = Unit
         })
+    }
+
+    /**
+     * Persisted in the same prefs file as everything else (see
+     * BroadcasterApp.PREFS_NAME), read there too so the app already
+     * launches in the right theme before this switch even exists on
+     * screen — this only needs to reflect that state and handle changes.
+     *
+     * recreate() is what actually applies a new theme (Android doesn't
+     * hot-swap day/night resource values without one), but calling it
+     * while rtmpCamera2.isStreaming would tear down and rebuild the
+     * camera/encoder mid-broadcast — a real risk to an active stream, not
+     * just a jarring UI moment. So a change made while live is saved and
+     * will apply automatically next launch (or whenever you next open a
+     * screen that recreates), but doesn't recreate right now — the toast
+     * says so instead of silently doing nothing.
+     */
+    private fun setupThemeToggle() {
+        binding.darkModeSwitch.isChecked = prefs.getBoolean(BroadcasterApp.PREF_DARK_MODE, true)
+        binding.darkModeSwitch.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean(BroadcasterApp.PREF_DARK_MODE, isChecked).apply()
+            AppCompatDelegate.setDefaultNightMode(
+                if (isChecked) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
+            )
+            if (rtmpCamera2.isStreaming) {
+                Toast.makeText(this, R.string.theme_change_after_stream, Toast.LENGTH_LONG).show()
+            } else {
+                recreate()
+            }
+        }
     }
 
     private fun setupSportSpinner() {

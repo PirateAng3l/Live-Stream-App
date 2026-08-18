@@ -1,13 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Light theme — the new default resource set (no "-night" qualifier).
+     See values-night/colors.xml for the dark counterpart and the full
+     explanation of how these two get swapped at runtime and why the
+     broadcast overlay is untouched by either.
+
+     Brand/status colors (accent, away_color, live_red) are kept identical
+     to the dark palette on purpose — those are meant to read as "this
+     app's red," not something that should shift with the theme. Only
+     background/panel/text roles actually change here; home_color and
+     warn_amber are darkened versions of their dark-theme values (same
+     hue, more contrast) since the pale originals were tuned to sit on a
+     near-black panel and would wash out on a light one. -->
 <resources>
-    <color name="background">#0F1620</color>
-    <color name="panel_bg">#CC0F1620</color>
+    <color name="background">#F5F7FA</color>
+    <color name="panel_bg">#CCFFFFFF</color>
     <color name="accent">#E4392F</color>
-    <color name="home_color">#2FA8E4</color>
+    <color name="home_color">#1671B8</color>
     <color name="away_color">#E4392F</color>
-    <color name="text_primary">#FFFFFF</color>
-    <color name="text_secondary">#B7C2CC</color>
+    <color name="text_primary">#12181F</color>
+    <color name="text_secondary">#5B6672</color>
     <color name="live_red">#E4392F</color>
-    <color name="ok_green">#3ECF6E</color>
-    <color name="warn_amber">#F2B33D</color>
+    <color name="ok_green">#1F9D4C</color>
+    <color name="warn_amber">#B8790A</color>
+    <color name="divider">#26000000</color>
 </resources>

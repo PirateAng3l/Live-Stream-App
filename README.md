@@ -80,6 +80,23 @@ This repo now holds all three components of the platform described in
     - *Sports* — sport selector, team name entry (or a single event name
       when Clean Slate / Event is selected).
     - *Stream Setup* — crew sign-in, RTMP URL + stream key entry.
+- **Dark/light theme, switchable in-app** (Settings panel, top, above the
+  tabs) — a real Android day/night resource split
+  (`values/colors.xml` = light, `values-night/colors.xml` = dark), not
+  just the one icon color: backgrounds, panel chrome, text, dividers all
+  swap. Defaults to dark (the app's original look) so an install that
+  never touches the switch is unchanged. Applying a change calls
+  `Activity.recreate()`, which Android needs to actually repaint with the
+  new resource set — except while a broadcast is live
+  (`rtmpCamera2.isStreaming`), where recreating would tear down and
+  rebuild the camera/encoder mid-stream, a real risk to an active
+  broadcast, not just a jarring UI moment. A change made while live is
+  saved and takes effect next launch instead, with a toast saying so.
+  **Does not touch the broadcast overlay itself** — `TeamOverlayRenderer`
+  / `CricketOverlayRenderer` / `EventOverlayRenderer` / `OverlayChrome`
+  all draw with their own hardcoded colors, never reading from this
+  file, on purpose: what a viewer sees in the stream shouldn't change
+  because the operator's phone is in light or dark mode.
 
 ## Connection resilience — what it actually covers
 
@@ -108,10 +125,6 @@ This repo now holds all three components of the platform described in
 - No position/tier reassignment (spec 5.5's headline-vs-corner tiering) — each of the
   4 slots is fixed to its named position; you can change *what* image is shown, not
   *where* it appears.
-- **No swappable light/dark theme.** Explicitly requested and deliberately deferred —
-  the whole app's look (backgrounds, text, panel chrome) is hardcoded dark-only
-  throughout `colors.xml`, not built on a theme system that could swap at runtime.
-  A real fix means introducing that system, not just flipping a few colors.
 
 ## Getting a stream key to test with
 
@@ -177,12 +190,15 @@ app/src/main/java/com/opendoorproductions/broadcaster/
   CricketOverlayRenderer.kt   runs/wickets/overs HUD with target/chase line
   EventOverlayRenderer.kt     no-scoreboard HUD for Clean Slate / Event (just a name + chrome)
   SponsorPresetStore.kt       named save/load/delete of a full sponsor setup
+  BroadcasterApp.kt           applies the saved dark/light preference at process start
   backend/
     BackendConfig.kt          reads SUPABASE_URL/SUPABASE_ANON_KEY from BuildConfig
     SupabaseClient.kt         blocking HTTP client: crew sign-in, fixtures, credentials
 app/src/main/res/layout/activity_main.xml   camera view + status chip + live control
                                               panel (score/timer/Go Live) + tabbed
                                               settings panel
+app/src/main/res/values/colors.xml          light theme palette (the default resource set)
+app/src/main/res/values-night/colors.xml    dark theme palette (the app's original look)
 ```
 
 ## Known rough edges (expected, for a "just see it work" POC)

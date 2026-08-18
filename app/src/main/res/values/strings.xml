@@ -16,6 +16,8 @@
     <string name="live_panel_toggle_show">Score</string>
     <string name="close">Close</string>
     <string name="close_symbol">✕</string>
+    <string name="theme_toggle_label">Dark mode</string>
+    <string name="theme_change_after_stream">Theme will apply once you end the stream</string>
 
     <string name="tab_camera">Camera</string>
     <string name="tab_sponsor_ads">Sponsor Ads</string>
