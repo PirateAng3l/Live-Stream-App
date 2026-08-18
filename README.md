@@ -57,13 +57,15 @@ This repo now holds all three components of the platform described in
   via the device photo picker — aspect-fit, centered, drawn straight into the same slot
   the placeholder text used to occupy. No image picked falls back to placeholder text,
   so the app still works with zero setup. Picks persist across restarts.
-- **Two independent panels, each with its own toggle (top-right)**, so the
-  crew's live controls stay reachable without digging through settings:
+- **Two panels sharing the same right-edge slot, each with its own
+  top-right toggle** — opening one always closes the other, so they never
+  overlap the camera preview or each other:
   - **"Score ▸" — the live control panel, open by default.** Score
     controls (undo/swap/reset), the timer, and Go Live / End Stream
     (becomes "Stop Reconnecting" mid-retry). This is what actually gets
-    touched during a match.
-  - **"Settings ▸" — the settings panel, closed by default, tabbed:**
+    touched during a match, right on the edge rather than sitting over the
+    middle of the shot.
+  - **A gear icon — the settings panel, closed by default, tabbed:**
     - *Camera* — currently just a note; zoom itself is the always-visible
       slider on the left edge of the preview, not tucked in here (it's a
       live framing adjustment, not a one-time setting).

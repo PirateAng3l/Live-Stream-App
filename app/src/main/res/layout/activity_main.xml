@@ -48,14 +48,21 @@
     </LinearLayout>
 
     <!-- Opens/closes settingsPanel (Camera / Sponsor Ads / Sports / Stream Setup) —
-         everything that's "configure once, rarely touched mid-match". -->
+         everything that's "configure once, rarely touched mid-match". Icon-only
+         (gear, white) rather than text — background stays the same translucent
+         chip (app:backgroundTint), so the transparency look is unchanged. -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/panelToggleBtn"
         style="@style/Widget.MaterialComponents.Button.Icon"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
-        android:text="@string/panel_toggle_show"
+        android:contentDescription="@string/panel_toggle_show"
+        app:icon="@drawable/ic_settings"
+        app:iconTint="@color/text_primary"
+        app:iconPadding="0dp"
+        android:insetLeft="0dp"
+        android:insetRight="0dp"
         app:backgroundTint="@color/panel_bg"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
@@ -771,20 +778,22 @@
     </ScrollView>
 
     <!-- ============================================================
-         LIVE CONTROL PANEL — bottom, centered, visible by default.
+         LIVE CONTROL PANEL — right edge, full height, visible by default.
          The crew's actual in-the-moment controls: score, timer, Go Live.
-         Independent of settingsPanel so it stays reachable without
-         digging through settings mid-match.
+         Same right-edge slot as settingsPanel (not the center of the
+         screen — that sat over the middle of the camera preview, right
+         where an operator is watching the shot) — the two are mutually
+         exclusive (see setupPanelToggle/setupLiveControlToggle) so they
+         never need to share that space at the same time.
          ============================================================ -->
     <ScrollView
         android:id="@+id/liveControlPanel"
-        android:layout_width="340dp"
+        android:layout_width="320dp"
         android:layout_height="0dp"
         android:background="@drawable/bg_panel"
         android:visibility="visible"
-        app:layout_constraintTop_toBottomOf="@id/statusChip"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
         <LinearLayout

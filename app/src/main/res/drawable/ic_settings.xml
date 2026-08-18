@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simple gear/cog icon: a ring (outer circle minus inner hole, evenOdd fill)
+     plus 8 teeth rotated evenly around the same center. Hand-built from basic
+     shapes rather than a copied icon-font glyph so every coordinate is
+     something we can reason about without a renderer to check it against. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M18,12 A6,6 0 1,1 6,12 A6,6 0 1,1 18,12 Z M15,12 A3,3 0 1,1 9,12 A3,3 0 1,1 15,12 Z" />
+
+    <group android:pivotX="12" android:pivotY="12" android:rotation="0">
+        <path android:fillColor="#FFFFFF" android:pathData="M11,2.5 L13,2.5 L13,6.5 L11,6.5 Z" />
+    </group>
+    <group android:pivotX="12" android:pivotY="12" android:rotation="45">
+        <path android:fillColor="#FFFFFF" android:pathData="M11,2.5 L13,2.5 L13,6.5 L11,6.5 Z" />
+    </group>
+    <group android:pivotX="12" android:pivotY="12" android:rotation="90">
+        <path android:fillColor="#FFFFFF" android:pathData="M11,2.5 L13,2.5 L13,6.5 L11,6.5 Z" />
+    </group>
+    <group android:pivotX="12" android:pivotY="12" android:rotation="135">
+        <path android:fillColor="#FFFFFF" android:pathData="M11,2.5 L13,2.5 L13,6.5 L11,6.5 Z" />
+    </group>
+    <group android:pivotX="12" android:pivotY="12" android:rotation="180">
+        <path android:fillColor="#FFFFFF" android:pathData="M11,2.5 L13,2.5 L13,6.5 L11,6.5 Z" />
+    </group>
+    <group android:pivotX="12" android:pivotY="12" android:rotation="225">
+        <path android:fillColor="#FFFFFF" android:pathData="M11,2.5 L13,2.5 L13,6.5 L11,6.5 Z" />
+    </group>
+    <group android:pivotX="12" android:pivotY="12" android:rotation="270">
+        <path android:fillColor="#FFFFFF" android:pathData="M11,2.5 L13,2.5 L13,6.5 L11,6.5 Z" />
+    </group>
+    <group android:pivotX="12" android:pivotY="12" android:rotation="315">
+        <path android:fillColor="#FFFFFF" android:pathData="M11,2.5 L13,2.5 L13,6.5 L11,6.5 Z" />
+    </group>
+</vector>

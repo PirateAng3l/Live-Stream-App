@@ -835,11 +835,14 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         }
     }
 
+    // Both panels live in the same right-edge slot (see the layout comment on
+    // liveControlPanel), so opening one always closes the other — otherwise
+    // they'd render on top of each other.
     private fun setupPanelToggle() {
         binding.panelToggleBtn.setOnClickListener {
             panelOpen = !panelOpen
             binding.settingsPanel.visibility = if (panelOpen) View.VISIBLE else View.GONE
-            binding.panelToggleBtn.setText(if (panelOpen) R.string.panel_toggle_hide else R.string.panel_toggle_show)
+            if (panelOpen) closeLiveControlPanel()
         }
     }
 
@@ -851,7 +854,19 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
             binding.liveControlToggleBtn.setText(
                 if (liveControlOpen) R.string.panel_toggle_hide else R.string.live_panel_toggle_show
             )
+            if (liveControlOpen) closeSettingsPanel()
         }
+    }
+
+    private fun closeLiveControlPanel() {
+        liveControlOpen = false
+        binding.liveControlPanel.visibility = View.GONE
+        binding.liveControlToggleBtn.setText(R.string.live_panel_toggle_show)
+    }
+
+    private fun closeSettingsPanel() {
+        panelOpen = false
+        binding.settingsPanel.visibility = View.GONE
     }
 
     /**
