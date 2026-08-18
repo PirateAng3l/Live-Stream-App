@@ -836,13 +836,16 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     }
 
     // Both panels live in the same right-edge slot (see the layout comment on
-    // liveControlPanel), so opening one always closes the other — otherwise
-    // they'd render on top of each other. Each floating toggle button also
-    // hides itself while its own panel is open (it was sitting on top of
-    // that panel's own controls — e.g. covering the timer's Reset button —
-    // once both lived in the same corner); the panel's own in-content ✕
-    // button (settingsCloseBtn / liveControlCloseBtn) is what closes it and
-    // brings the floating button back.
+    // liveControlPanel), so opening one always closes the other. Both
+    // floating toggle buttons hide together whenever EITHER panel is open —
+    // not just the one for its own panel — because they're stacked in the
+    // same corner: with only "its own" button hidden, the *other* one stayed
+    // visible right over the open panel's content, and since a MaterialButton
+    // renders above a plain layout regardless of XML order (elevation), a tap
+    // meant for the in-panel ✕ close button could land on that floating
+    // button instead and reopen/switch instead of closing. Hiding both while
+    // anything is open removes that collision entirely: the only way back to
+    // "both buttons visible" is closing via the ✕.
     private fun setupPanelToggle() {
         binding.panelToggleBtn.setOnClickListener { openSettingsPanel() }
         binding.settingsCloseBtn.setOnClickListener { closeSettingsPanel() }
@@ -850,35 +853,43 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
 
     private fun setupLiveControlToggle() {
         binding.liveControlPanel.visibility = if (liveControlOpen) View.VISIBLE else View.GONE
-        binding.liveControlToggleBtn.visibility = if (liveControlOpen) View.GONE else View.VISIBLE
+        updateFloatingToggleVisibility()
         binding.liveControlToggleBtn.setOnClickListener { openLiveControlPanel() }
         binding.liveControlCloseBtn.setOnClickListener { closeLiveControlPanel() }
     }
 
+    private fun updateFloatingToggleVisibility() {
+        val anyPanelOpen = panelOpen || liveControlOpen
+        binding.panelToggleBtn.visibility = if (anyPanelOpen) View.GONE else View.VISIBLE
+        binding.liveControlToggleBtn.visibility = if (anyPanelOpen) View.GONE else View.VISIBLE
+    }
+
     private fun openSettingsPanel() {
         panelOpen = true
+        liveControlOpen = false
         binding.settingsPanel.visibility = View.VISIBLE
-        binding.panelToggleBtn.visibility = View.GONE
-        closeLiveControlPanel()
+        binding.liveControlPanel.visibility = View.GONE
+        updateFloatingToggleVisibility()
     }
 
     private fun closeSettingsPanel() {
         panelOpen = false
         binding.settingsPanel.visibility = View.GONE
-        binding.panelToggleBtn.visibility = View.VISIBLE
+        updateFloatingToggleVisibility()
     }
 
     private fun openLiveControlPanel() {
         liveControlOpen = true
+        panelOpen = false
         binding.liveControlPanel.visibility = View.VISIBLE
-        binding.liveControlToggleBtn.visibility = View.GONE
-        closeSettingsPanel()
+        binding.settingsPanel.visibility = View.GONE
+        updateFloatingToggleVisibility()
     }
 
     private fun closeLiveControlPanel() {
         liveControlOpen = false
         binding.liveControlPanel.visibility = View.GONE
-        binding.liveControlToggleBtn.visibility = View.VISIBLE
+        updateFloatingToggleVisibility()
     }
 
     /**

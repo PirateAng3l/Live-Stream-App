@@ -58,12 +58,14 @@ This repo now holds all three components of the platform described in
   the placeholder text used to occupy. No image picked falls back to placeholder text,
   so the app still works with zero setup. Picks persist across restarts.
 - **Two panels sharing the same right-edge slot, opened by a floating icon
-  button and closed by a ✕ inside the panel itself.** The floating button
-  hides the moment its panel opens (it used to sit on top of the panel's
-  own controls — a real bug, not cosmetic: it covered the timer's Reset
-  button once both lived in the same corner) and reappears once that panel
-  closes. Opening one always closes the other, so they never overlap the
-  camera preview or each other:
+  button and closed by a ✕ inside the panel itself.** Both floating icon
+  buttons hide together the moment either panel opens, and both reappear
+  once it's closed — not just "its own" button, because they're stacked in
+  the same corner and a MaterialButton renders above plain content
+  regardless of XML order (elevation), so leaving the *other* one visible
+  meant it could actually catch a tap meant for the ✕ underneath and
+  reopen/switch instead of closing. Opening one panel always closes the
+  other, so they never overlap the camera preview or each other:
   - **A scoreboard icon — the live control panel, open by default.** Score
     controls (undo/swap/reset), the timer, and Go Live / End Stream
     (becomes "Stop Reconnecting" mid-retry). This is what actually gets
