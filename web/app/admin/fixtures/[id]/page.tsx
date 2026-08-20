@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LoadError, StatusBadge } from "../../../_components";
 import { formatKickoff } from "@/lib/fixtures";
@@ -5,6 +6,7 @@ import { loadFixtureSponsors, loadSponsorsForSchool } from "@/lib/sponsors-serve
 import { sponsorLayerLabel, sponsorPositionLabel, sponsorTierLabel } from "@/lib/sponsors";
 import { getCurrentStaffProfile } from "@/lib/staff";
 import { loadFixtureById } from "@/lib/supabase";
+import { DeleteFixtureForm } from "./fixture-actions";
 import { AssignSponsorForm, RemoveSponsorForm } from "./sponsor-forms";
 
 export const dynamic = "force-dynamic";
@@ -59,6 +61,16 @@ export default async function FixtureDetailPage({ params }: FixtureDetailPagePro
       <p className="mt-1 text-sm text-textsecondary">
         {fixture.youtubeVideoId ? "Ready to stream" : "Provisioning…"}
       </p>
+
+      <div className="mt-4 flex gap-3">
+        <Link
+          href={`/admin/fixtures/${fixture.id}/edit`}
+          className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-textprimary hover:border-accent"
+        >
+          Edit fixture
+        </Link>
+        <DeleteFixtureForm fixtureId={fixture.id} />
+      </div>
 
       <div className="mt-8">
         <h2 className="mb-3 text-lg font-semibold">Sponsors on this fixture</h2>

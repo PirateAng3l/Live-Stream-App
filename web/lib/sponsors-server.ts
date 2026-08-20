@@ -20,6 +20,30 @@ export async function loadSponsorsForSchool(schoolId: string): Promise<SponsorOp
   }));
 }
 
+export interface SponsorDetail extends SponsorOption {
+  schoolId: string;
+}
+
+export async function loadSponsorById(id: string): Promise<SponsorDetail | null> {
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("sponsors")
+    .select("id, name, tier, default_position, click_url, logo_url, school_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(`Could not load sponsor ${id}: ${error.message}`);
+  if (!data) return null;
+  return {
+    id: data.id,
+    name: data.name,
+    tier: data.tier,
+    defaultPosition: data.default_position,
+    clickUrl: data.click_url,
+    logoUrl: data.logo_url,
+    schoolId: data.school_id,
+  };
+}
+
 /**
  * Two flat queries (fixture_sponsors, then sponsors by id) rather than an
  * embedded-relation select — same reasoning as resolveNames in supabase.ts:

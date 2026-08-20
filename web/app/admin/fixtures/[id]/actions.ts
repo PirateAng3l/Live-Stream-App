@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { SPONSOR_LAYERS, SPONSOR_POSITIONS, SPONSOR_TIERS } from "@/lib/sponsors";
 import { getCurrentStaffProfile } from "@/lib/staff";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
@@ -104,4 +105,88 @@ export async function removeSponsorAction(_prev: ActionState, formData: FormData
 
   revalidatePath(`/admin/fixtures/${fixtureId}`);
   return {};
+}
+
+/**
+ * Same host-school re-derivation as the sponsor actions above — the form
+ * can't be trusted to say which fixture it's editing belongs to which
+ * school. RLS (fixtures_update_own_school / fixtures_write_admin, migration
+ * 0005) is the real backstop either way.
+ */
+export async function updateFixtureAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const staff = await getCurrentStaffProfile();
+  if (!staff) return { error: "Not signed in as staff" };
+
+  const fixtureId = String(formData.get("fixture_id") ?? "");
+  if (!fixtureId) return { error: "Missing fixture" };
+
+  let hostSchoolId: string | null;
+  try {
+    hostSchoolId = await loadFixtureHostSchool(fixtureId);
+  } catch (error) {
+    return { error: (error as Error).message };
+  }
+  if (!hostSchoolId) return { error: "Fixture not found" };
+  if (staff.role === "school_operator" && staff.schoolId !== hostSchoolId) {
+    return { error: "This fixture belongs to a different school" };
+  }
+
+  const sport = String(formData.get("sport") ?? "");
+  const homeTeamId = String(formData.get("home_team_id") ?? "");
+  const awayTeamId = String(formData.get("away_team_id") ?? "");
+  const scheduledStartLocal = String(formData.get("scheduled_start") ?? "");
+
+  if (!sport) return { error: "Sport is required" };
+  if (!homeTeamId || !awayTeamId) return { error: "Home and away teams are required" };
+  if (homeTeamId === awayTeamId) return { error: "Home and away teams must be different" };
+  if (!scheduledStartLocal) return { error: "Kickoff time is required" };
+
+  const scheduledStart = new Date(scheduledStartLocal);
+  if (Number.isNaN(scheduledStart.getTime())) return { error: "Kickoff time is invalid" };
+
+  const supabase = createSupabaseServerClient();
+  const { error } = await supabase
+    .from("fixtures")
+    .update({
+      sport,
+      home_team_id: homeTeamId,
+      away_team_id: awayTeamId,
+      scheduled_start: scheduledStart.toISOString(),
+    })
+    .eq("id", fixtureId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/admin/fixtures/${fixtureId}`);
+  revalidatePath("/admin");
+  redirect(`/admin/fixtures/${fixtureId}`);
+}
+
+export async function deleteFixtureAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const staff = await getCurrentStaffProfile();
+  if (!staff) return { error: "Not signed in as staff" };
+
+  const fixtureId = String(formData.get("fixture_id") ?? "");
+  if (!fixtureId) return { error: "Missing fixture" };
+
+  let hostSchoolId: string | null;
+  try {
+    hostSchoolId = await loadFixtureHostSchool(fixtureId);
+  } catch (error) {
+    return { error: (error as Error).message };
+  }
+  if (!hostSchoolId) return { error: "Fixture not found" };
+  if (staff.role === "school_operator" && staff.schoolId !== hostSchoolId) {
+    return { error: "This fixture belongs to a different school" };
+  }
+
+  const supabase = createSupabaseServerClient();
+  // fixture_sponsors and fixture_broadcast_credentials both cascade on
+  // delete (migration 0001) — no need to clean those up separately. The
+  // YouTube broadcast itself isn't deleted via the API; it's simply left
+  // orphaned/unlisted on the channel, same as ending any other stream.
+  const { error } = await supabase.from("fixtures").delete().eq("id", fixtureId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin");
+  redirect("/admin");
 }

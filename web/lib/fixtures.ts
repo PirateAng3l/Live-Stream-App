@@ -36,6 +36,8 @@ export interface FixtureSummary {
   scheduledStart: string;
   status: FixtureStatus;
   hostSchoolId: string;
+  homeTeamId: string;
+  awayTeamId: string;
   homeTeamName: string;
   awayTeamName: string;
   schoolName: string;
@@ -64,6 +66,8 @@ export function resolveFixtureSummaries(
     scheduledStart: fixture.scheduled_start,
     status: fixture.status,
     hostSchoolId: fixture.host_school_id,
+    homeTeamId: fixture.home_team_id,
+    awayTeamId: fixture.away_team_id,
     homeTeamName: teamNames.get(fixture.home_team_id) ?? "Home",
     awayTeamName: teamNames.get(fixture.away_team_id) ?? "Away",
     schoolName: schoolNames.get(fixture.host_school_id) ?? "",

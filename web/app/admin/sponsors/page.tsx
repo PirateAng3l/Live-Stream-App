@@ -5,6 +5,7 @@ import { loadAllSchools, resolveSchoolContext } from "@/lib/admin";
 import { getCurrentStaffProfile } from "@/lib/staff";
 import { loadSponsorsForSchool } from "@/lib/sponsors-server";
 import { sponsorPositionLabel, sponsorTierLabel } from "@/lib/sponsors";
+import { SponsorRowActions } from "./sponsor-row-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -67,9 +68,12 @@ export default async function AdminSponsorsPage({ searchParams }: AdminSponsorsP
               className="flex items-center justify-between rounded-lg border border-white/10 bg-panel px-4 py-3"
             >
               <span>{sponsor.name}</span>
-              <span className="text-xs uppercase tracking-wide text-textsecondary">
-                {sponsorTierLabel(sponsor.tier)} · {sponsorPositionLabel(sponsor.defaultPosition)}
-              </span>
+              <div className="flex items-center gap-4">
+                <span className="text-xs uppercase tracking-wide text-textsecondary">
+                  {sponsorTierLabel(sponsor.tier)} · {sponsorPositionLabel(sponsor.defaultPosition)}
+                </span>
+                <SponsorRowActions sponsorId={sponsor.id} />
+              </div>
             </li>
           ))}
         </ul>

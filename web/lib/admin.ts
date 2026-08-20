@@ -52,6 +52,22 @@ export async function loadTeamsForSchool(schoolId: string): Promise<TeamOption[]
   return data ?? [];
 }
 
+export interface TeamDetail extends TeamOption {
+  schoolId: string;
+}
+
+export async function loadTeamById(id: string): Promise<TeamDetail | null> {
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("teams")
+    .select("id, name, sport, school_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(`Could not load team ${id}: ${error.message}`);
+  if (!data) return null;
+  return { id: data.id, name: data.name, sport: data.sport, schoolId: data.school_id };
+}
+
 /**
  * A platform_admin sees every fixture; a school_operator sees only their
  * own school's — same RLS-backed scoping the rest of this app relies on,

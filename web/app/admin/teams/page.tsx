@@ -4,6 +4,7 @@ import { LoadError } from "../../_components";
 import { loadAllSchools, loadTeamsForSchool, resolveSchoolContext } from "@/lib/admin";
 import { sportLabel } from "@/lib/sports";
 import { getCurrentStaffProfile } from "@/lib/staff";
+import { TeamRowActions } from "./team-row-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -61,9 +62,12 @@ export default async function AdminTeamsPage({ searchParams }: AdminTeamsPagePro
               className="flex items-center justify-between rounded-lg border border-white/10 bg-panel px-4 py-3"
             >
               <span>{team.name}</span>
-              <span className="text-xs uppercase tracking-wide text-textsecondary">
-                {sportLabel(team.sport)}
-              </span>
+              <div className="flex items-center gap-4">
+                <span className="text-xs uppercase tracking-wide text-textsecondary">
+                  {sportLabel(team.sport)}
+                </span>
+                <TeamRowActions teamId={team.id} />
+              </div>
             </li>
           ))}
         </ul>

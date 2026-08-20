@@ -24,11 +24,17 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="en">
       <body className="min-h-screen bg-background text-textprimary">
-        <header className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-6 py-4">
           <a href="/" className="text-lg font-bold tracking-wide">
             OPEN DOOR <span className="text-accent">LIVE</span>
           </a>
           <nav className="flex items-center gap-4 text-sm">
+            <Link href="/schedule" className="font-semibold text-textsecondary hover:text-textprimary">
+              Schedule
+            </Link>
+            <Link href="/about" className="font-semibold text-textsecondary hover:text-textprimary">
+              About
+            </Link>
             {staff && (
               <Link href="/admin" className="font-semibold text-textsecondary hover:text-textprimary">
                 Admin

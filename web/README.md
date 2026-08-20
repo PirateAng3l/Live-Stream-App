@@ -7,11 +7,16 @@ separate product).
 
 ## What's here
 
-- **`/`** — the schedule ("Live Matches"): Upcoming/Completed tabs, a sport
-  filter, one row per fixture linking to its match page. Tabs and the sport
-  filter are plain links with query params (`?tab=completed&sport=rugby`),
+- **`/`** — the landing page: hero pitch + a preview of the next few upcoming
+  fixtures (linking into `/schedule` for the full list). Deliberately fails
+  soft if the fixtures query errors — a broken preview shouldn't take out the
+  marketing page the way a genuine data problem should on `/schedule` itself.
+- **`/schedule`** — the schedule ("Live Matches"): Upcoming/Completed tabs, a
+  sport filter, one row per fixture linking to its match page. Tabs and the
+  sport filter are plain links with query params (`?tab=completed&sport=rugby`),
   not client-side state — works with JS disabled, no hydration to worry about.
   Public — no sign-in needed to browse what matches exist.
+- **`/about`** — static "About Us" page.
 - **`/matches/[id]`** — a single fixture: teams, school, kickoff time, final
   score if completed, and (spec 4.4) the actual video is gated: signed-out
   visitors see a "Sign in to watch" prompt instead of the embedded player.
@@ -90,16 +95,29 @@ land once they have one.
   assignment, and a form to assign another sponsor from that fixture's own
   school. A `school_operator` hitting another school's fixture ID gets a
   404 (`notFound()`), on top of RLS already stopping the read — belt and
-  braces, not load-bearing on its own.
-- **`/admin/teams`**, **`/admin/teams/new`** — list/create teams for a
-  school. A prerequisite for creating a fixture (a fixture needs two
-  existing team IDs), so it had to come first.
-- **`/admin/sponsors`**, **`/admin/sponsors/new`** — list/create a
-  school's sponsor inventory (name, tier, default position, optional logo
-  and click-through URLs). This is the "who" — which sponsors a school has
-  under contract; assigning one of them to a specific fixture happens on
-  that fixture's own detail page (`/admin/fixtures/[id]`), since the same
-  sponsor can appear on many fixtures with different placements each time.
+  braces, not load-bearing on its own. Also has **Edit fixture** (sport,
+  teams, kickoff time — `/admin/fixtures/[id]/edit`) and **Delete fixture**
+  (confirm-guarded; cascades `fixture_sponsors` and
+  `fixture_broadcast_credentials`, migration 0001 — the YouTube broadcast
+  itself isn't torn down via the API, it's just left orphaned/unlisted on
+  the channel).
+- **`/admin/teams`**, **`/admin/teams/new`**, **`/admin/teams/[id]/edit`** —
+  list/create/edit teams for a school. A prerequisite for creating a
+  fixture (a fixture needs two existing team IDs), so it had to come first.
+  Deleting a team that's still referenced by a fixture (`home_team_id`/
+  `away_team_id` have no `ON DELETE` behavior, deliberately — an orphaned
+  reference would be a data-integrity mess) fails with a friendly message
+  instead of a raw Postgres foreign-key error — `deleteTeamAction` catches
+  Postgres error code `23503` specifically.
+- **`/admin/sponsors`**, **`/admin/sponsors/new`**, **`/admin/sponsors/[id]/edit`**
+  — list/create/edit a school's sponsor inventory (name, tier, default
+  position, optional logo and click-through URLs). This is the "who" —
+  which sponsors a school has under contract; assigning one of them to a
+  specific fixture happens on that fixture's own detail page
+  (`/admin/fixtures/[id]`), since the same sponsor can appear on many
+  fixtures with different placements each time. Deleting a sponsor cascades
+  its `fixture_sponsors` assignments (migration 0001) — nothing blocks it
+  the way an in-use team blocks a delete.
 - A `platform_admin` has no school of their own, so `/admin/teams`,
   `/admin/sponsors`, and `/admin/fixtures/new` show a school picker first
   (`?school=<id>` in the URL) rather than assuming one. A `school_operator`
@@ -311,13 +329,14 @@ worth doing before this goes anywhere near real production traffic.
   yet.
 - **"Notify me" for upcoming fixtures** (spec 7.3.2) and the countdown-to-kickoff
   display.
-- **Editing or deleting a sponsor, or editing/cancelling a fixture** —
-  `/admin/sponsors/new` and `/admin/fixtures/new` only cover create; a
-  sponsor's assignment to a specific fixture can be removed
-  (`/admin/fixtures/[id]`), but the sponsor record itself can't be edited
-  or deleted once created, and there's still no fixture edit/cancel/
-  re-provisioning path either (the edge function's own README already
-  flags re-provisioning as unbuilt).
+- **Re-provisioning on fixture edit** — editing a fixture's kickoff time
+  doesn't touch its already-provisioned YouTube broadcast (its
+  `scheduledStartTime` on YouTube's side stays whatever it was at creation).
+  Fine for now since `enableAutoStart` means the actual go-live moment is
+  driven by the app pushing RTMP, not that scheduled time — but worth
+  revisiting if that field starts being shown to viewers anywhere. The edge
+  function's own README already flags re-provisioning (e.g. after a
+  transient provisioning failure) as unbuilt too.
 - **No logo file upload for sponsors** — `logo_url` is a plain URL text
   field; a school has to host the image somewhere else first and paste the
   link in. Fine for now, matches the "no file upload" scope call already
