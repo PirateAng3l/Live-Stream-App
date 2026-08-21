@@ -18,6 +18,14 @@
 // their own session token. Nothing else calls this (contrast with
 // provision-fixture-broadcast, which a database trigger also calls with
 // the service-role key).
+//
+// The caller passes redirectTo (the web app's own /set-password page) —
+// without it, Supabase falls back to the project's configured Site URL,
+// which lands the invited person on the marketing homepage with an
+// established-but-invisible session and no way to actually set a
+// password. This function has no notion of the web app's URL itself
+// (it's just a Deno function with no NEXT_PUBLIC_* env vars), so the
+// caller supplies it.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { isAuthorizedToInvite } from "./authorize.ts";
@@ -42,7 +50,10 @@ Deno.serve(async (req) => {
     );
   }
 
-  const { email } = await req.json().catch(() => ({ email: undefined }));
+  const { email, redirectTo } = await req.json().catch(() => ({
+    email: undefined,
+    redirectTo: undefined,
+  }));
   if (!email || typeof email !== "string") {
     return new Response(JSON.stringify({ error: "email is required" }), {
       status: 400,
@@ -75,7 +86,10 @@ Deno.serve(async (req) => {
   }
 
   const { data: invited, error: inviteError } = await admin.auth.admin
-    .inviteUserByEmail(email);
+    .inviteUserByEmail(
+      email,
+      typeof redirectTo === "string" && redirectTo ? { redirectTo } : undefined,
+    );
   if (inviteError || !invited.user) {
     return new Response(
       JSON.stringify({

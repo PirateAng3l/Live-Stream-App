@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { resolveSchoolContext } from "@/lib/admin";
 import { getCurrentStaffProfile } from "@/lib/staff";
@@ -9,6 +10,24 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 export interface ActionState {
   error?: string;
   success?: string;
+}
+
+/**
+ * Neither inviteUserByEmail nor resetPasswordForEmail know this app's own
+ * URL — without an explicit redirectTo, Supabase falls back to the
+ * project's Site URL, which lands someone on the marketing homepage with
+ * an invisibly-established session and no password ever set (the bug this
+ * exists to avoid). Reading the incoming request's own Host header works
+ * in every environment (Vercel preview/production, local dev) without a
+ * hardcoded env var to keep in sync.
+ *
+ * Must also be added to Supabase's Auth → URL Configuration → Redirect
+ * URLs allow-list, or Supabase silently ignores it and falls back to the
+ * Site URL anyway — that's a dashboard setting, not something this app
+ * can set for itself.
+ */
+function setPasswordRedirectUrl(): string {
+  return `https://${headers().get("host")}/set-password`;
 }
 
 /**
@@ -144,7 +163,7 @@ export async function inviteOperatorAction(_prev: ActionState, formData: FormDat
       "Content-Type": "application/json",
       Authorization: `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, redirectTo: setPasswordRedirectUrl() }),
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) return { error: result.error ?? "Could not send the invite" };
@@ -187,7 +206,9 @@ export async function resendOperatorInviteAction(_prev: ActionState, formData: F
   if (!email) return { error: "An email address is required" };
 
   const supabase = createSupabaseServerClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: setPasswordRedirectUrl(),
+  });
   if (error) return { error: error.message };
 
   return { success: `If ${email} has an account, a sign-in email is on its way.` };

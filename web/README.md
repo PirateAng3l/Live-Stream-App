@@ -188,6 +188,24 @@ they have one.
   expired invite link — plain `supabase.auth.resetPasswordForEmail`, no
   edge function or service-role key involved, since resending doesn't
   create anything new.
+- **`/set-password`** — where both the invite and resend emails actually
+  land. Without an explicit `redirectTo`, Supabase falls back to the
+  project's Site URL, which sent an invited person to the marketing
+  homepage with a session silently established from the link's URL
+  fragment and no way to ever set a password — a real bug hit during
+  testing, not a hypothetical one. `setPasswordRedirectUrl()`
+  (`admin/school/actions.ts`) builds this page's URL from the *incoming
+  request's own* `Host` header rather than a hardcoded env var, so it's
+  correct on every Vercel preview URL and the production domain alike.
+  `SetPasswordForm` doesn't parse that fragment itself — the Supabase
+  browser client already turns it into a session on page load
+  (`detectSessionInUrl`, on by default) — it just calls
+  `supabase.auth.updateUser({ password })` and sends them to `/admin`.
+  **Also requires a one-time dashboard step**: this exact URL (e.g.
+  `https://<your-domain>/set-password`) has to be added to Supabase's
+  **Authentication → URL Configuration → Redirect URLs** allow-list, or
+  Supabase silently ignores `redirectTo` and falls back to the Site URL
+  again — the same failure mode this page exists to fix.
 - A `platform_admin` has no school of their own, so `/admin/teams`,
   `/admin/sponsors`, `/admin/school`, and `/admin/fixtures/new` show a
   school picker first (`?school=<id>` in the URL) rather than assuming one.
