@@ -7,7 +7,17 @@ enum class ScoreboardLayout { TWO_TEAM, CRICKET, NONE }
 enum class Sport(
     val displayName: String,
     val presets: List<ScoreIncrement>,
-    val layout: ScoreboardLayout
+    val layout: ScoreboardLayout,
+    /**
+     * In display order, e.g. "1st Half", "2nd Half" — shown next to the
+     * timer so viewers know how far into the match they're watching, and
+     * advanced manually by crew (a "Next Period" button, same manual-control
+     * philosophy as the score/timer) rather than any timer-driven guess at
+     * when a half or quarter actually starts. Empty means no period
+     * indicator at all — cricket already shows its own overs/innings state
+     * and OTHER (Clean Slate/Event) has no scoreboard to attach one to.
+     */
+    val periodLabels: List<String> = emptyList()
 ) {
     RUGBY(
         "Rugby",
@@ -17,11 +27,15 @@ enum class Sport(
             ScoreIncrement("Pen +3", 3),
             ScoreIncrement("Drop +3", 3)
         ),
-        ScoreboardLayout.TWO_TEAM
+        ScoreboardLayout.TWO_TEAM,
+        periodLabels = listOf("1st Half", "2nd Half")
     ),
-    SOCCER("Soccer", emptyList(), ScoreboardLayout.TWO_TEAM),
-    NETBALL("Netball", emptyList(), ScoreboardLayout.TWO_TEAM),
-    HOCKEY("Hockey", emptyList(), ScoreboardLayout.TWO_TEAM),
+    SOCCER("Soccer", emptyList(), ScoreboardLayout.TWO_TEAM, periodLabels = listOf("1st Half", "2nd Half")),
+    NETBALL(
+        "Netball", emptyList(), ScoreboardLayout.TWO_TEAM,
+        periodLabels = listOf("1st Quarter", "2nd Quarter", "3rd Quarter", "4th Quarter")
+    ),
+    HOCKEY("Hockey", emptyList(), ScoreboardLayout.TWO_TEAM, periodLabels = listOf("1st Half", "2nd Half")),
     CRICKET("Cricket", emptyList(), ScoreboardLayout.CRICKET),
 
     // No scoreboard at all — for a broadcast that isn't a team-vs-team match:

@@ -43,6 +43,15 @@ This repo now holds all three components of the platform described in
     (`EventOverlayRenderer.kt`; still `Sport.OTHER` under the hood, so a
     fixture's `sport` string stays `"other"` and nothing on the backend/web
     side needed to change.)
+- **Half/period indicator**, shown under the timer pill on rugby/soccer/hockey
+  ("1st Half"/"2nd Half") and netball ("1st"–"4th Quarter"). Crew advances it
+  manually with a **Next Period** button in the live control panel (same
+  manual-control philosophy as score/timer — no guessing at when a half
+  actually starts from the clock alone), which appears only for sports with
+  labels defined (`Sport.periodLabels`) — cricket already shows its own
+  overs/innings state, and Clean Slate/Event has no scoreboard to attach one
+  to. Resets to the first period on a sport change or a timer reset, same as
+  the rest of the match state.
 - **RTMP auto-reconnect.** A dropped connection (network switch, dead zone, wifi↔mobile
   handoff) is detected and retried automatically with backoff, including an 8s watchdog
   that forces a retry if an attempt hangs instead of failing outright. Field-tested:

@@ -33,12 +33,14 @@ class TeamOverlayRenderer(private val width: Int, private val height: Int) {
     private val namePaint = textPaint(height * 0.028f, Paint.Align.LEFT)
     private val scorePaint = textPaint(height * 0.045f, Paint.Align.CENTER)
     private val timerPaint = textPaint(height * 0.04f, Paint.Align.CENTER)
+    private val periodPaint = textPaint(height * 0.022f, Paint.Align.CENTER).apply { alpha = 210 }
 
     fun render(
         state: ScoreState,
         logo: OverlayAsset,
         homeTeamLogo: OverlayAsset,
         awayTeamLogo: OverlayAsset,
+        periodLabel: String,
         sponsorHeadlinePrefix: String,
         sponsorHeadline: OverlayAsset,
         sponsorLeft: OverlayAsset,
@@ -47,7 +49,7 @@ class TeamOverlayRenderer(private val width: Int, private val height: Int) {
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         drawScoreboard(canvas, state, homeTeamLogo, awayTeamLogo)
-        drawTimer(canvas, state)
+        drawTimer(canvas, state, periodLabel)
         chrome.drawLogo(canvas, logo)
         chrome.drawSponsors(canvas, sponsorHeadlinePrefix, sponsorHeadline, sponsorLeft, sponsorRight)
         return bitmap
@@ -86,7 +88,7 @@ class TeamOverlayRenderer(private val width: Int, private val height: Int) {
         }
     }
 
-    private fun drawTimer(canvas: Canvas, state: ScoreState) {
+    private fun drawTimer(canvas: Canvas, state: ScoreState, periodLabel: String) {
         val minutes = state.elapsedSeconds / 60
         val seconds = state.elapsedSeconds % 60
         val text = String.format("%02d:%02d", minutes, seconds)
@@ -101,6 +103,14 @@ class TeamOverlayRenderer(private val width: Int, private val height: Int) {
             pillHeight / 2f, pillHeight / 2f, chrome.panelPaint()
         )
         canvas.drawText(text, centerX, top + pillHeight * 0.68f, timerPaint)
+
+        // Sits directly under the timer pill rather than inside it — sports
+        // with no period concept (cricket, Clean Slate/Event) pass an empty
+        // label and this just doesn't draw, no gap left behind since nothing
+        // else anchors off its position.
+        if (periodLabel.isNotBlank()) {
+            canvas.drawText(periodLabel.uppercase(), centerX, top + pillHeight + height * 0.025f, periodPaint)
+        }
     }
 
     private fun solid(alpha: Int, hex: String) = Paint(Paint.ANTI_ALIAS_FLAG).apply {

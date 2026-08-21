@@ -63,6 +63,10 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private val scoreController = ScoreController()
     private val cricketController = CricketController()
     private var currentSport: Sport = Sport.RUGBY
+    // Index into currentSport.periodLabels — "1st Half" is 0, "2nd Half" is 1,
+    // etc. Meaningless (and periodGroup stays hidden) for a sport with no
+    // period labels at all. See setupPeriodControls/refreshPeriodUi.
+    private var currentPeriodIndex: Int = 0
     private var deviceZoomRange = 0.6f..5f
 
     private val uiHandler = Handler(Looper.getMainLooper())
@@ -179,6 +183,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         setupScoreControls()
         setupCricketControls()
         setupTimerControls()
+        setupPeriodControls()
         setupGoLiveButton()
         setupFieldPersistence()
         setupSponsorImagePickers()
@@ -615,6 +620,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
                 logo,
                 OverlayAsset("", homeTeamLogoBitmap ?: defaultTeamLogoBitmap),
                 OverlayAsset("", defaultTeamLogoBitmap),
+                currentSport.periodLabels.getOrElse(currentPeriodIndex) { "" },
                 sponsorHeadlinePrefix, headline, left, right
             )
             ScoreboardLayout.CRICKET -> cricketOverlayRenderer.render(
@@ -1168,6 +1174,8 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
 
         rebuildPresetRows()
         syncNamesFromInputs()
+        currentPeriodIndex = 0
+        refreshPeriodUi()
     }
 
     private fun rebuildPresetRows() {
@@ -1301,8 +1309,39 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         binding.timerResetBtn.setOnClickListener {
             scoreController.resetTimer()
             binding.timerToggleBtn.setText(R.string.start)
+            // A timer reset is a fresh start for the match, so the period
+            // resets with it — same reasoning as onSportChanged doing both.
+            currentPeriodIndex = 0
+            refreshPeriodUi()
             refreshAll()
         }
+    }
+
+    private fun setupPeriodControls() {
+        binding.nextPeriodBtn.setOnClickListener {
+            if (currentPeriodIndex < currentSport.periodLabels.lastIndex) {
+                currentPeriodIndex++
+                refreshPeriodUi()
+                refreshOverlay()
+            }
+        }
+    }
+
+    /**
+     * Shows/hides periodGroup and syncs periodValue/nextPeriodBtn to
+     * currentSport/currentPeriodIndex. Called on sport change, a timer
+     * reset, and after the crew advances the period — never assume the UI
+     * is already in sync, always re-derive it from state.
+     */
+    private fun refreshPeriodUi() {
+        val labels = currentSport.periodLabels
+        if (labels.isEmpty()) {
+            binding.periodGroup.visibility = View.GONE
+            return
+        }
+        binding.periodGroup.visibility = View.VISIBLE
+        binding.periodValue.text = labels[currentPeriodIndex]
+        binding.nextPeriodBtn.isEnabled = currentPeriodIndex < labels.lastIndex
     }
 
     private fun setupGoLiveButton() {

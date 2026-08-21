@@ -1249,6 +1249,44 @@
                     android:text="@string/reset" />
             </LinearLayout>
 
+            <LinearLayout
+                android:id="@+id/periodGroup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <View style="@style/Divider" />
+
+                <TextView
+                    style="@style/SectionLabel"
+                    android:text="@string/section_period" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/periodValue"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/nextPeriodBtn"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/next_period" />
+                </LinearLayout>
+            </LinearLayout>
+
             <View style="@style/Divider" />
 
             <com.google.android.material.button.MaterialButton
