@@ -10,6 +10,7 @@ export interface SchoolSignupRequest {
   contactPhone: string | null;
   notes: string | null;
   status: SchoolRequestStatus;
+  resultingSchoolId: string | null;
   createdAt: string;
 }
 
@@ -17,7 +18,9 @@ export async function loadSchoolRequests(): Promise<SchoolSignupRequest[]> {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("school_signup_requests")
-    .select("id, school_name, contact_name, contact_email, contact_phone, notes, status, created_at")
+    .select(
+      "id, school_name, contact_name, contact_email, contact_phone, notes, status, resulting_school_id, created_at",
+    )
     .order("created_at", { ascending: false });
   if (error) throw new Error(`Could not load school requests: ${error.message}`);
 
@@ -29,6 +32,7 @@ export async function loadSchoolRequests(): Promise<SchoolSignupRequest[]> {
     contactPhone: row.contact_phone,
     notes: row.notes,
     status: row.status,
+    resultingSchoolId: row.resulting_school_id,
     createdAt: row.created_at,
   }));
 }

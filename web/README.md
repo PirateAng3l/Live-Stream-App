@@ -151,9 +151,8 @@ they have one.
   `school_operator` already has exactly one school and never sees the "+
   Create school" link this hangs off of, at the bottom of the school picker
   every platform_admin-facing page already shows. Lands on `/admin/school`
-  for the new school right after, since giving it a logo is the natural
-  next step. Still doesn't create that school's first operator account —
-  that's still a manual step (see "Not built yet").
+  for the new school right after, since giving it a logo — or inviting its
+  first operator (see below) — is the natural next step.
 - **`/admin/school-requests`** — the review queue for the "School" option
   on `/sign-up`: pending requests (school name, contact name/email/phone,
   optional notes) with Approve/Reject actions, plus a read-only history of
@@ -163,12 +162,28 @@ they have one.
   backstop). Approving a request runs the exact same insert
   `createSchoolAction` does — same fields, same `schools` row — then marks
   the request `approved` and links it via `resulting_school_id`; rejecting
-  just flips its status. Neither one creates a login for the school: same
-  gap as `/admin/school/new`, still a manual step from here. The admin nav
-  shows a `Requests (N)` count next to the link whenever `N` pending
-  requests exist, computed once in `admin/layout.tsx`
-  (`loadPendingSchoolRequestCount`) and skipped entirely for a
-  `school_operator`, who never sees the link at all.
+  just flips its status. An approved row's "Invite operator" link jumps
+  straight to `/admin/school`'s invite form (below), prefilled with the
+  request's contact email. The admin nav shows a `Requests (N)` count next
+  to the link whenever `N` pending requests exist, computed once in
+  `admin/layout.tsx` (`loadPendingSchoolRequestCount`) and skipped entirely
+  for a `school_operator`, who never sees the link at all.
+- **Inviting an operator** — `/admin/school`'s `OperatorInviteForm`
+  (`platform_admin` only), below the logo upload. There's only one kind of
+  operator account in this project: the same login this creates works both
+  here and as the broadcaster app's CREW SIGN-IN (see the top-level
+  README) — "school operator" and "crew member" aren't two different
+  things. Split across a privilege boundary: the new `invite-school-operator`
+  edge function (`backend/supabase/functions/`) does the one thing that
+  genuinely needs the service-role key — creating the `auth.users` account
+  via `inviteUserByEmail` — using this admin's own session token, not a
+  secret this app holds; `inviteOperatorAction` then elevates that new
+  profile to `school_operator` with the right `school_id` using this
+  admin's *ordinary* session, since `profiles_admin_all` (migration 0001)
+  already lets a platform_admin update any profile — no reason to
+  duplicate that check inside the edge function too. If the elevation
+  write fails after the invite succeeds, the new account just sits at the
+  default `role='parent'` until retried, not a broken state.
 - A `platform_admin` has no school of their own, so `/admin/teams`,
   `/admin/sponsors`, `/admin/school`, and `/admin/fixtures/new` show a
   school picker first (`?school=<id>` in the URL) rather than assuming one.
@@ -399,9 +414,15 @@ worth doing before this goes anywhere near real production traffic.
   image picks made on the device (see the top-level README), independent
   of anything set in `/admin`. Connecting the two means the app fetching
   fixture_sponsors + resolved logo URLs during setup, which it doesn't do.
-- **Crew account management** — creating a school_operator account (or
-  assigning `fixtures.assigned_operator_id` to a specific one) is still a
-  manual/SQL step; there's no "invite a crew member" flow anywhere.
+- **Crew account management, partially.** Inviting a school_operator now
+  has a real flow (`/admin/school`'s "Invite an operator", see the admin
+  panel section above) — but there's no resend if an invite email is lost
+  or its link expires (re-inviting the same address just fails, see the
+  edge function's own README), no list of pending-vs-accepted invites
+  anywhere, and no way for a school_operator to invite a colleague at
+  their own school (platform_admin only, for now). Assigning
+  `fixtures.assigned_operator_id` to a specific operator is also still a
+  manual/SQL step.
 - **No self-serve subscription renewal** — a school_operator now sees their
   status badge and a clear "renew to create fixtures" message once lapsed
   (see "Subscription status" below), but there's no billing/payment flow

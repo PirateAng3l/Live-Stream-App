@@ -100,6 +100,12 @@ project is connected yet — that needs your own Supabase account.
   automatically on fixture creation via a database trigger (see the next
   section). See its own README for details, design decisions, and how to
   run its unit tests.
+- **`supabase/functions/invite-school-operator/`** — creates the
+  `auth.users` account for a school's login (called from
+  `web/app/admin/school/actions.ts`'s `inviteOperatorAction`), the one step
+  in onboarding a school that genuinely needs the service-role key. See its
+  own README for why the actual `school_operator` elevation happens back
+  in the caller instead of in here.
 
 ## Fixture creation triggers provisioning automatically
 

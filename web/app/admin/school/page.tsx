@@ -2,12 +2,13 @@ import { SchoolPicker } from "../_school-picker";
 import { LoadError } from "../../_components";
 import { loadAllSchools, loadSchoolById, resolveSchoolContext } from "@/lib/admin";
 import { getCurrentStaffProfile } from "@/lib/staff";
+import { OperatorInviteForm } from "./operator-invite-form";
 import { SchoolLogoForm } from "./school-logo-form";
 
 export const dynamic = "force-dynamic";
 
 interface SchoolPageProps {
-  searchParams: { school?: string };
+  searchParams: { school?: string; invite_email?: string };
 }
 
 export default async function SchoolPage({ searchParams }: SchoolPageProps) {
@@ -34,5 +35,15 @@ export default async function SchoolPage({ searchParams }: SchoolPageProps) {
   }
   if (!school) return <LoadError message="School not found" />;
 
-  return <SchoolLogoForm school={school} />;
+  return (
+    <div>
+      <SchoolLogoForm school={school} />
+      {/* Inviting a login is a platform_admin action, same as creating the
+          school itself — a school_operator managing their own logo has no
+          reason to invite anyone here. */}
+      {staff.role === "platform_admin" && (
+        <OperatorInviteForm school={school} defaultEmail={searchParams.invite_email} />
+      )}
+    </div>
+  );
 }

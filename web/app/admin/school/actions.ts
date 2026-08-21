@@ -8,6 +8,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 export interface ActionState {
   error?: string;
+  success?: string;
 }
 
 /**
@@ -102,4 +103,58 @@ export async function updateSchoolLogoAction(_prev: ActionState, formData: FormD
 
   revalidatePath("/admin/school");
   return {};
+}
+
+/**
+ * Two-step by design, split across a privilege boundary:
+ *
+ * 1. The invite-school-operator edge function creates the auth.users
+ *    account — the one thing that genuinely requires the service-role key,
+ *    which this app never holds (see that function's own README). Called
+ *    with this admin's own session token, not a secret this app stores.
+ * 2. The elevation to school_operator happens right here, using this
+ *    admin's ordinary RLS-bound session — profiles_admin_all (migration
+ *    0001) already lets a platform_admin update any profile, so there's no
+ *    reason to duplicate that permission check inside the edge function
+ *    too. If this second write fails, the invited account just sits at
+ *    the default role='parent' until the operation is retried — a
+ *    recoverable state, not a broken one.
+ */
+export async function inviteOperatorAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const staff = await getCurrentStaffProfile();
+  if (!staff) return { error: "Not signed in as staff" };
+  if (staff.role !== "platform_admin") return { error: "Only a platform admin can invite an operator" };
+
+  const schoolId = resolveSchoolContext(staff, String(formData.get("school_id") ?? ""));
+  if (!schoolId) return { error: "A school is required" };
+
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) return { error: "An email address is required" };
+
+  const supabase = createSupabaseServerClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return { error: "Not signed in as staff" };
+
+  const functionsUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/invite-school-operator`;
+  const response = await fetch(functionsUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ email }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) return { error: result.error ?? "Could not send the invite" };
+
+  const { error: elevateError } = await supabase
+    .from("profiles")
+    .update({ role: "school_operator", school_id: schoolId })
+    .eq("id", result.user_id);
+  if (elevateError) return { error: elevateError.message };
+
+  revalidatePath("/admin/school");
+  return { success: `Invite sent to ${email}` };
 }

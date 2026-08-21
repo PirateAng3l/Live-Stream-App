@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LoadError } from "../../_components";
 import { loadSchoolRequests } from "@/lib/school-requests";
@@ -45,13 +46,23 @@ export default async function SchoolRequestsPage() {
             {reviewed.map((request) => (
               <li
                 key={request.id}
-                className="flex items-center justify-between rounded-lg border border-white/10 px-4 py-2 text-sm"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm"
               >
                 <span className="text-textsecondary">
                   {request.schoolName} — {request.contactEmail}
                 </span>
-                <span className={request.status === "approved" ? "text-ok" : "text-textsecondary"}>
-                  {request.status}
+                <span className="flex items-center gap-3">
+                  {request.status === "approved" && request.resultingSchoolId && (
+                    <Link
+                      href={`/admin/school?school=${request.resultingSchoolId}&invite_email=${encodeURIComponent(request.contactEmail)}`}
+                      className="text-accent hover:underline"
+                    >
+                      Invite operator
+                    </Link>
+                  )}
+                  <span className={request.status === "approved" ? "text-ok" : "text-textsecondary"}>
+                    {request.status}
+                  </span>
                 </span>
               </li>
             ))}
