@@ -188,31 +188,32 @@ they have one.
   expired invite link — plain `supabase.auth.resetPasswordForEmail`, no
   edge function or service-role key involved, since resending doesn't
   create anything new.
-- **`/auth/confirm` → `/set-password`** — where both the invite and resend
-  emails actually land, in two steps. This project's Supabase Auth is on
-  the **PKCE link flow**, not the older implicit one — confirmed live
-  during testing, where the email link arrived with a `?code=` query
-  param, not a URL hash carrying an already-usable session. A `?code=`
-  isn't self-activating the way a hash is; it has to be explicitly
-  exchanged for a session (`supabase.auth.exchangeCodeForSession`), and
-  that exchange has to happen somewhere that can actually persist the
-  resulting cookies — a Server Component (which a plain `/set-password`
-  page otherwise is) can't write cookies, a Route Handler can (same as a
-  Server Action can). `/auth/confirm/route.ts` is that Route Handler: it
-  exchanges the code and redirects to `/set-password` (or
-  `/set-password?error=invalid_link` if the exchange fails — an expired
-  or already-used code, surfaced immediately rather than only discovered
-  after a client-side round trip). By the time `/set-password` itself
-  renders, the session already exists as a cookie; `SetPasswordForm`
-  doesn't handle anything PKCE-specific — it just confirms a session is
-  there (`getSession()`) before enabling the form, then calls
-  `supabase.auth.updateUser({ password })` and sends them to `/admin`.
-  `setPasswordRedirectUrl()` (`admin/school/actions.ts`) builds
-  `/auth/confirm`'s URL from the *incoming request's own* `Host` header
+- **`/set-password`** — where both the invite and resend emails land.
+  Requires the Supabase project's Auth **Flow type** to be set to
+  **implicit**, not PKCE (Authentication → Sign In / Providers → Email →
+  Flow type, in the Supabase dashboard) — this was hit live during
+  testing, not a hypothetical. PKCE's `?code=` link needs a matching "code
+  verifier" stored in the browser that started the auth flow, but an
+  admin-triggered invite/reset email has no such browser — the recipient
+  never started anything, the admin did, server-side. That's a structural
+  mismatch, not a timing issue: every PKCE attempt failed instantly,
+  regardless of device or how quickly the link was clicked. Implicit flow
+  has no verifier step — the session rides along directly in the link's
+  URL fragment (`#access_token=...`) — which is what makes it work for a
+  link nobody but the admin ever "started". `SetPasswordForm`'s Supabase
+  client picks that fragment up on its own (`detectSessionInUrl`, on by
+  default) — one client instance for the component's whole lifetime
+  (`useState`'s lazy initializer, not created fresh in `handleSubmit`) so
+  a second, later-constructed client isn't racing the first one's
+  still-in-flight parsing, and `getSession()` on mount explicitly waits
+  for that parsing to settle before the form becomes submittable. Once
+  ready, it calls `supabase.auth.updateUser({ password })` and sends them
+  to `/admin`. `setPasswordRedirectUrl()` (`admin/school/actions.ts`)
+  builds this page's URL from the *incoming request's own* `Host` header
   rather than a hardcoded env var, so it's correct on every Vercel preview
   URL and the production domain alike. **Also requires a one-time
   dashboard step**: this exact URL (e.g.
-  `https://<your-domain>/auth/confirm`) has to be added to Supabase's
+  `https://<your-domain>/set-password`) has to be added to Supabase's
   **Authentication → URL Configuration → Redirect URLs** allow-list, or
   Supabase silently ignores `redirectTo` and falls back to the Site URL
   instead — landing back on the marketing homepage, the original version

@@ -13,14 +13,22 @@ export interface ActionState {
 }
 
 /**
- * Points at /auth/confirm, not /set-password directly — this project's
- * Supabase Auth is on the PKCE link flow, so the email link lands with a
- * one-time `?code=` that has to be exchanged for a session server-side
- * (see that route's own comment) before /set-password has anything to
- * work with. Without an explicit redirectTo at all, Supabase falls back
- * to the project's Site URL, which lands someone on the marketing
- * homepage instead (the original version of this bug). Reading the
- * incoming request's own Host header works in every environment (Vercel
+ * Points straight at /set-password — no intermediate exchange route.
+ * This project's Supabase Auth is deliberately set to the *implicit* link
+ * flow (Authentication → Sign In / Providers → Email → Flow type, in the
+ * Supabase dashboard), not PKCE: PKCE's `?code=` needs a "code verifier"
+ * from the browser that started the flow, which structurally can't exist
+ * for an admin-triggered invite/reset email — the recipient's browser
+ * never started anything. Confirmed live: every PKCE attempt failed
+ * instantly regardless of device. Implicit flow instead hands off the
+ * session directly in the link's URL fragment, which SetPasswordForm's
+ * Supabase client picks up on its own (detectSessionInUrl) — no route
+ * handler needed.
+ *
+ * Without an explicit redirectTo at all, Supabase falls back to the
+ * project's Site URL, which lands someone on the marketing homepage
+ * instead (the original version of this bug). Reading the incoming
+ * request's own Host header works in every environment (Vercel
  * preview/production, local dev) without a hardcoded env var to keep in
  * sync.
  *
@@ -30,7 +38,7 @@ export interface ActionState {
  * can set for itself.
  */
 function setPasswordRedirectUrl(): string {
-  return `https://${headers().get("host")}/auth/confirm`;
+  return `https://${headers().get("host")}/set-password`;
 }
 
 /**
