@@ -6,38 +6,41 @@ import { authButtonClass, authInputClass } from "../_components";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 /**
- * The one thing that lands someone here: an invite or password-reset
- * email link (see inviteOperatorAction/resendOperatorInviteAction, both
- * of which point their redirectTo here). That link hands off a session
- * through the page's own URL fragment (#access_token=...), which the
- * Supabase client parses and exchanges for a real session asynchronously
- * right after it's constructed (detectSessionInUrl, on by default).
+ * The one thing that lands someone here: /auth/confirm, right after it's
+ * exchanged an invite/recovery email link's one-time code for a real
+ * session (see that route's own comment for why that exchange has to
+ * happen server-side, not here). By the time this renders, the session
+ * already exists as a cookie — this component doesn't parse a link or a
+ * code itself, it just confirms a session is actually there
+ * (getSession()) before letting the form submit, and calls
+ * updateUser({ password }) against it.
  *
- * One client instance for the component's whole lifetime (created via
- * useState's lazy initializer, not fresh in handleSubmit) — building a
- * *second* client at submit time, as this used to do, meant its own
- * detectSessionInUrl work hadn't necessarily finished before updateUser()
- * ran right after, and calling getSession() up front here explicitly
- * waits for that same client's own in-flight parsing to settle (GoTrueClient
- * methods await their internal init promise) rather than racing it.
+ * One client instance for the component's whole lifetime (useState's lazy
+ * initializer, not created fresh in handleSubmit) so the same instance
+ * that confirmed the session on mount is the one used to update it.
  */
-export function SetPasswordForm() {
+export function SetPasswordForm({ initialError }: { initialError?: string }) {
   const router = useRouter();
   const [supabase] = useState(() => createSupabaseBrowserClient());
 
   const [ready, setReady] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError ?? null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    if (initialError) return;
     supabase.auth.getSession().then(({ data }) => {
       setReady(true);
       if (!data.session) {
         setError("This link has expired or was already used. Ask your admin to resend it.");
       }
     });
+    // initialError is only ever set from the server-rendered initial
+    // props, never changes client-side — safe to leave out of the deps
+    // list rather than re-running this on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase]);
 
   async function handleSubmit(event: FormEvent) {
@@ -94,8 +97,8 @@ export function SetPasswordForm() {
           className={authInputClass}
         />
         {error && <p className="text-sm text-live">{error}</p>}
-        <button type="submit" disabled={submitting || !ready} className={authButtonClass}>
-          {submitting ? "Saving…" : ready ? "Set password" : "Loading…"}
+        <button type="submit" disabled={submitting || (!ready && !initialError)} className={authButtonClass}>
+          {submitting ? "Saving…" : ready || initialError ? "Set password" : "Loading…"}
         </button>
       </form>
     </div>

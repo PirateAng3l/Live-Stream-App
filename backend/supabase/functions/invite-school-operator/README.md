@@ -14,13 +14,14 @@ own session token — same as `provision-fixture-broadcast` accepts a
 platform admin's session for a manual retry. Nothing else calls this;
 there's no database-trigger case the way provisioning has one.
 
-The caller also passes `redirectTo` — the web app's own `/set-password`
-page. This function has no idea what the web app's URL is (no
-`NEXT_PUBLIC_*` env vars reach a Deno function), so it just forwards
-whatever it's given straight into `inviteUserByEmail`'s own `redirectTo`
-option. Omitting it isn't a safe default: Supabase falls back to the
-project's Site URL, which is how an early version of this landed invited
-people on the marketing homepage with a session silently established and
+The caller also passes `redirectTo` — the web app's own `/auth/confirm`
+route (which exchanges this project's PKCE link code for a session before
+handing off to `/set-password`; see `web/README.md`). This function has no
+idea what the web app's URL is (no `NEXT_PUBLIC_*` env vars reach a Deno
+function), so it just forwards whatever it's given straight into
+`inviteUserByEmail`'s own `redirectTo` option. Omitting it isn't a safe
+default: Supabase falls back to the project's Site URL, which is how an
+early version of this landed invited people on the marketing homepage with
 no way to ever set a password.
 
 Recovering a lost or expired invite doesn't come back through here at

@@ -13,13 +13,16 @@ export interface ActionState {
 }
 
 /**
- * Neither inviteUserByEmail nor resetPasswordForEmail know this app's own
- * URL — without an explicit redirectTo, Supabase falls back to the
- * project's Site URL, which lands someone on the marketing homepage with
- * an invisibly-established session and no password ever set (the bug this
- * exists to avoid). Reading the incoming request's own Host header works
- * in every environment (Vercel preview/production, local dev) without a
- * hardcoded env var to keep in sync.
+ * Points at /auth/confirm, not /set-password directly — this project's
+ * Supabase Auth is on the PKCE link flow, so the email link lands with a
+ * one-time `?code=` that has to be exchanged for a session server-side
+ * (see that route's own comment) before /set-password has anything to
+ * work with. Without an explicit redirectTo at all, Supabase falls back
+ * to the project's Site URL, which lands someone on the marketing
+ * homepage instead (the original version of this bug). Reading the
+ * incoming request's own Host header works in every environment (Vercel
+ * preview/production, local dev) without a hardcoded env var to keep in
+ * sync.
  *
  * Must also be added to Supabase's Auth → URL Configuration → Redirect
  * URLs allow-list, or Supabase silently ignores it and falls back to the
@@ -27,7 +30,7 @@ export interface ActionState {
  * can set for itself.
  */
 function setPasswordRedirectUrl(): string {
-  return `https://${headers().get("host")}/set-password`;
+  return `https://${headers().get("host")}/auth/confirm`;
 }
 
 /**
