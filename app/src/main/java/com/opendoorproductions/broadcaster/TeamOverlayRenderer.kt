@@ -13,7 +13,7 @@ import android.graphics.Typeface
  * is a simple home/away point count (rugby, soccer, netball, hockey, other) — cricket
  * uses CricketOverlayRenderer instead since its scoreboard doesn't fit this shape.
  *
- * The small mark to the left of each team's name/score used to be a flat colour
+ * The square mark to the left of each team's name/score used to be a flat colour
  * block (blue for home, red for away). It's now the team's actual logo — the
  * host school's own emblem for home when the crew signed in and loaded a
  * fixture whose school has one uploaded (see MainActivity's
@@ -59,8 +59,13 @@ class TeamOverlayRenderer(private val width: Int, private val height: Int) {
         val left = width * 0.02f
         val top = height * 0.04f
         val boardWidth = width * 0.30f
-        val rowHeight = height * 0.075f
-        val stripeWidth = boardWidth * 0.06f
+        val rowHeight = height * 0.085f
+        // Square — matches the row's own height instead of the old sliver
+        // (6% of boardWidth) a flat colour block could get away with. A
+        // normal square emblem/logo now reads clearly instead of being
+        // squeezed thin; drawTeamMark/drawBitmapFit still aspect-fit within
+        // these bounds, so a non-square upload is never stretched.
+        val stripeWidth = rowHeight
 
         canvas.drawRoundRect(
             RectF(left, top, left + boardWidth, top + rowHeight * 2), 14f, 14f, chrome.panelPaint()
