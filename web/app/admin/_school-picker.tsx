@@ -16,26 +16,31 @@ export function SchoolPicker({
   basePath: string;
   title: string;
 }) {
-  if (schools.length === 0) {
-    return <p className="text-textsecondary">No schools exist yet.</p>;
-  }
-
   return (
     <div>
       <h1 className="mb-4 text-2xl font-bold">{title}</h1>
-      <p className="mb-4 text-sm text-textsecondary">Choose a school:</p>
-      <ul className="space-y-2">
-        {schools.map((school) => (
-          <li key={school.id}>
-            <Link
-              href={`${basePath}?school=${school.id}`}
-              className="block rounded-lg border border-white/10 bg-panel px-4 py-3 hover:border-accent"
-            >
-              {school.name}
-            </Link>
-          </li>
-        ))}
-      </ul>
+      {schools.length === 0 ? (
+        <p className="mb-4 text-textsecondary">No schools exist yet.</p>
+      ) : (
+        <>
+          <p className="mb-4 text-sm text-textsecondary">Choose a school:</p>
+          <ul className="mb-4 space-y-2">
+            {schools.map((school) => (
+              <li key={school.id}>
+                <Link
+                  href={`${basePath}?school=${school.id}`}
+                  className="block rounded-lg border border-white/10 bg-panel px-4 py-3 hover:border-accent"
+                >
+                  {school.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <Link href="/admin/school/new" className="text-sm font-semibold text-accent hover:underline">
+        + Create school
+      </Link>
     </div>
   );
 }

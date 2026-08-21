@@ -1,12 +1,50 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { resolveSchoolContext } from "@/lib/admin";
 import { getCurrentStaffProfile } from "@/lib/staff";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 export interface ActionState {
   error?: string;
+}
+
+/**
+ * Onboarding a school used to mean a raw SQL insert against `schools` —
+ * fine for the handful platform_admin has personally set up so far, a real
+ * blocker past that. schools_write_admin (migration 0001) is the actual
+ * backstop; the role check here just gets a school_operator a clear error
+ * instead of a raw RLS rejection (school_operator never sees the link that
+ * leads here, but the route itself isn't otherwise gated).
+ */
+export async function createSchoolAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const staff = await getCurrentStaffProfile();
+  if (!staff) return { error: "Not signed in as staff" };
+  if (staff.role !== "platform_admin") return { error: "Only a platform admin can create a school" };
+
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) return { error: "School name is required" };
+
+  const contactEmail = String(formData.get("contact_email") ?? "").trim();
+  const contactPhone = String(formData.get("contact_phone") ?? "").trim();
+
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("schools")
+    .insert({
+      name,
+      contact_email: contactEmail || null,
+      contact_phone: contactPhone || null,
+    })
+    .select("id")
+    .single();
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin");
+  // Straight into the new school's profile page — the natural next step is
+  // giving it a logo, and this also confirms the row was actually created.
+  redirect(`/admin/school?school=${data.id}`);
 }
 
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];

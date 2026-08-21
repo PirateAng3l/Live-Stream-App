@@ -132,6 +132,16 @@ land once they have one.
   rather than trusting the form is defense-in-depth, not the real
   boundary. Read by the Android app to composite into the live overlay's
   home-team logo slot — see the top-level README's crew sign-in section.
+- **`/admin/school/new`** — creates a `schools` row (name, optional contact
+  email/phone) so onboarding a school no longer means a raw SQL insert.
+  `platform_admin` only (`createSchoolAction` checks the role; RLS's
+  `schools_write_admin`, migration 0001, is the real backstop) — a
+  `school_operator` already has exactly one school and never sees the "+
+  Create school" link this hangs off of, at the bottom of the school picker
+  every platform_admin-facing page already shows. Lands on `/admin/school`
+  for the new school right after, since giving it a logo is the natural
+  next step. Still doesn't create that school's first operator account —
+  that's still a manual step (see "Not built yet").
 - A `platform_admin` has no school of their own, so `/admin/teams`,
   `/admin/sponsors`, `/admin/school`, and `/admin/fixtures/new` show a
   school picker first (`?school=<id>` in the URL) rather than assuming one.
