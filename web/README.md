@@ -30,16 +30,26 @@ separate product).
   overlay uses — see "Web-layer sponsor overlay" below. Shown regardless of
   sign-in state, since the video is what's gated, not the sponsor badges
   sitting on top of its placeholder.
-- **`/sign-up`**, **`/sign-in`** — email/password via Supabase Auth. Every
-  account created here becomes a `parent`-role profile automatically
-  (`handle_new_user` in the backend); there's no path from this site to a
-  school_operator or platform_admin account. Handles both possible email-
-  confirmation settings on the Supabase project (shows "check your email" if
-  confirmation is required, signs straight in if not). A `?redirect=` param
-  carries a visitor back to the match they were trying to watch — validated
-  against being an absolute URL first (`lib/redirect.ts`), since an
-  unchecked redirect target from a query string is a classic open-redirect
-  hole.
+- **`/sign-up`**, **`/sign-in`** — email/password via Supabase Auth.
+  `/sign-up` now leads with a Parent/School toggle:
+  - **Parent** is the original flow — every account created here becomes a
+    `parent`-role profile automatically (`handle_new_user` in the backend);
+    there's no path from this form to a school_operator or platform_admin
+    account. Handles both possible email-confirmation settings on the
+    Supabase project (shows "check your email" if confirmation is
+    required, signs straight in if not).
+  - **School** doesn't create an account or session at all — it's a public
+    insert into `school_signup_requests` (migration 0007: school name,
+    contact name/email/phone, optional notes) for platform_admin to review
+    at `/admin/school-requests`. This is deliberate: a school "signing up"
+    shouldn't hand out real access on its own, just queue a request — see
+    "School requests" below.
+
+  `/sign-in` still only ever signs into an account that already exists,
+  parent or staff alike. A `?redirect=` param carries a visitor back to the
+  match they were trying to watch — validated against being an absolute
+  URL first (`lib/redirect.ts`), since an unchecked redirect target from a
+  query string is a classic open-redirect hole.
 - Signed-in state shows in the header (email + Sign out) via
   `app/layout.tsx`, which is why every page — even ones that don't
   explicitly gate anything — reads the current session.
@@ -72,8 +82,10 @@ account (or nobody) hitting `/admin` gets redirected to `/sign-in`.
 Unlike the public site, **these accounts don't self-serve sign up**: per
 `backend/README.md`, elevating a profile to school_operator or
 platform_admin is a deliberate admin action (concierge, today — someone
-runs a SQL update after the account exists). This panel is where they
-land once they have one.
+runs a SQL update after the account exists). A school choosing "School" on
+`/sign-up` doesn't change that — it queues a request, not an account (see
+above and "School requests" below). This panel is where they land once
+they have one.
 
 - **`/admin`** — the fixture list. A `school_operator` sees only their own
   school's fixtures (an actual query filter, not just relying on RLS to
@@ -142,6 +154,21 @@ land once they have one.
   for the new school right after, since giving it a logo is the natural
   next step. Still doesn't create that school's first operator account —
   that's still a manual step (see "Not built yet").
+- **`/admin/school-requests`** — the review queue for the "School" option
+  on `/sign-up`: pending requests (school name, contact name/email/phone,
+  optional notes) with Approve/Reject actions, plus a read-only history of
+  already-reviewed ones below. `platform_admin` only, same as
+  `/admin/school/new` (role-checked in `actions.ts`;
+  `school_signup_requests_admin_manage`, migration 0007, is the real
+  backstop). Approving a request runs the exact same insert
+  `createSchoolAction` does — same fields, same `schools` row — then marks
+  the request `approved` and links it via `resulting_school_id`; rejecting
+  just flips its status. Neither one creates a login for the school: same
+  gap as `/admin/school/new`, still a manual step from here. The admin nav
+  shows a `Requests (N)` count next to the link whenever `N` pending
+  requests exist, computed once in `admin/layout.tsx`
+  (`loadPendingSchoolRequestCount`) and skipped entirely for a
+  `school_operator`, who never sees the link at all.
 - A `platform_admin` has no school of their own, so `/admin/teams`,
   `/admin/sponsors`, `/admin/school`, and `/admin/fixtures/new` show a
   school picker first (`?school=<id>` in the URL) rather than assuming one.

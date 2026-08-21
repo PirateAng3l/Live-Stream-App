@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
+import { loadPendingSchoolRequestCount } from "@/lib/school-requests";
 import { getCurrentStaffProfile } from "@/lib/staff";
 import { loadSubscriptionForSchool } from "@/lib/subscriptions-server";
 import { SubscriptionBadge } from "./_subscription-badge";
@@ -21,6 +22,12 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       ? await loadSubscriptionForSchool(staff.schoolId).catch(() => null)
       : null;
 
+  // Same "fail soft, no badge" treatment — a school_operator never queries
+  // this at all (school_signup_requests_admin_manage would just return 0
+  // rows for them anyway, no point spending the round trip).
+  const pendingRequestCount =
+    staff.role === "platform_admin" ? await loadPendingSchoolRequestCount().catch(() => 0) : 0;
+
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
@@ -37,6 +44,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           <Link href="/admin/school" className="hover:text-accent">
             School
           </Link>
+          {staff.role === "platform_admin" && (
+            <Link href="/admin/school-requests" className="hover:text-accent">
+              Requests{pendingRequestCount > 0 ? ` (${pendingRequestCount})` : ""}
+            </Link>
+          )}
         </nav>
         <span className="flex items-center gap-2 text-xs text-textsecondary">
           {staff.role === "platform_admin" ? "Platform admin" : "School operator"}

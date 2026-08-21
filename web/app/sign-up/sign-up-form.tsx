@@ -1,93 +1,38 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { type FormEvent, useState } from "react";
-import { authButtonClass, authInputClass } from "../_components";
+import { useSearchParams } from "next/navigation";
+import { type ReactNode, useState } from "react";
 import { safeRedirectTarget } from "@/lib/redirect";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { ParentSignUpForm } from "./parent-sign-up-form";
+import { SchoolRequestForm } from "./school-request-form";
+
+type SignUpMode = "parent" | "school";
 
 export function SignUpForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTarget = safeRedirectTarget(searchParams.get("redirect"));
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [confirmationSent, setConfirmationSent] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    setSubmitting(true);
-    setError(null);
-
-    const supabase = createSupabaseBrowserClient();
-    const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
-
-    if (signUpError) {
-      setSubmitting(false);
-      setError(signUpError.message);
-      return;
-    }
-
-    // Whether this account is usable immediately depends on whether email
-    // confirmation is turned on for the Supabase project (default: on).
-    // With it on, signUp() creates the account but returns no session.
-    if (data.session) {
-      router.push(redirectTarget);
-      router.refresh();
-      return;
-    }
-
-    setSubmitting(false);
-    setConfirmationSent(true);
-  }
-
-  if (confirmationSent) {
-    return (
-      <div className="mx-auto max-w-sm">
-        <h1 className="mb-4 text-2xl font-bold">Check your email</h1>
-        <p className="text-sm text-textsecondary">
-          We sent a confirmation link to {email}. Click it, then{" "}
-          <Link href={`/sign-in?redirect=${encodeURIComponent(redirectTarget)}`} className="text-accent">
-            sign in
-          </Link>
-          .
-        </p>
-      </div>
-    );
-  }
+  const [mode, setMode] = useState<SignUpMode>("parent");
 
   return (
     <div className="mx-auto max-w-sm">
-      <h1 className="mb-6 text-2xl font-bold">Create an account</h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          type="email"
-          required
-          autoComplete="email"
-          placeholder="Email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          className={authInputClass}
-        />
-        <input
-          type="password"
-          required
-          minLength={6}
-          autoComplete="new-password"
-          placeholder="Password (min. 6 characters)"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          className={authInputClass}
-        />
-        {error && <p className="text-sm text-live">{error}</p>}
-        <button type="submit" disabled={submitting} className={authButtonClass}>
-          {submitting ? "Creating account…" : "Sign up"}
-        </button>
-      </form>
+      <h1 className="mb-2 text-2xl font-bold">Create an account</h1>
+
+      <div className="mb-6 flex gap-1 rounded-lg bg-panel p-1 text-sm font-semibold">
+        <ModeButton active={mode === "parent"} onClick={() => setMode("parent")}>
+          Parent
+        </ModeButton>
+        <ModeButton active={mode === "school"} onClick={() => setMode("school")}>
+          School
+        </ModeButton>
+      </div>
+
+      {mode === "parent" ? (
+        <ParentSignUpForm redirectTarget={redirectTarget} />
+      ) : (
+        <SchoolRequestForm />
+      )}
+
       <p className="mt-4 text-sm text-textsecondary">
         Already have an account?{" "}
         <Link href={`/sign-in?redirect=${encodeURIComponent(redirectTarget)}`} className="text-accent">
@@ -95,5 +40,19 @@ export function SignUpForm() {
         </Link>
       </p>
     </div>
+  );
+}
+
+function ModeButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex-1 rounded-md px-3 py-1.5 transition-colors ${
+        active ? "bg-accent text-white" : "text-textsecondary hover:text-textprimary"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
