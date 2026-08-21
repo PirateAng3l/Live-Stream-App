@@ -195,6 +195,19 @@ mixed into one list. Which path a signed-in account gets is decided purely by
 whether its profile has a `school_id` — the same way the web admin panel's
 `resolveSchoolContext` tells the two roles apart.
 
+**Loading a fixture also fetches the home team's real logo.** The small mark to the
+left of each team's name/score in the scoreboard — previously a flat blue (home) /
+red (away) block — is now that team's actual emblem. If the fixture's host school
+has uploaded one (`/admin/school` on the web, stored via Supabase Storage — see
+`backend/supabase/migrations/0006_school_logo_storage.sql`), it's downloaded and
+composited into the home slot (`MainActivity.fetchHomeTeamLogo`,
+`TeamOverlayRenderer.drawTeamMark`). Otherwise — and always for the away side, since
+there's no reliable link from a typed-in opponent name to that school's actual
+account today — it falls back to Open Door Live's own mark (currently just the app
+icon, `defaultTeamLogoBitmap`, swap-in-ready once a real PNG is supplied). Cricket's
+scoreboard has no equivalent stripe to begin with, so this only applies to the
+`TWO_TEAM` sports (rugby/soccer/netball/hockey/other).
+
 ## Building it
 
 Open the repo root in Android Studio (Koala/2024.x or newer), let Gradle sync (resolves

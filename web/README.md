@@ -118,10 +118,24 @@ land once they have one.
   fixtures with different placements each time. Deleting a sponsor cascades
   its `fixture_sponsors` assignments (migration 0001) — nothing blocks it
   the way an in-use team blocks a delete.
+- **`/admin/school`** — upload the school's own logo (PNG/JPEG/WebP, up to
+  5MB). Goes to a public Supabase Storage bucket (`school-logos`, migration
+  0006), always at a fixed path (`<school_id>/logo.<ext>`, upsert) so
+  re-uploading just replaces it instead of accumulating old files; the
+  resulting public URL (cache-busted with `?v=<timestamp>` so a replaced
+  logo shows immediately instead of a stale cached copy under the same URL)
+  gets written to `schools.logo_url` — a plain text column that's existed
+  since migration 0001 but had no UI pointed at it until now. Storage RLS
+  scopes uploads the same way every other "own school" write in this
+  project does (`current_school_id()`/`is_platform_admin()`), so
+  `updateSchoolLogoAction` re-deriving `schoolId` via `resolveSchoolContext`
+  rather than trusting the form is defense-in-depth, not the real
+  boundary. Read by the Android app to composite into the live overlay's
+  home-team logo slot — see the top-level README's crew sign-in section.
 - A `platform_admin` has no school of their own, so `/admin/teams`,
-  `/admin/sponsors`, and `/admin/fixtures/new` show a school picker first
-  (`?school=<id>` in the URL) rather than assuming one. A `school_operator`
-  never sees this step —
+  `/admin/sponsors`, `/admin/school`, and `/admin/fixtures/new` show a
+  school picker first (`?school=<id>` in the URL) rather than assuming one.
+  A `school_operator` never sees this step —
   `resolveSchoolContext` (`lib/admin.ts`) always resolves straight to their
   own school, and **ignores any school the client tries to submit**, even
   from a tampered hidden form field. That function is the one piece of

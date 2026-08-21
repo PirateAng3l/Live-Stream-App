@@ -100,7 +100,14 @@ class OverlayChrome(private val width: Int, private val height: Int) {
         }
     }
 
-    private fun drawBitmapFit(canvas: Canvas, bitmap: Bitmap, bounds: RectF, scale: Float, offsetY: Float = 0f) {
+    /**
+     * Aspect-fits [bitmap] within [bounds] (centered, then resized around its
+     * own center by [scale] and shifted vertically by [offsetY]) without
+     * distorting it — shared beyond this class's own slots by
+     * TeamOverlayRenderer for the home/away team-logo blocks, which need the
+     * exact same "don't stretch a non-matching-aspect image" behavior.
+     */
+    fun drawBitmapFit(canvas: Canvas, bitmap: Bitmap, bounds: RectF, scale: Float = 1f, offsetY: Float = 0f) {
         val bitmapAspect = bitmap.width.toFloat() / bitmap.height.toFloat()
         val boundsAspect = bounds.width() / bounds.height()
         val fitted = if (bitmapAspect > boundsAspect) {

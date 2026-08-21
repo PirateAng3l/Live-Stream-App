@@ -29,6 +29,14 @@ data class FixtureSummary(
      * doesn't need it. Null here means "don't show a school prefix."
      */
     val schoolName: String? = null,
+    /**
+     * The host school's uploaded emblem (schools.logo_url, migration 0006's
+     * Storage bucket) — null when that school hasn't uploaded one, in
+     * which case the app falls back to Open Door Live's own mark. Always
+     * the *host* school's logo, drawn in the home slot only; there's no
+     * equivalent for the away side (see README's crew sign-in section).
+     */
+    val homeLogoUrl: String? = null,
 )
 
 data class BroadcastCredentials(val ingestionAddress: String, val streamKey: String)
@@ -113,6 +121,18 @@ class SupabaseClient(private val baseUrl: String, private val anonKey: String) {
             teamNames[row.getString("id")] = row.getString("name")
         }
 
+        // Every fixture here shares the same schoolId (the caller's own),
+        // so this is one extra request total, not one per fixture.
+        val schoolUrl = "$baseUrl/rest/v1/schools" +
+            "?id=eq.${encode(schoolId)}" +
+            "&select=logo_url"
+        val schoolRows = JSONArray(request("GET", schoolUrl, authHeaders(accessToken), null))
+        val homeLogoUrl = if (schoolRows.length() > 0) {
+            schoolRows.getJSONObject(0).optNullableString("logo_url")
+        } else {
+            null
+        }
+
         return (0 until fixtures.length()).map { i ->
             val row = fixtures.getJSONObject(i)
             FixtureSummary(
@@ -121,6 +141,7 @@ class SupabaseClient(private val baseUrl: String, private val anonKey: String) {
                 scheduledStart = row.getString("scheduled_start"),
                 homeTeamName = teamNames[row.getString("home_team_id")] ?: "Home",
                 awayTeamName = teamNames[row.getString("away_team_id")] ?: "Away",
+                homeLogoUrl = homeLogoUrl,
             )
         }
     }
@@ -164,12 +185,14 @@ class SupabaseClient(private val baseUrl: String, private val anonKey: String) {
 
         val schoolsUrl = "$baseUrl/rest/v1/schools" +
             "?id=in.(${schoolIds.joinToString(",") { encode(it) }})" +
-            "&select=id,name"
+            "&select=id,name,logo_url"
         val schools = JSONArray(request("GET", schoolsUrl, authHeaders(accessToken), null))
         val schoolNames = mutableMapOf<String, String>()
+        val schoolLogoUrls = mutableMapOf<String, String?>()
         for (i in 0 until schools.length()) {
             val row = schools.getJSONObject(i)
             schoolNames[row.getString("id")] = row.getString("name")
+            schoolLogoUrls[row.getString("id")] = row.optNullableString("logo_url")
         }
 
         return (0 until fixtures.length()).map { i ->
@@ -181,6 +204,7 @@ class SupabaseClient(private val baseUrl: String, private val anonKey: String) {
                 homeTeamName = teamNames[row.getString("home_team_id")] ?: "Home",
                 awayTeamName = teamNames[row.getString("away_team_id")] ?: "Away",
                 schoolName = schoolNames[row.getString("host_school_id")] ?: "Unknown school",
+                homeLogoUrl = schoolLogoUrls[row.getString("host_school_id")],
             )
         }
     }

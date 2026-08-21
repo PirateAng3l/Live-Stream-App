@@ -12,6 +12,16 @@ import android.graphics.Typeface
  * transparent bitmap sized to the stream resolution. Used by every sport whose score
  * is a simple home/away point count (rugby, soccer, netball, hockey, other) — cricket
  * uses CricketOverlayRenderer instead since its scoreboard doesn't fit this shape.
+ *
+ * The small mark to the left of each team's name/score used to be a flat colour
+ * block (blue for home, red for away). It's now the team's actual logo — the
+ * host school's own emblem for home when the crew signed in and loaded a
+ * fixture whose school has one uploaded (see MainActivity's
+ * homeTeamLogoBitmap), and Open Door Live's own mark otherwise for either
+ * side (no per-fixture way to know the real opposing school's emblem — see
+ * README). homeTeamLogo/awayTeamLogo always carry *some* bitmap by the time
+ * this renders; the flat-colour paints only remain as a last-resort
+ * fallback if one is somehow still null (drawTeamMark).
  */
 class TeamOverlayRenderer(private val width: Int, private val height: Int) {
 
@@ -27,6 +37,8 @@ class TeamOverlayRenderer(private val width: Int, private val height: Int) {
     fun render(
         state: ScoreState,
         logo: OverlayAsset,
+        homeTeamLogo: OverlayAsset,
+        awayTeamLogo: OverlayAsset,
         sponsorHeadlinePrefix: String,
         sponsorHeadline: OverlayAsset,
         sponsorLeft: OverlayAsset,
@@ -34,14 +46,14 @@ class TeamOverlayRenderer(private val width: Int, private val height: Int) {
     ): Bitmap {
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        drawScoreboard(canvas, state)
+        drawScoreboard(canvas, state, homeTeamLogo, awayTeamLogo)
         drawTimer(canvas, state)
         chrome.drawLogo(canvas, logo)
         chrome.drawSponsors(canvas, sponsorHeadlinePrefix, sponsorHeadline, sponsorLeft, sponsorRight)
         return bitmap
     }
 
-    private fun drawScoreboard(canvas: Canvas, state: ScoreState) {
+    private fun drawScoreboard(canvas: Canvas, state: ScoreState, homeTeamLogo: OverlayAsset, awayTeamLogo: OverlayAsset) {
         val left = width * 0.02f
         val top = height * 0.04f
         val boardWidth = width * 0.30f
@@ -51,8 +63,11 @@ class TeamOverlayRenderer(private val width: Int, private val height: Int) {
         canvas.drawRoundRect(
             RectF(left, top, left + boardWidth, top + rowHeight * 2), 14f, 14f, chrome.panelPaint()
         )
-        canvas.drawRect(left, top, left + stripeWidth, top + rowHeight, homeStripePaint)
-        canvas.drawRect(left, top + rowHeight, left + stripeWidth, top + rowHeight * 2, awayStripePaint)
+        drawTeamMark(canvas, homeTeamLogo, homeStripePaint, RectF(left, top, left + stripeWidth, top + rowHeight))
+        drawTeamMark(
+            canvas, awayTeamLogo, awayStripePaint,
+            RectF(left, top + rowHeight, left + stripeWidth, top + rowHeight * 2)
+        )
 
         val nameX = left + stripeWidth + 16f
         canvas.drawText(state.homeName.uppercase(), nameX, top + rowHeight * 0.62f, namePaint)
@@ -61,6 +76,14 @@ class TeamOverlayRenderer(private val width: Int, private val height: Int) {
         val scoreCenterX = left + boardWidth - boardWidth * 0.14f
         canvas.drawText(state.homeScore.toString(), scoreCenterX, top + rowHeight * 0.68f, scorePaint)
         canvas.drawText(state.awayScore.toString(), scoreCenterX, top + rowHeight * 1.68f, scorePaint)
+    }
+
+    private fun drawTeamMark(canvas: Canvas, logo: OverlayAsset, fallbackPaint: Paint, bounds: RectF) {
+        if (logo.bitmap != null) {
+            chrome.drawBitmapFit(canvas, logo.bitmap, bounds)
+        } else {
+            canvas.drawRect(bounds, fallbackPaint)
+        }
     }
 
     private fun drawTimer(canvas: Canvas, state: ScoreState) {

@@ -41,6 +41,22 @@ export async function loadAllSchools(): Promise<SchoolOption[]> {
   return data ?? [];
 }
 
+export interface SchoolDetail extends SchoolOption {
+  logoUrl: string | null;
+}
+
+export async function loadSchoolById(id: string): Promise<SchoolDetail | null> {
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("schools")
+    .select("id, name, logo_url")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(`Could not load school ${id}: ${error.message}`);
+  if (!data) return null;
+  return { id: data.id, name: data.name, logoUrl: data.logo_url };
+}
+
 export async function loadTeamsForSchool(schoolId: string): Promise<TeamOption[]> {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase

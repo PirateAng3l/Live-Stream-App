@@ -28,6 +28,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
 import androidx.core.widget.doAfterTextChanged
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.tabs.TabLayout
@@ -42,6 +43,7 @@ import com.pedro.encoder.input.gl.render.filters.`object`.ImageObjectFilterRende
 import com.pedro.library.rtmp.RtmpCamera2
 import java.io.File
 import java.io.FileOutputStream
+import java.net.URL
 import kotlin.math.abs
 
 class MainActivity : AppCompatActivity(), ConnectChecker {
@@ -94,6 +96,23 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private var sponsorHeadlineBitmap: Bitmap? = null
     private var sponsorLeftBitmap: Bitmap? = null
     private var sponsorRightBitmap: Bitmap? = null
+
+    // The home-team logo slot in the scoreboard (formerly a flat blue block) —
+    // set when a loaded fixture's host school has uploaded a real emblem
+    // (see fetchHomeTeamLogo), null otherwise so defaultTeamLogoBitmap shows
+    // instead. The away slot has no per-fixture equivalent — there's no
+    // reliable link to the actual opposing school's own account today (see
+    // README's crew sign-in section) — so it always uses the same default.
+    private var homeTeamLogoBitmap: Bitmap? = null
+    private var loadedFixtureId: String? = null
+
+    // Open Door Live's own mark, reused as the fallback for both scoreboard
+    // logo slots until a real PNG is supplied to replace it outright — the
+    // app icon is the closest existing branded asset, decoded once and kept
+    // around rather than re-rendered from the drawable on every frame.
+    private val defaultTeamLogoBitmap: Bitmap by lazy {
+        ContextCompat.getDrawable(this, R.mipmap.ic_launcher)!!.toBitmap()
+    }
 
     private var logoScale = 1f
     private var sponsorHeadlineScale = 1f
@@ -476,7 +495,37 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
             binding.sportSpinner.setSelection(Sport.entries.indexOf(matchedSport))
             onSportChanged()
         }
+        // Clears any previous fixture's logo immediately (falls back to the
+        // default mark while the new one, if any, downloads) rather than
+        // leaving the wrong school's emblem on screen in the meantime.
+        loadedFixtureId = fixture.id
+        homeTeamLogoBitmap = null
+        refreshOverlay()
+        fixture.homeLogoUrl?.let { fetchHomeTeamLogo(fixture.id, it) }
         Toast.makeText(this, R.string.fixture_loaded, Toast.LENGTH_SHORT).show()
+    }
+
+    /**
+     * Runs on a background thread; the [expectedFixtureId] check on the way
+     * back guards against a slow download from a previously loaded fixture
+     * overwriting whichever one the crew has since switched to.
+     */
+    private fun fetchHomeTeamLogo(expectedFixtureId: String, url: String) {
+        Thread {
+            val bitmap = try {
+                URL(url).openStream().use { BitmapFactory.decodeStream(it) }
+            } catch (error: Exception) {
+                Log.w(TAG, "Could not download home team logo", error)
+                null
+            }
+            if (bitmap == null || loadedFixtureId != expectedFixtureId) return@Thread
+            uiHandler.post {
+                if (loadedFixtureId == expectedFixtureId) {
+                    homeTeamLogoBitmap = bitmap
+                    refreshOverlay()
+                }
+            }
+        }.start()
     }
 
     private fun refreshFixtureSpinner() {
@@ -562,7 +611,11 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         val right = OverlayAsset(sponsorRight, sponsorRightBitmap, sponsorRightScale)
         return when (currentSport.layout) {
             ScoreboardLayout.TWO_TEAM -> teamOverlayRenderer.render(
-                scoreController.state, logo, sponsorHeadlinePrefix, headline, left, right
+                scoreController.state,
+                logo,
+                OverlayAsset("", homeTeamLogoBitmap ?: defaultTeamLogoBitmap),
+                OverlayAsset("", defaultTeamLogoBitmap),
+                sponsorHeadlinePrefix, headline, left, right
             )
             ScoreboardLayout.CRICKET -> cricketOverlayRenderer.render(
                 cricketController.state, logo, sponsorHeadlinePrefix, headline, left, right
