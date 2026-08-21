@@ -52,6 +52,12 @@ This repo now holds all three components of the platform described in
   overs/innings state, and Clean Slate/Event has no scoreboard to attach one
   to. Resets to the first period on a sport change or a timer reset, same as
   the rest of the match state.
+- **Mute audio**, a switch in the live control panel that cuts the stream's
+  audio without touching the video or the RTMP connection — for half-time,
+  a sideline conversation, or any other moment the crew doesn't want to go
+  out live. Works whether or not the stream has started yet, and isn't saved
+  between sessions: it's a live in-the-moment decision, not a setup default,
+  so every new stream starts unmuted.
 - **RTMP auto-reconnect.** A dropped connection (network switch, dead zone, wifi↔mobile
   handoff) is detected and retried automatically with backoff, including an 8s watchdog
   that forces a retry if an attempt hangs instead of failing outright. Field-tested:

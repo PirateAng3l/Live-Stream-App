@@ -184,6 +184,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         setupCricketControls()
         setupTimerControls()
         setupPeriodControls()
+        setupMuteControl()
         setupGoLiveButton()
         setupFieldPersistence()
         setupSponsorImagePickers()
@@ -1342,6 +1343,21 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         binding.periodGroup.visibility = View.VISIBLE
         binding.periodValue.text = labels[currentPeriodIndex]
         binding.nextPeriodBtn.isEnabled = currentPeriodIndex < labels.lastIndex
+    }
+
+    /**
+     * disableAudio()/enableAudio() (RootEncoder's Camera2Base) just flips a
+     * flag the encoder checks per audio frame — safe to call any time after
+     * rtmpCamera2 is constructed, streaming or not, and doesn't tear down or
+     * restart anything the way stopping/re-preparing the stream would. Not
+     * persisted across restarts: unlike every other setup field, muting is a
+     * live in-the-moment decision (half-time, a coaching aside, etc.) that
+     * shouldn't silently carry over into the next match on the same device.
+     */
+    private fun setupMuteControl() {
+        binding.muteAudioSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) rtmpCamera2.disableAudio() else rtmpCamera2.enableAudio()
+        }
     }
 
     private fun setupGoLiveButton() {
