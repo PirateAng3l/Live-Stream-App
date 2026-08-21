@@ -24,7 +24,10 @@
     <string name="tab_sports">Sports</string>
     <string name="tab_stream_setup">Stream Setup</string>
     <string name="section_sport">SPORT</string>
-    <string name="camera_settings_note">Zoom is available any time via the slider on the left edge of the preview — nothing else to configure here yet.</string>
+    <string name="camera_settings_note">Zoom is available any time via the slider on the left edge of the preview.</string>
+    <string name="label_resolution">Resolution</string>
+    <string name="label_stream_quality">Stream quality (bitrate)</string>
+    <string name="camera_quality_change_after_stream">Change will apply next time you open the app</string>
 
     <string name="section_crew_signin">CREW SIGN-IN</string>
     <string name="hint_crew_email">Email</string>

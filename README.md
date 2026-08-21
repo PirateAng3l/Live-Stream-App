@@ -58,6 +58,13 @@ This repo now holds all three components of the platform described in
   out live. Works whether or not the stream has started yet, and isn't saved
   between sessions: it's a live in-the-moment decision, not a setup default,
   so every new stream starts unmuted.
+- **Camera settings** (Camera tab): resolution (720p or 1080p) and stream
+  quality/bitrate (Data saver 2.5 Mbps, Standard 4 Mbps — the original
+  hardcoded default, High 6 Mbps). Both are saved to the same prefs file as
+  everything else and, like the dark/light theme switch, only take effect on
+  the next app open if changed mid-stream — resizing the encoder while live
+  would tear down the camera/RTMP session mid-broadcast, so a change made
+  while streaming is saved but not applied until the app restarts.
 - **RTMP auto-reconnect.** A dropped connection (network switch, dead zone, wifi↔mobile
   handoff) is detected and retried automatically with backoff, including an 8s watchdog
   that forces a retry if an attempt hangs instead of failing outright. Field-tested:

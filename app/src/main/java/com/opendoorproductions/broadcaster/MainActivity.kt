@@ -20,6 +20,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.SeekBar
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
@@ -85,8 +86,25 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private var reconnectRunnable: Runnable? = null
     private var reconnectWatchdog: Runnable? = null
 
-    private val streamWidth = 1280
-    private val streamHeight = 720
+    // Resolved once per Activity instance (lazy, so it's safe to reference
+    // `prefs` regardless of field-declaration order) from whatever was saved
+    // last time the Camera tab's resolution spinner changed — defaults match
+    // the original hardcoded 720p/4Mbps exactly, so an install that's never
+    // touched the new controls behaves exactly as it always did. Read once
+    // and reused everywhere streamWidth/streamHeight/streamBitrateKbps used
+    // to be fixed constants (overlay renderer sizing, both prepareVideo
+    // calls) — see setupCameraQualityControls for why a change made mid-app
+    // only takes effect on recreate() rather than resizing the encoder live.
+    private val streamResolution: StreamResolution by lazy {
+        StreamResolution.entries.firstOrNull { it.name == prefs.getString(PREF_STREAM_RESOLUTION, null) }
+            ?: StreamResolution.HD_720
+    }
+    private val streamWidth: Int by lazy { streamResolution.width }
+    private val streamHeight: Int by lazy { streamResolution.height }
+    private val streamBitrateKbps: Int by lazy {
+        StreamBitrate.entries.firstOrNull { it.name == prefs.getString(PREF_STREAM_BITRATE, null) }?.kbps
+            ?: StreamBitrate.STANDARD.kbps
+    }
 
     // Blank on purpose: OverlayChrome only draws these as a text fallback when a slot
     // has no image, and an unused/not-yet-set-up sponsor slot should be invisible on
@@ -190,6 +208,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         setupSponsorImagePickers()
         setupPresetControls()
         setupZoomControl()
+        setupCameraQualityControls()
         setupCrewSignIn()
         onSportChanged()
         updateStatus(R.string.status_offline, Color.parseColor("#B7C2CC"))
@@ -230,7 +249,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
 
     private fun startPreview() {
         binding.openGlView.post {
-            if (rtmpCamera2.prepareAudio() && rtmpCamera2.prepareVideo(streamWidth, streamHeight, 30, 4_000 * 1024, 0)) {
+            if (rtmpCamera2.prepareAudio() && rtmpCamera2.prepareVideo(streamWidth, streamHeight, 30, streamBitrateKbps * 1024, 0)) {
                 overlayFilter = ImageObjectFilterRender()
                 rtmpCamera2.glInterface.setFilter(overlayFilter)
                 overlayFilter.setImage(renderCurrentOverlayBitmap())
@@ -356,6 +375,67 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
             Log.w(TAG, "setZoom($clamped) failed", error)
         }
         binding.zoomValueLabel.text = getString(R.string.zoom_format, clamped)
+    }
+
+    /**
+     * Resolution and bitrate are read once into streamWidth/streamHeight/
+     * streamBitrateKbps (see their declarations) and used both to size the
+     * overlay bitmaps and to prepare the encoder — changing either while
+     * live would mean tearing down and rebuilding the camera/encoder
+     * mid-broadcast, the same real risk setupThemeToggle already avoids by
+     * deferring a live change to the next recreate(). So this saves the new
+     * choice to prefs immediately either way, and only calls recreate()
+     * (which re-reads prefs from scratch and re-preps video at the new
+     * settings) when nothing is currently streaming; otherwise it just
+     * toasts that the change will apply next time.
+     */
+    private fun setupCameraQualityControls() {
+        setupEnumSpinner(
+            binding.resolutionSpinner,
+            StreamResolution.entries.toTypedArray(),
+            streamResolution,
+            PREF_STREAM_RESOLUTION
+        )
+        setupEnumSpinner(
+            binding.bitrateSpinner,
+            StreamBitrate.entries.toTypedArray(),
+            StreamBitrate.entries.firstOrNull { it.kbps == streamBitrateKbps } ?: StreamBitrate.STANDARD,
+            PREF_STREAM_BITRATE
+        )
+    }
+
+    private fun <T : Enum<T>> setupEnumSpinner(spinner: Spinner, options: Array<T>, current: T, prefKey: String) {
+        val adapter = object : ArrayAdapter<T>(this, android.R.layout.simple_spinner_item, options) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getView(position, convertView, parent) as TextView
+                view.setTextColor(Color.WHITE)
+                return view
+            }
+
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getDropDownView(position, convertView, parent) as TextView
+                view.setTextColor(Color.WHITE)
+                view.setPadding(24, 20, 24, 20)
+                return view
+            }
+        }
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinner.adapter = adapter
+        spinner.setSelection(options.indexOf(current))
+        spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selected = options[position]
+                if (selected == current) return
+                prefs.edit().putString(prefKey, selected.name).apply()
+                if (rtmpCamera2.isStreaming) {
+                    Toast.makeText(this@MainActivity, R.string.camera_quality_change_after_stream, Toast.LENGTH_LONG).show()
+                } else {
+                    recreate()
+                }
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+        }
     }
 
     // Entirely optional layer on top of the manual RTMP URL/key entry, which keeps
@@ -1399,7 +1479,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
      * throughout; only the streaming encoders get torn down and rebuilt here.
      */
     private fun prepareAndStartStream(): Boolean {
-        if (!rtmpCamera2.prepareAudio() || !rtmpCamera2.prepareVideo(streamWidth, streamHeight, 30, 4_000 * 1024, 0)) {
+        if (!rtmpCamera2.prepareAudio() || !rtmpCamera2.prepareVideo(streamWidth, streamHeight, 30, streamBitrateKbps * 1024, 0)) {
             return false
         }
         overlayFilter = ImageObjectFilterRender()
@@ -1623,5 +1703,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         const val PREF_CREW_EMAIL = "crew_email"
         const val PREF_CREW_SCHOOL_ID = "crew_school_id"
         const val PREF_CREW_IS_ADMIN = "crew_is_admin"
+        const val PREF_STREAM_RESOLUTION = "stream_resolution"
+        const val PREF_STREAM_BITRATE = "stream_bitrate"
     }
 }
