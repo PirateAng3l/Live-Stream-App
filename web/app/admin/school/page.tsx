@@ -3,6 +3,7 @@ import { LoadError } from "../../_components";
 import { loadAllSchools, loadSchoolById, resolveSchoolContext } from "@/lib/admin";
 import { getCurrentStaffProfile } from "@/lib/staff";
 import { OperatorInviteForm } from "./operator-invite-form";
+import { ResendInviteForm } from "./resend-invite-form";
 import { SchoolLogoForm } from "./school-logo-form";
 
 export const dynamic = "force-dynamic";
@@ -42,7 +43,10 @@ export default async function SchoolPage({ searchParams }: SchoolPageProps) {
           school itself — a school_operator managing their own logo has no
           reason to invite anyone here. */}
       {staff.role === "platform_admin" && (
-        <OperatorInviteForm school={school} defaultEmail={searchParams.invite_email} />
+        <>
+          <OperatorInviteForm school={school} defaultEmail={searchParams.invite_email} />
+          <ResendInviteForm />
+        </>
       )}
     </div>
   );

@@ -158,3 +158,37 @@ export async function inviteOperatorAction(_prev: ActionState, formData: FormDat
   revalidatePath("/admin/school");
   return { success: `Invite sent to ${email}` };
 }
+
+/**
+ * Closes the gap inviteOperatorAction's own README/comment flags: if an
+ * invite email is lost or its link expires, re-running inviteOperatorAction
+ * against the same address just fails (auth.admin.inviteUserByEmail
+ * rejects an email that's already registered, invited or not).
+ *
+ * Deliberately not the edge function again — this doesn't create anything,
+ * so it doesn't need the service-role key. resetPasswordForEmail is a
+ * plain (non-admin) Supabase Auth call: it emails a set-password link to
+ * *any* existing account regardless of whether they ever confirmed the
+ * original invite, using this app's ordinary anon-key session. Also works
+ * as a generic "I forgot how to sign in" resend for an operator who's been
+ * active for months, not just a freshly invited one.
+ *
+ * Supabase deliberately doesn't report whether the email actually matched
+ * an account (this always "succeeds" to avoid leaking who has one) — the
+ * success message reflects that honestly rather than implying a delivery
+ * guarantee this call can't actually make.
+ */
+export async function resendOperatorInviteAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const staff = await getCurrentStaffProfile();
+  if (!staff) return { error: "Not signed in as staff" };
+  if (staff.role !== "platform_admin") return { error: "Only a platform admin can resend a sign-in email" };
+
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) return { error: "An email address is required" };
+
+  const supabase = createSupabaseServerClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  if (error) return { error: error.message };
+
+  return { success: `If ${email} has an account, a sign-in email is on its way.` };
+}

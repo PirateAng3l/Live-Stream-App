@@ -183,7 +183,11 @@ they have one.
   already lets a platform_admin update any profile — no reason to
   duplicate that check inside the edge function too. If the elevation
   write fails after the invite succeeds, the new account just sits at the
-  default `role='parent'` until retried, not a broken state.
+  default `role='parent'` until retried, not a broken state. Right below
+  it, `ResendInviteForm`/`resendOperatorInviteAction` handles a lost or
+  expired invite link — plain `supabase.auth.resetPasswordForEmail`, no
+  edge function or service-role key involved, since resending doesn't
+  create anything new.
 - A `platform_admin` has no school of their own, so `/admin/teams`,
   `/admin/sponsors`, `/admin/school`, and `/admin/fixtures/new` show a
   school picker first (`?school=<id>` in the URL) rather than assuming one.
@@ -416,11 +420,15 @@ worth doing before this goes anywhere near real production traffic.
   fixture_sponsors + resolved logo URLs during setup, which it doesn't do.
 - **Crew account management, partially.** Inviting a school_operator now
   has a real flow (`/admin/school`'s "Invite an operator", see the admin
-  panel section above) — but there's no resend if an invite email is lost
-  or its link expires (re-inviting the same address just fails, see the
-  edge function's own README), no list of pending-vs-accepted invites
-  anywhere, and no way for a school_operator to invite a colleague at
-  their own school (platform_admin only, for now). Assigning
+  panel section above), and a lost/expired invite can be recovered without
+  going back through the edge function at all — `/admin/school`'s "Lost an
+  invite, or can't sign in?" resend box calls
+  `supabase.auth.resetPasswordForEmail` directly (`resendOperatorInviteAction`),
+  which works for any existing account regardless of whether the original
+  invite was ever confirmed, and doesn't need the service-role key the way
+  creating the account did. Still missing: no list of pending-vs-accepted
+  invites anywhere, and no way for a school_operator to invite a colleague
+  at their own school (platform_admin only, for now). Assigning
   `fixtures.assigned_operator_id` to a specific operator is also still a
   manual/SQL step.
 - **No self-serve subscription renewal** — a school_operator now sees their

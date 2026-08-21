@@ -14,6 +14,12 @@ own session token — same as `provision-fixture-broadcast` accepts a
 platform admin's session for a manual retry. Nothing else calls this;
 there's no database-trigger case the way provisioning has one.
 
+Recovering a lost or expired invite doesn't come back through here at
+all — `resendOperatorInviteAction` (same file) calls
+`supabase.auth.resetPasswordForEmail` directly instead, since resending
+doesn't create anything new and so doesn't need the service-role key this
+function exists for.
+
 ## Why this needs to be an edge function at all
 
 Creating an account *for someone else* (rather than that person signing
@@ -70,10 +76,6 @@ by the Supabase runtime — no extra secrets to set, unlike
 
 ## Not built yet
 
-- No re-send/expire handling — if an invite email is lost or the link
-  expires, there's currently no "resend" button; re-running the invite
-  action against the same email will just fail (`inviteUserByEmail`
-  rejects an email that already has an account, invited or not).
 - No way for a school_operator to invite a colleague at their own
   school — platform_admin only for now, same as every other account-
   creation path in this project.
