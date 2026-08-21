@@ -21,7 +21,14 @@ data class FixtureSummary(
     val sport: String,
     val scheduledStart: String,
     val homeTeamName: String,
-    val awayTeamName: String
+    val awayTeamName: String,
+    /**
+     * Only populated by getAllUpcomingFixtures (the platform_admin,
+     * every-school path) — a school_operator only ever sees their own
+     * school's fixtures, so there's nothing to disambiguate and the label
+     * doesn't need it. Null here means "don't show a school prefix."
+     */
+    val schoolName: String? = null,
 )
 
 data class BroadcastCredentials(val ingestionAddress: String, val streamKey: String)
@@ -114,6 +121,66 @@ class SupabaseClient(private val baseUrl: String, private val anonKey: String) {
                 scheduledStart = row.getString("scheduled_start"),
                 homeTeamName = teamNames[row.getString("home_team_id")] ?: "Home",
                 awayTeamName = teamNames[row.getString("away_team_id")] ?: "Away",
+            )
+        }
+    }
+
+    /**
+     * A platform_admin has no single school (see the `profiles` table's
+     * shape constraint) — this is their equivalent of getUpcomingFixtures,
+     * across every school rather than one. fixtures_read_all (RLS) already
+     * makes every fixture publicly readable regardless of role, so there's
+     * no server-side check to bypass here; this just drops the
+     * host_school_id filter and joins school names in too, since a plain
+     * "Team A vs Team B" label would be ambiguous once fixtures from
+     * different schools are mixed together in one list.
+     */
+    fun getAllUpcomingFixtures(accessToken: String): List<FixtureSummary> {
+        val fixturesUrl = "$baseUrl/rest/v1/fixtures" +
+            "?status=eq.scheduled" +
+            "&order=scheduled_start.asc" +
+            "&select=id,sport,scheduled_start,home_team_id,away_team_id,host_school_id"
+        val fixtures = JSONArray(request("GET", fixturesUrl, authHeaders(accessToken), null))
+        if (fixtures.length() == 0) return emptyList()
+
+        val teamIds = LinkedHashSet<String>()
+        val schoolIds = LinkedHashSet<String>()
+        for (i in 0 until fixtures.length()) {
+            val row = fixtures.getJSONObject(i)
+            teamIds.add(row.getString("home_team_id"))
+            teamIds.add(row.getString("away_team_id"))
+            schoolIds.add(row.getString("host_school_id"))
+        }
+
+        val teamsUrl = "$baseUrl/rest/v1/teams" +
+            "?id=in.(${teamIds.joinToString(",") { encode(it) }})" +
+            "&select=id,name"
+        val teams = JSONArray(request("GET", teamsUrl, authHeaders(accessToken), null))
+        val teamNames = mutableMapOf<String, String>()
+        for (i in 0 until teams.length()) {
+            val row = teams.getJSONObject(i)
+            teamNames[row.getString("id")] = row.getString("name")
+        }
+
+        val schoolsUrl = "$baseUrl/rest/v1/schools" +
+            "?id=in.(${schoolIds.joinToString(",") { encode(it) }})" +
+            "&select=id,name"
+        val schools = JSONArray(request("GET", schoolsUrl, authHeaders(accessToken), null))
+        val schoolNames = mutableMapOf<String, String>()
+        for (i in 0 until schools.length()) {
+            val row = schools.getJSONObject(i)
+            schoolNames[row.getString("id")] = row.getString("name")
+        }
+
+        return (0 until fixtures.length()).map { i ->
+            val row = fixtures.getJSONObject(i)
+            FixtureSummary(
+                id = row.getString("id"),
+                sport = row.getString("sport"),
+                scheduledStart = row.getString("scheduled_start"),
+                homeTeamName = teamNames[row.getString("home_team_id")] ?: "Home",
+                awayTeamName = teamNames[row.getString("away_team_id")] ?: "Away",
+                schoolName = schoolNames[row.getString("host_school_id")] ?: "Unknown school",
             )
         }
     }

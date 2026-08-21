@@ -370,10 +370,19 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
                 val session = supabaseClient.signIn(email, password)
                 saveCrewSession(session, email)
                 val profile = supabaseClient.getMyProfile(session.accessToken)
-                prefs.edit().putString(PREF_CREW_SCHOOL_ID, profile.schoolId).apply()
-                val fixtures = profile.schoolId
-                    ?.let { supabaseClient.getUpcomingFixtures(session.accessToken, it) }
-                    .orEmpty()
+                // platform_admin never has a school_id (see the profiles table's shape
+                // constraint) — that's how the two crew roles are told apart here, same
+                // as the web admin panel's resolveSchoolContext.
+                val isAdmin = profile.schoolId == null
+                prefs.edit()
+                    .putString(PREF_CREW_SCHOOL_ID, profile.schoolId)
+                    .putBoolean(PREF_CREW_IS_ADMIN, isAdmin)
+                    .apply()
+                val fixtures = if (isAdmin) {
+                    supabaseClient.getAllUpcomingFixtures(session.accessToken)
+                } else {
+                    supabaseClient.getUpcomingFixtures(session.accessToken, profile.schoolId!!)
+                }
                 uiHandler.post {
                     binding.crewSignInBtn.isEnabled = true
                     crewFixtures = fixtures
@@ -397,11 +406,22 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
 
     private fun refreshCrewFixturesInBackground() {
         val session = loadStoredCrewSession() ?: return
-        val schoolId = prefs.getString(PREF_CREW_SCHOOL_ID, null) ?: return
+        val isAdmin = prefs.getBoolean(PREF_CREW_IS_ADMIN, false)
+        val schoolId = prefs.getString(PREF_CREW_SCHOOL_ID, null)
+        // A school_operator's schoolId is required to fetch anything; a
+        // platform_admin (isAdmin) has none by design and doesn't need one —
+        // see performCrewSignIn. Bailing here previously meant an
+        // already-signed-in platform_admin's fixtures silently never
+        // refreshed on app relaunch.
+        if (!isAdmin && schoolId == null) return
         Thread {
             try {
                 val fresh = ensureFreshSessionBlocking(session)
-                val fixtures = supabaseClient.getUpcomingFixtures(fresh.accessToken, schoolId)
+                val fixtures = if (isAdmin) {
+                    supabaseClient.getAllUpcomingFixtures(fresh.accessToken)
+                } else {
+                    supabaseClient.getUpcomingFixtures(fresh.accessToken, schoolId!!)
+                }
                 uiHandler.post {
                     crewFixtures = fixtures
                     refreshFixtureSpinner()
@@ -463,7 +483,13 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         val labels = if (crewFixtures.isEmpty()) {
             listOf(getString(R.string.no_fixtures_found))
         } else {
-            crewFixtures.map { "${it.homeTeamName} vs ${it.awayTeamName}" }
+            crewFixtures.map { fixture ->
+                val matchLabel = "${fixture.homeTeamName} vs ${fixture.awayTeamName}"
+                // Only the platform_admin, every-school list (getAllUpcomingFixtures)
+                // populates schoolName — a school_operator's own fixtures are all the
+                // same school, so there's nothing to disambiguate.
+                fixture.schoolName?.let { "$it — $matchLabel" } ?: matchLabel
+            }
         }
         val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, labels) {
             override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
@@ -515,6 +541,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
             .remove(PREF_CREW_EXPIRES_AT)
             .remove(PREF_CREW_EMAIL)
             .remove(PREF_CREW_SCHOOL_ID)
+            .remove(PREF_CREW_IS_ADMIN)
             .apply()
         crewFixtures = emptyList()
     }
@@ -1487,5 +1514,6 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         const val PREF_CREW_EXPIRES_AT = "crew_expires_at"
         const val PREF_CREW_EMAIL = "crew_email"
         const val PREF_CREW_SCHOOL_ID = "crew_school_id"
+        const val PREF_CREW_IS_ADMIN = "crew_is_admin"
     }
 }

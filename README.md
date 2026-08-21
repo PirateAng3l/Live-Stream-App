@@ -169,7 +169,7 @@ restream.io) works the same way for a first no-YouTube-account test.
 The manual RTMP URL/key entry above always works and is untouched — but there's now
 an optional "CREW SIGN-IN" section above it, in the Settings panel's Stream Setup
 tab, that talks to the `backend/` project (see its own README): sign in with a crew email/password, pick an
-upcoming fixture for your school from a dropdown, tap **Load Fixture**, and it fills
+upcoming fixture from a dropdown, tap **Load Fixture**, and it fills
 in the RTMP URL/key (pulled from `fixture_broadcast_credentials`, provisioned
 automatically when the fixture was created — see
 `backend/supabase/functions/provision-fixture-broadcast/`), plus the team names and
@@ -184,10 +184,16 @@ SUPABASE_ANON_KEY=<your project's anon key>
 Without these, the sign-in button just shows "Backend not configured" instead of
 crashing — this feature is additive, not a requirement to use the app.
 
-**Known limitation:** only `school_operator` accounts get a fixture list right now —
-a `platform_admin` account can sign in but sees no fixtures, since there's no
-school-picker yet for an admin covering more than one school. Not a priority until
-there's an admin panel to build one against.
+**Two crew roles, two fixture lists.** A `school_operator` account (always tied to
+exactly one school — see the `profiles` table's shape constraint) sees only that
+school's upcoming fixtures (`SupabaseClient.getUpcomingFixtures`). A
+`platform_admin` account has no single school by design, so it gets every upcoming
+fixture across every school instead (`getAllUpcomingFixtures`), with each dropdown
+entry prefixed by its school name (e.g. "Riverside High — Team A vs Team B") since a
+plain "Team A vs Team B" would be ambiguous once fixtures from different schools are
+mixed into one list. Which path a signed-in account gets is decided purely by
+whether its profile has a `school_id` — the same way the web admin panel's
+`resolveSchoolContext` tells the two roles apart.
 
 ## Building it
 
