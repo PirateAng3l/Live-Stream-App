@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Pre-Android-12 full backup (the android:fullBackupContent counterpart to
+  data_extraction_rules.xml, which only Android 12+ reads) — same exclusion,
+  same reason: broadcaster_prefs is Keystore-encrypted now, and a Keystore
+  key never survives a backup/restore.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="broadcaster_prefs.xml" />
+</full-backup-content>

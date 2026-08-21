@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ cloud backup and device-to-device transfer. broadcaster_prefs
+  is excluded from both — it's now encrypted with a key held in the Android
+  Keystore (see BroadcasterApp.encryptedPrefs), and Keystore keys never
+  travel with a backup/transfer. Restoring the file onto a device without
+  the original key would leave every read failing to decrypt instead of
+  just falling back to defaults, so excluding it outright is safer than
+  letting the system copy a file it can never read again.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="broadcaster_prefs.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="broadcaster_prefs.xml" />
+    </device-transfer>
+</data-extraction-rules>

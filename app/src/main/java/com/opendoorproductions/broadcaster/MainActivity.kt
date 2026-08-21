@@ -143,10 +143,9 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private var sponsorHeadlineOffsetY = 0f
     private var sponsorHeadlinePrefix = ""
 
-    // Plain SharedPreferences, matching the rest of this POC's no-backend scope. A stream key
-    // here is only readable by this app's own sandboxed storage (not other apps, not over the
-    // network) — move to EncryptedSharedPreferences before this app handles real crew devices.
-    private val prefs by lazy { getSharedPreferences("broadcaster_prefs", MODE_PRIVATE) }
+    // Encrypted at rest (see BroadcasterApp.encryptedPrefs) — the RTMP stream key and crew
+    // sign-in tokens saved here are real credentials, not just UI convenience state.
+    private val prefs by lazy { BroadcasterApp.encryptedPrefs(this) }
 
     private val permissionRequest = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()

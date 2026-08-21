@@ -73,7 +73,13 @@ This repo now holds all three components of the platform described in
   resilience" below for what this does and doesn't cover.
 - **Setup persistence.** RTMP URL, stream key, team names, and sport selection are saved
   as you type and restored on launch, so a restart mid-match doesn't mean retyping
-  everything.
+  everything. The prefs file backing all of this (and the crew sign-in tokens) is
+  encrypted at rest via AndroidX Security's `EncryptedSharedPreferences`
+  (`BroadcasterApp.encryptedPrefs`, key held in the Android Keystore) rather than a
+  plain XML file — a lost or shared device shouldn't leak a school's stream key. It's
+  also excluded from Android's backup/device-transfer (`backup_rules.xml`/
+  `data_extraction_rules.xml`) since the Keystore key itself never travels with a
+  backup, so a restored copy of the file could never be decrypted anyway.
 - **Real sponsor/logo images.** The business logo and all three sponsor slots
   (lower-third, bottom-left, bottom-right) can each be set to an actual uploaded image
   via the device photo picker — aspect-fit, centered, drawn straight into the same slot
@@ -284,12 +290,9 @@ app/src/main/res/values-night/colors.xml    dark theme palette (the app's origin
 - Overlay text uses default Android typography, not the "clean, broadcast-quality"
   look targeted in spec Section 5.5 — this proves the compositing pipeline works, not
   the final visual design.
-- Stream resolution/bitrate/fps are hardcoded (1280x720 @ 30fps, 4 Mbps) in
-  `MainActivity.kt`.
+- Frame rate is still hardcoded at 30fps in `MainActivity.kt` — resolution and
+  bitrate are now configurable (see "Camera settings" above).
 - Landscape-only, single orientation, no rotation handling beyond that.
-- The stream key is stored in plain (unencrypted) app-private `SharedPreferences` —
-  fine for a solo POC, worth upgrading to `EncryptedSharedPreferences` before this runs
-  on shared crew devices.
 
 ## Next steps (not done here — see PROJECT_SPEC.md Section 9)
 
