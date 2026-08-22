@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Broadcaster POC</string>
+    <string name="app_name">Open Door Live</string>
     <string name="get_started">Get Started</string>
 
     <string name="status_offline">OFFLINE</string>
