@@ -6,17 +6,19 @@ const POSITION_CLASSES: Record<SponsorPosition, string> = {
     "absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-center gap-4 bg-black/60 px-3 py-2",
   bottom_left: "absolute bottom-2 left-2 flex flex-col items-start gap-2",
   bottom_right: "absolute bottom-2 right-2 flex flex-col items-end gap-2",
+  top_right: "absolute top-2 right-2 flex flex-col items-end gap-2",
 };
 
 /**
  * Sits absolutely-positioned over the video container (spec 7.3.3's
  * "web-layer sponsor slots"). Only the `web_overlay` layer belongs here —
  * `baked_in` sponsors are the broadcaster app's job, not this page's, and
- * showing both would double them up once the app is wired to this table
- * too. Reuses the same three position slots (lower_third/bottom_left/
- * bottom_right) as the app's overlay so the vocabulary stays one thing
- * across both surfaces, even though the actual rendering here is just
- * absolutely-positioned HTML over an iframe, nothing baked into any video.
+ * showing both would double them up (the app reads `baked_in` itself now —
+ * see SupabaseClient.getFixtureSponsors). Reuses the same four position
+ * slots (lower_third/bottom_left/bottom_right/top_right) as the app's
+ * overlay so the vocabulary stays one thing across both surfaces, even
+ * though the actual rendering here is just absolutely-positioned HTML over
+ * an iframe, nothing baked into any video.
  */
 export function SponsorOverlay({ assignments }: { assignments: FixtureSponsorAssignment[] }) {
   const grouped = groupByPosition(webOverlaySponsors(assignments));

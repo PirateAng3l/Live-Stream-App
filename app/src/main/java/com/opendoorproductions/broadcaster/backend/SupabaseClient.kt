@@ -46,8 +46,9 @@ data class BroadcastCredentials(val ingestionAddress: String, val streamKey: Str
  * mirrors web/lib/sponsors-server.ts's loadFixtureSponsors, but filtered
  * to layer='baked_in' server-side (web_overlay assignments are that
  * site's own territory, not this app's). `position` is always one of
- * TeamOverlayRenderer's three sponsor slot names (lower_third/bottom_left/
- * bottom_right) — the sponsor_position Postgres enum (migration 0001)
+ * TeamOverlayRenderer's four sponsor slot names (lower_third/bottom_left/
+ * bottom_right/top_right) — the sponsor_position Postgres enum (migration
+ * 0001, extended by 0010 for top_right)
  * guarantees that at the source, so it's read as a plain String rather
  * than re-validated here.
  */

@@ -29,8 +29,8 @@ describe("groupByPosition", () => {
     expect(grouped.bottom_right).toEqual([]);
   });
 
-  it("returns all three position keys even when empty", () => {
+  it("returns all four position keys even when empty", () => {
     const grouped = groupByPosition([]);
-    expect(Object.keys(grouped).sort()).toEqual(["bottom_left", "bottom_right", "lower_third"]);
+    expect(Object.keys(grouped).sort()).toEqual(["bottom_left", "bottom_right", "lower_third", "top_right"]);
   });
 });

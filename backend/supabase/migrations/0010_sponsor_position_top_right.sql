@@ -1,0 +1,12 @@
+-- A 4th sponsor placement: top_right. The Android overlay always had an
+-- unused-by-sponsors top-right corner (OverlayChrome.drawLogo) — previously
+-- just a crew-picked "business logo" image with no connection to a school's
+-- web sponsor inventory at all. This value lets a school assign a sponsor
+-- there exactly like lower_third/bottom_left/bottom_right, giving
+-- businesses a 4th advertising slot instead of leaving that corner's only
+-- use be a manual, per-device pick.
+--
+-- Postgres requires ADD VALUE to run outside the transaction any other
+-- statement using the new value would run in — this migration does nothing
+-- else, so that's automatically satisfied.
+alter type public.sponsor_position add value 'top_right';

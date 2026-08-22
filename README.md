@@ -25,9 +25,10 @@ This repo now holds all three components of the platform described in
 ## What it does
 
 - Opens the camera + mic, shows a full-screen live preview.
-- Composites a scoreboard, a running match timer, a business logo corner, and sponsor
-  placements (lower-third + two corners) **onto the video itself**, live — what you see
-  on screen is what gets streamed and what ends up in the YouTube recording.
+- Composites a scoreboard, a running match timer, and four sponsor/logo placements
+  (lower-third + three corners, the top-right one doubling as Open Door Live's own
+  mark when no sponsor's assigned there) **onto the video itself**, live — what you
+  see on screen is what gets streamed and what ends up in the YouTube recording.
 - **Per-sport scoring**, chosen from a dropdown in setup:
   - Rugby / Soccer / Netball / Hockey — a shared home-vs-away scoreboard, with
     rugby additionally getting named scoring-event chips (Try +5, Con +2, Pen +3,
@@ -80,11 +81,13 @@ This repo now holds all three components of the platform described in
   also excluded from Android's backup/device-transfer (`backup_rules.xml`/
   `data_extraction_rules.xml`) since the Keystore key itself never travels with a
   backup, so a restored copy of the file could never be decrypted anyway.
-- **Real sponsor/logo images.** The business logo and all three sponsor slots
-  (lower-third, bottom-left, bottom-right) can each be set to an actual uploaded image
-  via the device photo picker — aspect-fit, centered, drawn straight into the same slot
-  the placeholder text used to occupy. No image picked falls back to placeholder text,
-  so the app still works with zero setup. Picks persist across restarts.
+- **Real sponsor/logo images.** All four slots (logo/top-right, lower-third,
+  bottom-left, bottom-right) can each be set to an actual uploaded image via the
+  device photo picker — aspect-fit, centered, drawn straight into the same slot the
+  placeholder text used to occupy. No image picked falls back to placeholder text
+  for the three sponsor slots, or to Open Door Live's own mark for the top-right
+  logo slot (see "Loading a fixture also fetches its assigned sponsor logos" below)
+  — so the app still works with zero setup. Picks persist across restarts.
 - **Zoom, 0.6x (wide) to 5x**, a vertical slider on the left edge of the preview —
   always visible, not tucked in Settings, since it's a live framing adjustment made
   while watching the shot, not a one-time setting. **Snaps to exactly 1.0x** when
@@ -126,8 +129,8 @@ This repo now holds all three components of the platform described in
     - *Stream Setup* — crew sign-in, RTMP URL + stream key entry.
     - *Sports* — sport selector, team name entry (or a single event name
       when Clean Slate / Event is selected).
-    - *Sponsor Ads* — logo + all three sponsor slots (pick/clear/size/
-      position), sponsor presets.
+    - *Sponsor Ads* — all four slots, logo (top-right) included
+      (pick/clear/size/position), sponsor presets.
     - *Camera* — last, since it's the one tab with nothing to configure
       yet — currently just a note; zoom itself is the always-visible
       slider on the left edge of the preview, not tucked in here (it's a
@@ -239,17 +242,17 @@ composited into the home slot (`MainActivity.fetchHomeTeamLogo`,
 `TeamOverlayRenderer.drawTeamMark`). Otherwise — and always for the away side, since
 there's no reliable link from a typed-in opponent name to that school's actual
 account today — it falls back to Open Door Live's own mark
-(`R.drawable.odl_mark`, `defaultTeamLogoBitmap`). Cricket's scoreboard has no
+(`R.drawable.odl_mark`, `odlMarkBitmap`). Cricket's scoreboard has no
 equivalent stripe to begin with, so this only applies to the `TWO_TEAM` sports
 (rugby/soccer/netball/hockey/other).
 
 **Loading a fixture also fetches its assigned sponsor logos.** Whatever a
 school assigned to the fixture on the web (`/admin/fixtures/[id]`'s "Assign
-sponsor" form, `layer=baked_in`) downloads and fills the headline/left/right
-sponsor slots automatically — the same three slots the Settings panel's
-Sponsor Ads tab lets crew pick manually, so an auto-loaded logo shows up
-there too (thumbnail, persisted to disk) and can still be overridden by hand
-afterward if needed. All three slots are cleared first, then repopulated
+sponsor" form, `layer=baked_in`) downloads and fills all four sponsor/logo
+slots automatically — the same four slots the Settings panel's Sponsor Ads
+tab lets crew pick manually, so an auto-loaded logo shows up there too
+(thumbnail, persisted to disk) and can still be overridden by hand
+afterward if needed. All four slots are cleared first, then repopulated
 from whatever this fixture actually has assigned (`applyFixtureSponsors`,
 `SupabaseClient.getFixtureSponsors`) — same "Load Fixture overwrites
 wholesale" behavior as the RTMP credentials/team names/sport above, so a
@@ -259,6 +262,14 @@ A sponsor's logo has to actually be uploaded on the web
 `backend/supabase/migrations/0009_sponsor_logo_storage.sql`) for any of this
 to have something to fetch; a sponsor with no logo set yet is skipped, same
 as a school with no logo falls back to the default mark above.
+
+The top-right slot (`sponsor_position` enum value `top_right`, migration
+0010) is the one exception to "leaves empty": it's the same corner that
+used to be a crew-only, web-disconnected "business logo" pick, and it keeps
+that never-blank behavior — no `top_right` sponsor assigned (or none
+picked locally either) means Open Door Live's own mark shows there instead
+(`renderCurrentOverlayBitmap`'s `logoBitmap ?: odlMarkBitmap`), never a bare
+gap the way the other three sponsor corners go blank when unassigned.
 
 **Brand assets.** `res/drawable-nodpi/odl_mark.png` (the scoreboard fallback
 above) and `res/drawable-nodpi/ic_launcher_foreground.png` (the actual app

@@ -9,13 +9,20 @@ import android.graphics.Typeface
 
 /**
  * The overlay elements every sport shares regardless of scoreboard style:
- * the business logo corner and the sponsor lower-third + corner slots.
- * Shared by TeamOverlayRenderer and CricketOverlayRenderer so the sponsor
- * placement system (spec 5.5) stays identical across every sport.
+ * the top-right logo corner and the sponsor lower-third + two bottom corner
+ * slots — four placement slots in total (sponsor_position: lower_third/
+ * bottom_left/bottom_right/top_right). Shared by TeamOverlayRenderer and
+ * CricketOverlayRenderer so the sponsor placement system (spec 5.5) stays
+ * identical across every sport.
  *
  * Each slot draws a real image when one is provided (aspect-fit, centered, then
  * resized by the asset's own scale), falling back to placeholder text when it
- * isn't — lets the app work with or without uploaded sponsor assets.
+ * isn't — lets the app work with or without uploaded sponsor assets. The
+ * top-right corner is the one exception: MainActivity always hands drawLogo
+ * a real bitmap (a manual pick, an auto-loaded top_right sponsor, or Open
+ * Door Live's own mark as the last resort), so its text fallback below
+ * never actually fires in practice — kept anyway since drawLogo has no way
+ * to know that.
  */
 class OverlayChrome(private val width: Int, private val height: Int) {
 

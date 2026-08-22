@@ -122,20 +122,22 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
 
     // The home-team logo slot in the scoreboard (formerly a flat blue block) —
     // set when a loaded fixture's host school has uploaded a real emblem
-    // (see fetchHomeTeamLogo), null otherwise so defaultTeamLogoBitmap shows
+    // (see fetchHomeTeamLogo), null otherwise so odlMarkBitmap shows
     // instead. The away slot has no per-fixture equivalent — there's no
     // reliable link to the actual opposing school's own account today (see
     // README's crew sign-in section) — so it always uses the same default.
     private var homeTeamLogoBitmap: Bitmap? = null
     private var loadedFixtureId: String? = null
 
-    // Open Door Live's own mark, reused as the fallback for both scoreboard
-    // logo slots — the real brand logo (R.drawable.odl_mark, a transparent-
-    // background crop of the full ODL logo, drawable-nodpi so it isn't
-    // density-rescaled) as of the actual artwork replacing the placeholder
-    // vector icon it used to fall back to. Decoded once and kept around
-    // rather than re-rendered from the drawable on every frame.
-    private val defaultTeamLogoBitmap: Bitmap by lazy {
+    // Open Door Live's own mark — the real brand logo (R.drawable.odl_mark,
+    // a transparent-background crop of the full ODL logo, drawable-nodpi so
+    // it isn't density-rescaled). Reused as the fallback in three spots: the
+    // home/away scoreboard logo slots (below) and the top-right corner logo
+    // slot (renderCurrentOverlayBitmap) when nothing else is set for it —
+    // "default" here means "Open Door Live's own", not "team's". Decoded
+    // once and kept around rather than re-rendered from the drawable on
+    // every frame.
+    private val odlMarkBitmap: Bitmap by lazy {
         ContextCompat.getDrawable(this, R.drawable.odl_mark)!!.toBitmap()
     }
 
@@ -607,13 +609,19 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
      * "Load Fixture" already overwrites RTMP credentials/team names/sport
      * wholesale — sponsor logos get the same treatment for consistency,
      * driven by whatever the school assigned on the web (`/admin/fixtures/
-     * [id]`'s "Assign sponsor" form, layer=baked_in). All three slots are
+     * [id]`'s "Assign sponsor" form, layer=baked_in). All four slots are
      * cleared first (not just the ones this fixture has an assignment for)
      * so a previous fixture's sponsor doesn't linger in a slot this one
      * intentionally leaves empty — same reasoning as homeTeamLogoBitmap's
      * clear-then-fetch above. A position with more than one baked_in
      * sponsor assigned just uses whichever one the query returns first;
      * each overlay slot only ever shows one image at a time.
+     *
+     * top_right (logoBitmap) is the odd one out: clearing it here doesn't
+     * leave that corner blank the way the other three go blank when
+     * unassigned — renderCurrentOverlayBitmap's `logoBitmap ?: odlMarkBitmap`
+     * fallback means it always shows *something*, Open Door Live's own mark
+     * by default.
      */
     private fun applyFixtureSponsors(expectedFixtureId: String, sponsors: List<FixtureSponsor>) {
         setSponsorSlotImage(null, SPONSOR_HEADLINE_IMAGE_FILE, binding.sponsorHeadlineThumbnail)
@@ -622,6 +630,8 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         sponsorLeftBitmap = null
         setSponsorSlotImage(null, SPONSOR_RIGHT_IMAGE_FILE, binding.sponsorRightThumbnail)
         sponsorRightBitmap = null
+        setSponsorSlotImage(null, LOGO_IMAGE_FILE, binding.logoThumbnail)
+        logoBitmap = null
         refreshOverlay()
 
         sponsors.forEach { sponsor ->
@@ -635,13 +645,16 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
                 "bottom_right" -> fetchSponsorLogo(
                     expectedFixtureId, sponsor.logoUrl, SPONSOR_RIGHT_IMAGE_FILE, binding.sponsorRightThumbnail
                 ) { sponsorRightBitmap = it }
+                "top_right" -> fetchSponsorLogo(
+                    expectedFixtureId, sponsor.logoUrl, LOGO_IMAGE_FILE, binding.logoThumbnail
+                ) { logoBitmap = it }
             }
         }
     }
 
     /**
      * Same expectedFixtureId-guarded background-download shape as
-     * fetchHomeTeamLogo, generalized across all three sponsor slots.
+     * fetchHomeTeamLogo, generalized across all four sponsor slots.
      * Routes through setSponsorSlotImage (rather than just setting the
      * in-memory Bitmap field directly) so an auto-loaded sponsor logo is
      * cached to disk and shows in the Settings panel thumbnail exactly
@@ -774,7 +787,12 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     }
 
     private fun renderCurrentOverlayBitmap(): Bitmap {
-        val logo = OverlayAsset(businessLabel, logoBitmap, logoScale)
+        // Unlike the other three sponsor slots, this corner never goes empty:
+        // a manually-picked logo or an auto-loaded top_right sponsor (see
+        // applyFixtureSponsors) wins if set, otherwise it always falls back
+        // to Open Door Live's own mark — same fallback bitmap and reasoning
+        // as homeTeamLogoBitmap ?: odlMarkBitmap below.
+        val logo = OverlayAsset(businessLabel, logoBitmap ?: odlMarkBitmap, logoScale)
         val headline = OverlayAsset(sponsorHeadline, sponsorHeadlineBitmap, sponsorHeadlineScale, sponsorHeadlineOffsetY)
         val left = OverlayAsset(sponsorLeft, sponsorLeftBitmap, sponsorLeftScale)
         val right = OverlayAsset(sponsorRight, sponsorRightBitmap, sponsorRightScale)
@@ -782,8 +800,8 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
             ScoreboardLayout.TWO_TEAM -> teamOverlayRenderer.render(
                 scoreController.state,
                 logo,
-                OverlayAsset("", homeTeamLogoBitmap ?: defaultTeamLogoBitmap),
-                OverlayAsset("", defaultTeamLogoBitmap),
+                OverlayAsset("", homeTeamLogoBitmap ?: odlMarkBitmap),
+                OverlayAsset("", odlMarkBitmap),
                 currentSport.periodLabels.getOrElse(currentPeriodIndex) { "" },
                 sponsorHeadlinePrefix, headline, left, right
             )

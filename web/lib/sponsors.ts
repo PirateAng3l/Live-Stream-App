@@ -7,14 +7,16 @@
 export const SPONSOR_TIERS = ["headline", "supporting"] as const;
 export type SponsorTier = (typeof SPONSOR_TIERS)[number];
 
-export const SPONSOR_POSITIONS = ["lower_third", "bottom_left", "bottom_right"] as const;
+// top_right (migration 0010) is the broadcaster app's own top-right corner
+// (OverlayChrome.drawLogo) — previously just a crew-picked local image with
+// no web-side counterpart, now assignable like every other position.
+export const SPONSOR_POSITIONS = ["lower_third", "bottom_left", "bottom_right", "top_right"] as const;
 export type SponsorPosition = (typeof SPONSOR_POSITIONS)[number];
 
-// baked_in = burned into the video by the broadcaster app (not wired to this
-// table yet — see web/README.md); web_overlay = shown around the player on
-// this site (also not built yet). fixture_sponsors exists and is writable
-// from here regardless, so a school can build up its sponsor placements now
-// and both consumers can start reading it whenever they're built.
+// baked_in = burned into the video by the broadcaster app
+// (SupabaseClient.getFixtureSponsors, see the top-level README's crew
+// sign-in section); web_overlay = shown around the player on this site
+// (SponsorOverlay, app/matches/[id]/sponsor-overlay.tsx).
 export const SPONSOR_LAYERS = ["baked_in", "web_overlay"] as const;
 export type SponsorLayer = (typeof SPONSOR_LAYERS)[number];
 
@@ -30,6 +32,8 @@ export function sponsorPositionLabel(position: string): string {
       return "Bottom left";
     case "bottom_right":
       return "Bottom right";
+    case "top_right":
+      return "Top right";
     default:
       return position;
   }
@@ -76,6 +80,7 @@ export function groupByPosition<T extends { position: SponsorPosition }>(
     lower_third: [],
     bottom_left: [],
     bottom_right: [],
+    top_right: [],
   };
   for (const sponsor of sponsors) {
     grouped[sponsor.position].push(sponsor);

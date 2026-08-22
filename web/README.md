@@ -25,9 +25,9 @@ separate product).
   a replay" branch — a signed-in visitor sees the embed whenever the ID
   exists, live or not. Also shows that fixture's `web_overlay`-layer sponsor
   badges (logo if set, else a text pill; clickable if a click-through URL is
-  set), absolutely positioned over the video area in the same three slots
-  (lower-third/bottom-left/bottom-right) the broadcaster app's baked-in
-  overlay uses — see "Web-layer sponsor overlay" below. Shown regardless of
+  set), absolutely positioned over the video area in the same four slots
+  (lower-third/bottom-left/bottom-right/top-right) the broadcaster app's
+  baked-in overlay uses — see "Web-layer sponsor overlay" below. Shown regardless of
   sign-in state, since the video is what's gated, not the sponsor badges
   sitting on top of its placeholder.
 - **`/sign-up`**, **`/sign-in`** — email/password via Supabase Auth.
