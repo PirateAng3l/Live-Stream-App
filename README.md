@@ -238,10 +238,25 @@ has uploaded one (`/admin/school` on the web, stored via Supabase Storage — se
 composited into the home slot (`MainActivity.fetchHomeTeamLogo`,
 `TeamOverlayRenderer.drawTeamMark`). Otherwise — and always for the away side, since
 there's no reliable link from a typed-in opponent name to that school's actual
-account today — it falls back to Open Door Live's own mark (currently just the app
-icon, `defaultTeamLogoBitmap`, swap-in-ready once a real PNG is supplied). Cricket's
-scoreboard has no equivalent stripe to begin with, so this only applies to the
-`TWO_TEAM` sports (rugby/soccer/netball/hockey/other).
+account today — it falls back to Open Door Live's own mark
+(`R.drawable.odl_mark`, `defaultTeamLogoBitmap`). Cricket's scoreboard has no
+equivalent stripe to begin with, so this only applies to the `TWO_TEAM` sports
+(rugby/soccer/netball/hockey/other).
+
+**Brand assets.** `res/drawable-nodpi/odl_mark.png` (the scoreboard fallback
+above) and `res/drawable-nodpi/ic_launcher_foreground.png` (the actual app
+launcher icon, referenced from `mipmap-anydpi-v26/ic_launcher.xml`) are both
+crops of the same source logo — a transparent-background isolation of just
+the circular door/play mark, without the "OPEN DOOR LIVE" wordmark/tagline
+that only reads at full logo size. The two crops differ in padding:
+`ic_launcher_foreground.png` insets its content to ~60% of the canvas so it
+survives Android's adaptive-icon masking (circle, squircle, etc. — anything
+outside the guaranteed-visible ~66% safe zone gets clipped on some
+launchers), while `odl_mark.png` fills its frame edge-to-edge since it's
+never masked — `TeamOverlayRenderer.drawTeamMark`/`OverlayChrome.drawBitmapFit`
+just aspect-fit it into whatever corner slot is available. `drawable-nodpi`
+(not a plain `drawable`) so neither gets density-rescaled the way a
+per-density-bucket resource would.
 
 ## Building it
 

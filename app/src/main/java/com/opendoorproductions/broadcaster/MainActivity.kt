@@ -129,11 +129,13 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private var loadedFixtureId: String? = null
 
     // Open Door Live's own mark, reused as the fallback for both scoreboard
-    // logo slots until a real PNG is supplied to replace it outright — the
-    // app icon is the closest existing branded asset, decoded once and kept
-    // around rather than re-rendered from the drawable on every frame.
+    // logo slots — the real brand logo (R.drawable.odl_mark, a transparent-
+    // background crop of the full ODL logo, drawable-nodpi so it isn't
+    // density-rescaled) as of the actual artwork replacing the placeholder
+    // vector icon it used to fall back to. Decoded once and kept around
+    // rather than re-rendered from the drawable on every frame.
     private val defaultTeamLogoBitmap: Bitmap by lazy {
-        ContextCompat.getDrawable(this, R.mipmap.ic_launcher)!!.toBitmap()
+        ContextCompat.getDrawable(this, R.drawable.odl_mark)!!.toBitmap()
     }
 
     private var logoScale = 1f
