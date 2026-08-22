@@ -493,6 +493,57 @@ npm run typecheck
 npm run build    # full Next.js production build — this actually ran clean
 ```
 
+## Live deployment
+
+Production is served from the custom domain **opendoorlive.co.za**
+(purchased separately, routed through Vercel), not the project's default
+`*.vercel.app` URL — both the bare apex and `www.opendoorlive.co.za`
+resolve and serve the site, since Vercel's own default behavior for an
+apex domain is a redirect to `www`.
+
+That apex→`www` redirect matters beyond cosmetics: it means the host a
+request actually arrives on is `www.opendoorlive.co.za`, not the apex,
+which is what `setPasswordRedirectUrl()` (see `/set-password` above)
+builds the invite/reset-password link's `redirectTo` from. Supabase's
+**Authentication → URL Configuration → Redirect URLs** allow-list needs
+an *exact* string match, so both
+`https://opendoorlive.co.za/set-password` and
+`https://www.opendoorlive.co.za/set-password` need to be listed — missing
+the `www` variant is what silently broke the invite/reset flow the first
+time this domain went live (Supabase falls back to Site URL rather than
+erroring, so the symptom was a link that landed on the homepage instead
+of a clear failure). Site URL itself should be the bare apex.
+
+If the domain ever moves or a second one is added, the DNS records
+(A/CNAME at the registrar), the Vercel domain settings, and this Supabase
+Redirect URLs list all have to be updated together — missing any one of
+the three reproduces the same symptom.
+
+## Compliance reference documents (outside this repo)
+
+Three documents support spec 4.5's POPIA/child-safeguarding work but are
+plain deliverables, not something checked into this codebase or served by
+the app:
+
+- **POPIA & Child Safeguarding — Summary for Legal Review** (Word doc) — a
+  factual technical summary for a lawyer: what personal data is collected,
+  how video of minors is handled today, and the specific open questions
+  (is the consent-attestation model adequate, what retention period should
+  apply, should takedown reach the underlying YouTube video) that need
+  expert sign-off before any real school goes live.
+- **Safeguarding & Consent — Internal Reference** (Word doc) — a
+  status-at-a-glance table of what's built vs. outstanding, plus
+  step-by-step instructions for confirming a school's consent and for
+  handling a takedown or concern report, for whoever's actually running
+  the platform day to day.
+- **Safety & Consent** — a plain-language explainer for parents and
+  schools covering viewing access, consent, and how to request a
+  takedown, written in the same honest voice as `/privacy`/`/terms`.
+
+None of these is a compliance determination on their own — same caveat as
+the draft `/privacy`/`/terms` pages and the "Broadcast consent" section
+above.
+
 ## A known dependency tradeoff, not an oversight
 
 `npm audit` flags Next.js 14.2.35 (the version pinned here) against a long

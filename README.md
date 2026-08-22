@@ -20,6 +20,21 @@ This repo now holds all three components of the platform described in
   YouTube provisioning — and assign sponsors to individual fixtures) for
   `platform_admin`/`school_operator` accounts. See `web/README.md`.
 
+**Live at [opendoorlive.co.za](https://opendoorlive.co.za)** — a purchased
+custom domain routed through Vercel (apex + `www` both live), replacing the
+project's default `*.vercel.app` URL. The DNS setup and a Supabase
+auth-redirect gotcha that trips up admin-invite emails on a custom domain
+are documented in `web/README.md`'s "Live deployment" section.
+
+**POPIA / child-safeguarding (spec 4.5).** Software-side support — a
+school consent gate ahead of fixture creation, a per-fixture video takedown
+switch, and a public "Report a concern" form — lives in `web/`; see its
+README's "Broadcast consent" and "Compliance reference documents" sections
+for the detail. Three reference documents (a lawyer-review brief, an
+internal team reference, and a parent/school-facing explainer) exist as
+plain deliverables outside this repo — real POPIA/child-safeguarding legal
+review is still required before any real school's students are filmed.
+
 ## Broadcaster POC (Android)
 
 ## What it does
