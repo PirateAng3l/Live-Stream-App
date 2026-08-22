@@ -17,7 +17,12 @@ export default function PrivacyPage() {
       <div className="rounded-lg border border-live/40 bg-live/10 p-4 text-live">
         <strong>Draft — not yet reviewed by a lawyer.</strong> This page describes, honestly, what Open Door
         Live actually does with your data today. It has not been confirmed as compliant with POPIA or any
-        other law, and should not be relied on as a final policy.
+        other law, and should not be relied on as a final policy. For a plain-language version of the same
+        facts, see{" "}
+        <Link href="/safety" className="underline">
+          Safety &amp; Consent
+        </Link>
+        .
       </div>
 
       <h1 className="text-2xl font-bold text-textprimary">Privacy Policy</h1>

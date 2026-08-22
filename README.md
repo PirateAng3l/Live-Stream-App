@@ -28,12 +28,13 @@ are documented in `web/README.md`'s "Live deployment" section.
 
 **POPIA / child-safeguarding (spec 4.5).** Software-side support — a
 school consent gate ahead of fixture creation, a per-fixture video takedown
-switch, and a public "Report a concern" form — lives in `web/`; see its
-README's "Broadcast consent" and "Compliance reference documents" sections
-for the detail. Three reference documents (a lawyer-review brief, an
-internal team reference, and a parent/school-facing explainer) exist as
-plain deliverables outside this repo — real POPIA/child-safeguarding legal
-review is still required before any real school's students are filmed.
+switch, a public "Report a concern" form, and a parent/school-facing
+`/safety` explainer — lives in `web/`; see its README's "Broadcast
+consent" and "Compliance reference documents" sections for the detail.
+Two further reference documents (a lawyer-review brief and an internal
+team reference) exist as plain deliverables outside this repo — real
+POPIA/child-safeguarding legal review is still required before any real
+school's students are filmed.
 
 ## Broadcaster POC (Android)
 

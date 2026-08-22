@@ -154,6 +154,12 @@ they have one.
   review the spec calls for before real schools go live. Linked from a
   small footer on every page (`app/layout.tsx`), alongside
   `/report-concern`.
+- **`/safety`** — "Safety & Consent," a plain-language companion to
+  `/privacy`/`/terms` aimed at a parent or school reading on their phone
+  rather than a lawyer: the same underlying facts (login-gated-not-private
+  viewing, the school consent gate, how to report a concern), without the
+  policy-document tone. Cross-linked from `/privacy`'s banner and from the
+  same site-wide footer as the pages above.
 - **`/admin/teams`**, **`/admin/teams/new`**, **`/admin/teams/[id]/edit`** —
   list/create/edit teams for a school. A prerequisite for creating a
   fixture (a fixture needs two existing team IDs), so it had to come first.
@@ -521,9 +527,10 @@ the three reproduces the same symptom.
 
 ## Compliance reference documents (outside this repo)
 
-Three documents support spec 4.5's POPIA/child-safeguarding work but are
-plain deliverables, not something checked into this codebase or served by
-the app:
+Two documents support spec 4.5's POPIA/child-safeguarding work as plain
+deliverables, not something checked into this codebase or served by the
+app (the parent/school-facing explainer covering the same ground now lives
+in-app instead, at `/safety` — see above):
 
 - **POPIA & Child Safeguarding — Summary for Legal Review** (Word doc) — a
   factual technical summary for a lawyer: what personal data is collected,
@@ -536,13 +543,9 @@ the app:
   step-by-step instructions for confirming a school's consent and for
   handling a takedown or concern report, for whoever's actually running
   the platform day to day.
-- **Safety & Consent** — a plain-language explainer for parents and
-  schools covering viewing access, consent, and how to request a
-  takedown, written in the same honest voice as `/privacy`/`/terms`.
 
-None of these is a compliance determination on their own — same caveat as
-the draft `/privacy`/`/terms` pages and the "Broadcast consent" section
-above.
+Neither is a compliance determination on their own — same caveat as the
+draft `/privacy`/`/terms` pages and the "Broadcast consent" section above.
 
 ## A known dependency tradeoff, not an oversight
 
