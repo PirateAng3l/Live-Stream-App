@@ -21,6 +21,13 @@ export default function PrivacyPage() {
       </div>
 
       <h1 className="text-2xl font-bold text-textprimary">Privacy Policy</h1>
+      <p>
+        This policy covers Open Door Live as operated at{" "}
+        <a href="https://opendoorlive.co.za" className="text-accent">
+          opendoorlive.co.za
+        </a>
+        .
+      </p>
 
       <h2 className="pt-2 text-lg font-semibold text-textprimary">What we collect</h2>
       <p>
@@ -65,8 +72,9 @@ export default function PrivacyPage() {
       <h2 className="pt-2 text-lg font-semibold text-textprimary">Not yet finalized</h2>
       <p>
         Formal data retention periods, a registered Information Officer, and a confirmed legal basis for each
-        type of processing under POPIA are still pending review. This section will be updated once that review
-        is complete.
+        type of processing under POPIA are still pending review. A written summary of our current data
+        handling — including the specific open questions above — has already been prepared to support that
+        review; this page will be updated with the outcome once it&apos;s complete.
       </p>
     </div>
   );

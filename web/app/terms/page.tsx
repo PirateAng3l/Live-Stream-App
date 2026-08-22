@@ -12,6 +12,13 @@ export default function TermsPage() {
       </div>
 
       <h1 className="text-2xl font-bold text-textprimary">Terms of Use</h1>
+      <p>
+        These terms cover Open Door Live as operated at{" "}
+        <a href="https://opendoorlive.co.za" className="text-accent">
+          opendoorlive.co.za
+        </a>
+        .
+      </p>
 
       <h2 className="pt-2 text-lg font-semibold text-textprimary">Schools</h2>
       <p>
