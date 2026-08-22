@@ -1,38 +1,38 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
+import type { EmailOtpType } from "@supabase/supabase-js";
 import { authButtonClass, authInputClass } from "../_components";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 /**
  * The one thing that lands someone here: an invite or password-reset
  * email link (see inviteOperatorAction/resendOperatorInviteAction, both
- * of which point their redirectTo here). That link hands off a session
- * through the page's own URL fragment (#access_token=...) — this project's
- * Supabase Auth is deliberately set to the *implicit* flow rather than
- * PKCE (Authentication → Sign In / Providers → Email → Flow type, in the
- * Supabase dashboard) specifically because of this: PKCE's `?code=`
- * requires a matching "code verifier" stored in the browser that started
- * the flow, but for an admin-triggered invite/reset email there is no
- * such browser — the recipient's browser never started anything, so no
- * verifier could ever exist for it. Confirmed live: every PKCE attempt
- * failed instantly regardless of device or timing, which is exactly what
- * that mismatch predicts. Implicit flow has no verifier step at all — the
- * session rides along in the link itself — which is what makes it work
- * for a link nobody but the admin ever "started".
+ * of which point their redirectTo here). Those links carry
+ * ?token_hash=...&type=invite (or type=recovery) — set that way
+ * deliberately in Supabase's own Invite/Reset Password email templates
+ * (Authentication → Emails → Templates, dashboard-only, this app can't
+ * set it), instead of Supabase's default {{ .ConfirmationURL }}, which
+ * routes through Supabase's own PKCE-flow verify redirect and hands off a
+ * one-time `?code=` requiring a "code verifier" from the browser that
+ * started the auth flow — a browser that, for an admin-triggered email,
+ * never existed. Confirmed live: every PKCE attempt failed instantly
+ * regardless of device. token_hash sidesteps that entirely — verifyOtp()
+ * validates the raw token directly against Supabase, no prior browser
+ * state required, which is what actually works for a link nobody but the
+ * admin ever "started". This is Supabase's own documented pattern for
+ * exactly this case (invite/recovery/email-change links), not a
+ * workaround.
  *
- * The Supabase client parses that hash fragment and exchanges it for a
- * session asynchronously right after being constructed
- * (detectSessionInUrl, on by default). One client instance for the
- * component's whole lifetime (useState's lazy initializer, not created
- * fresh in handleSubmit) so a second, later-constructed client isn't
- * racing the first one's still-in-flight parsing — and getSession() on
- * mount explicitly waits for that same client's parsing to settle before
- * the form becomes submittable.
+ * One client instance for the component's whole lifetime (useState's lazy
+ * initializer, not created fresh in handleSubmit) so the same instance
+ * that verified the token on mount is the one used to update the
+ * password afterward.
  */
 export function SetPasswordForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [supabase] = useState(() => createSupabaseBrowserClient());
 
   const [ready, setReady] = useState(false);
@@ -42,13 +42,22 @@ export function SetPasswordForm() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    const tokenHash = searchParams.get("token_hash");
+    const type = searchParams.get("type") as EmailOtpType | null;
+
+    if (!tokenHash || !type) {
       setReady(true);
-      if (!data.session) {
+      setError("This link has expired or was already used. Ask your admin to resend it.");
+      return;
+    }
+
+    supabase.auth.verifyOtp({ type, token_hash: tokenHash }).then(({ error: verifyError }) => {
+      setReady(true);
+      if (verifyError) {
         setError("This link has expired or was already used. Ask your admin to resend it.");
       }
     });
-  }, [supabase]);
+  }, [supabase, searchParams]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();

@@ -13,29 +13,30 @@ export interface ActionState {
 }
 
 /**
- * Points straight at /set-password — no intermediate exchange route.
- * This project's Supabase Auth is deliberately set to the *implicit* link
- * flow (Authentication → Sign In / Providers → Email → Flow type, in the
- * Supabase dashboard), not PKCE: PKCE's `?code=` needs a "code verifier"
- * from the browser that started the flow, which structurally can't exist
- * for an admin-triggered invite/reset email — the recipient's browser
- * never started anything. Confirmed live: every PKCE attempt failed
- * instantly regardless of device. Implicit flow instead hands off the
- * session directly in the link's URL fragment, which SetPasswordForm's
- * Supabase client picks up on its own (detectSessionInUrl) — no route
- * handler needed.
+ * Not the link itself — the *base* the Invite user / Reset Password email
+ * templates build their link from, via Supabase's `{{ .RedirectTo }}`
+ * template variable (Authentication → Emails → Templates, dashboard-only,
+ * this app can't set it). Those templates are set to
+ * `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=invite` (or
+ * `type=recovery`) instead of Supabase's default `{{ .ConfirmationURL }}`
+ * — that default routes through Supabase's own PKCE-flow verify redirect,
+ * which hands off a one-time `?code=` requiring a "code verifier" from
+ * the browser that started the auth flow. For an admin-triggered email
+ * there is no such browser — confirmed live, every attempt through that
+ * default path failed instantly regardless of device. `token_hash` +
+ * `verifyOtp()` (SetPasswordForm) sidesteps that: it validates the raw
+ * token directly, no prior browser state required — Supabase's own
+ * documented pattern for exactly this case.
  *
- * Without an explicit redirectTo at all, Supabase falls back to the
- * project's Site URL, which lands someone on the marketing homepage
- * instead (the original version of this bug). Reading the incoming
- * request's own Host header works in every environment (Vercel
- * preview/production, local dev) without a hardcoded env var to keep in
- * sync.
+ * Without an explicit redirectTo at all, `{{ .RedirectTo }}` would be
+ * empty and the templates would have nothing to build a link from.
+ * Reading the incoming request's own Host header works in every
+ * environment (Vercel preview/production, local dev) without a
+ * hardcoded env var to keep in sync.
  *
  * Must also be added to Supabase's Auth → URL Configuration → Redirect
- * URLs allow-list, or Supabase silently ignores it and falls back to the
- * Site URL anyway — that's a dashboard setting, not something this app
- * can set for itself.
+ * URLs allow-list, or Supabase silently ignores it — that's a dashboard
+ * setting, not something this app can set for itself.
  */
 function setPasswordRedirectUrl(): string {
   return `https://${headers().get("host")}/set-password`;

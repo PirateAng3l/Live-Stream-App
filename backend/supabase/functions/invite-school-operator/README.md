@@ -15,15 +15,18 @@ platform admin's session for a manual retry. Nothing else calls this;
 there's no database-trigger case the way provisioning has one.
 
 The caller also passes `redirectTo` — the web app's own `/set-password`
-page (see `web/README.md` for why this project's Supabase Auth Flow type
-has to be **implicit**, not PKCE, for this to actually work with an
-admin-triggered email). This function has no idea what the web app's URL
-is (no `NEXT_PUBLIC_*` env vars reach a Deno function), so it just
-forwards whatever it's given straight into `inviteUserByEmail`'s own
-`redirectTo` option. Omitting it isn't a safe default: Supabase falls back
-to the project's Site URL, which is how an early version of this landed
-invited people on the marketing homepage with no way to ever set a
-password.
+page (see `web/README.md` for the full explanation of why this only
+actually works once the **Invite user** email template is customized in
+the Supabase dashboard to link with `{{ .RedirectTo }}?token_hash=
+{{ .TokenHash }}&type=invite` instead of the default
+`{{ .ConfirmationURL }}` — the default routes through Supabase's own
+PKCE-flow verify redirect, which admin-triggered emails structurally
+can't satisfy). This function has no idea what the web app's URL is (no
+`NEXT_PUBLIC_*` env vars reach a Deno function), so it just forwards
+whatever it's given straight into `inviteUserByEmail`'s own `redirectTo`
+option. Omitting it isn't a safe default: Supabase falls back to the
+project's Site URL, which is how an early version of this landed invited
+people on the marketing homepage with no way to ever set a password.
 
 Recovering a lost or expired invite doesn't come back through here at
 all — `resendOperatorInviteAction` (same file) calls

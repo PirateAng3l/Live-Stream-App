@@ -189,35 +189,47 @@ they have one.
   edge function or service-role key involved, since resending doesn't
   create anything new.
 - **`/set-password`** — where both the invite and resend emails land.
-  Requires the Supabase project's Auth **Flow type** to be set to
-  **implicit**, not PKCE (Authentication → Sign In / Providers → Email →
-  Flow type, in the Supabase dashboard) — this was hit live during
-  testing, not a hypothetical. PKCE's `?code=` link needs a matching "code
-  verifier" stored in the browser that started the auth flow, but an
-  admin-triggered invite/reset email has no such browser — the recipient
-  never started anything, the admin did, server-side. That's a structural
-  mismatch, not a timing issue: every PKCE attempt failed instantly,
-  regardless of device or how quickly the link was clicked. Implicit flow
-  has no verifier step — the session rides along directly in the link's
-  URL fragment (`#access_token=...`) — which is what makes it work for a
-  link nobody but the admin ever "started". `SetPasswordForm`'s Supabase
-  client picks that fragment up on its own (`detectSessionInUrl`, on by
-  default) — one client instance for the component's whole lifetime
-  (`useState`'s lazy initializer, not created fresh in `handleSubmit`) so
-  a second, later-constructed client isn't racing the first one's
-  still-in-flight parsing, and `getSession()` on mount explicitly waits
-  for that parsing to settle before the form becomes submittable. Once
-  ready, it calls `supabase.auth.updateUser({ password })` and sends them
-  to `/admin`. `setPasswordRedirectUrl()` (`admin/school/actions.ts`)
-  builds this page's URL from the *incoming request's own* `Host` header
-  rather than a hardcoded env var, so it's correct on every Vercel preview
-  URL and the production domain alike. **Also requires a one-time
-  dashboard step**: this exact URL (e.g.
-  `https://<your-domain>/set-password`) has to be added to Supabase's
-  **Authentication → URL Configuration → Redirect URLs** allow-list, or
-  Supabase silently ignores `redirectTo` and falls back to the Site URL
-  instead — landing back on the marketing homepage, the original version
-  of this bug.
+  There is no dashboard "Flow type" toggle to set for this (an earlier
+  version of this doc claimed one under Authentication → Sign In /
+  Providers → Email — it doesn't exist; caught by testing against the
+  actual dashboard UI). `@supabase/ssr`'s `createBrowserClient` hard-codes
+  `flowType: 'pkce'` unconditionally — that's a library default, not a
+  per-project setting, and it can't be turned off from the dashboard.
+  PKCE's default link (`{{ .ConfirmationURL }}`, a `?code=...` query
+  param) needs a matching "code verifier" stored in the browser that
+  started the auth flow — but for an admin-triggered invite/reset email
+  there is no such browser; the recipient never started anything, the
+  admin did, server-side. That's a structural mismatch, not a timing
+  issue: every PKCE attempt failed instantly, regardless of device or how
+  quickly the link was clicked. The fix is Supabase's own documented
+  pattern for exactly this case: the **Invite user** and **Reset
+  Password** email templates (Authentication → Emails → Templates, in the
+  Supabase dashboard) must be edited so their link uses
+  `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=invite` (Invite
+  user template) or `&type=recovery` (Reset Password template) instead of
+  the default `{{ .ConfirmationURL }}`. `SetPasswordForm` reads
+  `token_hash`/`type` off the URL with `useSearchParams()` (wrapped in
+  `<Suspense>`, same pattern as `/sign-in`'s and `/sign-up`'s own
+  `?redirect=` handling) and calls
+  `supabase.auth.verifyOtp({ type, token_hash })` on mount — that
+  validates the raw token directly against Supabase with no code-verifier
+  requirement, which is what actually works for a link nobody but the
+  admin ever "started". One client instance for the component's whole
+  lifetime (`useState`'s lazy initializer, not created fresh in
+  `handleSubmit`) so the same instance that verified the token is the one
+  used to update the password afterward; `ready` gates the submit button
+  until `verifyOtp` resolves. Once ready, it calls
+  `supabase.auth.updateUser({ password })` and sends them to `/admin`.
+  `setPasswordRedirectUrl()` (`admin/school/actions.ts`) builds this
+  page's base URL from the *incoming request's own* `Host` header rather
+  than a hardcoded env var (this becomes `{{ .RedirectTo }}` in the email
+  templates above), so it's correct on every Vercel preview URL and the
+  production domain alike. **Also requires a one-time dashboard step**:
+  this exact URL (e.g. `https://<your-domain>/set-password`) has to be
+  added to Supabase's **Authentication → URL Configuration → Redirect
+  URLs** allow-list, or Supabase silently ignores `redirectTo` and falls
+  back to the Site URL instead — landing back on the marketing homepage,
+  the original version of this bug.
 - A `platform_admin` has no school of their own, so `/admin/teams`,
   `/admin/sponsors`, `/admin/school`, and `/admin/fixtures/new` show a
   school picker first (`?school=<id>` in the URL) rather than assuming one.
