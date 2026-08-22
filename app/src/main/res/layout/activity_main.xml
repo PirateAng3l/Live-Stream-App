@@ -120,7 +120,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.6">
+        app:layout_constraintVertical_bias="0.63">
 
         <!-- Range is 0.6x (wide) to 5.0x, progress in 0.01x steps: value =
              0.6 + progress/100. Default progress 40 = exactly 1.0x, matching

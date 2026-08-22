@@ -30,7 +30,9 @@ class TeamOverlayRenderer(private val width: Int, private val height: Int) {
     private val homeStripePaint = solid(255, "#2FA8E4")
     private val awayStripePaint = solid(255, "#E4392F")
 
-    private val namePaint = textPaint(height * 0.028f, Paint.Align.LEFT)
+    private val nameBaseSize = height * 0.028f
+    private val nameMinSize = height * 0.019f
+    private val namePaint = textPaint(nameBaseSize, Paint.Align.LEFT)
     private val scorePaint = textPaint(height * 0.045f, Paint.Align.CENTER)
     private val timerPaint = textPaint(height * 0.04f, Paint.Align.CENTER)
     private val periodPaint = textPaint(height * 0.022f, Paint.Align.CENTER).apply { alpha = 210 }
@@ -77,12 +79,43 @@ class TeamOverlayRenderer(private val width: Int, private val height: Int) {
         )
 
         val nameX = left + stripeWidth + 16f
-        canvas.drawText(state.homeName.uppercase(), nameX, top + rowHeight * 0.62f, namePaint)
-        canvas.drawText(state.awayName.uppercase(), nameX, top + rowHeight * 1.62f, namePaint)
-
         val scoreCenterX = left + boardWidth - boardWidth * 0.14f
+        // Score column reserves its own width regardless of digit count (a
+        // long team name shouldn't be able to push into it) — drawFittedName
+        // shrinks, then as a last resort truncates with an ellipsis, rather
+        // than ever overlapping the score.
+        val nameMaxWidth = scoreCenterX - height * 0.07f - nameX
+        drawFittedName(canvas, state.homeName, nameX, top + rowHeight * 0.62f, nameMaxWidth)
+        drawFittedName(canvas, state.awayName, nameX, top + rowHeight * 1.62f, nameMaxWidth)
+
         canvas.drawText(state.homeScore.toString(), scoreCenterX, top + rowHeight * 0.68f, scorePaint)
         canvas.drawText(state.awayScore.toString(), scoreCenterX, top + rowHeight * 1.68f, scorePaint)
+    }
+
+    /**
+     * Shrinks namePaint down to nameMinSize before it resorts to an
+     * ellipsis, so a slightly-too-long name (e.g. "Revelation High 1st
+     * Team") reads in full at a smaller size rather than immediately losing
+     * words — only names that don't fit even at the minimum size get cut.
+     * namePaint's textSize is mutated in place and reset to nameBaseSize on
+     * every call, since it's shared between the home and away rows.
+     */
+    private fun drawFittedName(canvas: Canvas, name: String, x: Float, y: Float, maxWidth: Float) {
+        val text = name.uppercase()
+        namePaint.textSize = nameBaseSize
+        var size = nameBaseSize
+        while (namePaint.measureText(text) > maxWidth && size > nameMinSize) {
+            size = (size - height * 0.001f).coerceAtLeast(nameMinSize)
+            namePaint.textSize = size
+        }
+        if (namePaint.measureText(text) <= maxWidth) {
+            canvas.drawText(text, x, y, namePaint)
+            return
+        }
+        val ellipsis = "…"
+        val ellipsisWidth = namePaint.measureText(ellipsis)
+        val fitCount = namePaint.breakText(text, true, maxWidth - ellipsisWidth, null)
+        canvas.drawText(text.substring(0, fitCount) + ellipsis, x, y, namePaint)
     }
 
     private fun drawTeamMark(canvas: Canvas, logo: OverlayAsset, fallbackPaint: Paint, bounds: RectF) {
