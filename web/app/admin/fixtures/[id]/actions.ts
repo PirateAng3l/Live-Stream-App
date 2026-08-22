@@ -161,6 +161,44 @@ export async function updateFixtureAction(_prev: ActionState, formData: FormData
   redirect(`/admin/fixtures/${fixtureId}`);
 }
 
+/**
+ * Spec 4.5's takedown lever (migration 0012) — flips hidden_from_viewers,
+ * which /matches/[id] checks ahead of everything else before rendering
+ * the video. Toggles rather than a one-way "hide" so a mistaken or
+ * resolved takedown can be reversed without reaching into the database
+ * directly. Same host-school re-derivation as every other action here;
+ * fixtures_update_own_school/fixtures_write_admin (migrations 0001/0005)
+ * are the real backstop.
+ */
+export async function toggleFixtureVisibilityAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const staff = await getCurrentStaffProfile();
+  if (!staff) return { error: "Not signed in as staff" };
+
+  const fixtureId = String(formData.get("fixture_id") ?? "");
+  if (!fixtureId) return { error: "Missing fixture" };
+
+  let hostSchoolId: string | null;
+  try {
+    hostSchoolId = await loadFixtureHostSchool(fixtureId);
+  } catch (error) {
+    return { error: (error as Error).message };
+  }
+  if (!hostSchoolId) return { error: "Fixture not found" };
+  if (staff.role === "school_operator" && staff.schoolId !== hostSchoolId) {
+    return { error: "This fixture belongs to a different school" };
+  }
+
+  const hide = formData.get("hide") === "true";
+
+  const supabase = createSupabaseServerClient();
+  const { error } = await supabase.from("fixtures").update({ hidden_from_viewers: hide }).eq("id", fixtureId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/admin/fixtures/${fixtureId}`);
+  revalidatePath(`/matches/${fixtureId}`);
+  return {};
+}
+
 export async function deleteFixtureAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const staff = await getCurrentStaffProfile();
   if (!staff) return { error: "Not signed in as staff" };

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { resolveSchoolContext } from "@/lib/admin";
+import { loadSchoolById, resolveSchoolContext } from "@/lib/admin";
 import { getCurrentStaffProfile } from "@/lib/staff";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { isSubscriptionOperational, subscriptionStatusLabel } from "@/lib/subscriptions";
@@ -20,6 +20,17 @@ export async function createFixtureAction(_prev: ActionState, formData: FormData
   // staff profile for a school_operator, never trusted from the form.
   const schoolId = resolveSchoolContext(staff, String(formData.get("school_id") ?? ""));
   if (!schoolId) return { error: "A school is required" };
+
+  // Spec 4.5's consent gate — migration 0011's fixtures_insert_own_school
+  // rejects the insert outright with no consent_confirmed_at on file; this
+  // is the friendly-error-first check, same reasoning as the subscription
+  // one right below. Fails closed (unlike the subscription check) on a
+  // load failure or missing school, since "couldn't confirm consent
+  // exists" should never be treated as "consent exists".
+  const school = await loadSchoolById(schoolId).catch(() => null);
+  if (!school?.consentConfirmedAt) {
+    return { error: "This school hasn't confirmed broadcast consent yet — see the School page." };
+  }
 
   // Migration 0005's RLS is the real backstop (fixtures_insert_own_school
   // rejects the insert outright for an expired/cancelled subscription) —

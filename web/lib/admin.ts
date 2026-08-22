@@ -44,18 +44,19 @@ export async function loadAllSchools(): Promise<SchoolOption[]> {
 
 export interface SchoolDetail extends SchoolOption {
   logoUrl: string | null;
+  consentConfirmedAt: string | null;
 }
 
 export async function loadSchoolById(id: string): Promise<SchoolDetail | null> {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("schools")
-    .select("id, name, logo_url")
+    .select("id, name, logo_url, consent_confirmed_at")
     .eq("id", id)
     .maybeSingle();
   if (error) throw new Error(`Could not load school ${id}: ${error.message}`);
   if (!data) return null;
-  return { id: data.id, name: data.name, logoUrl: data.logo_url };
+  return { id: data.id, name: data.name, logoUrl: data.logo_url, consentConfirmedAt: data.consent_confirmed_at };
 }
 
 export async function loadTeamsForSchool(schoolId: string): Promise<TeamOption[]> {
@@ -103,7 +104,7 @@ export async function loadFixturesForStaff(staff: StaffProfile): Promise<Fixture
   let query = supabase
     .from("fixtures")
     .select(
-      "id, sport, scheduled_start, status, host_school_id, home_team_id, away_team_id, youtube_video_id, final_home_score, final_away_score",
+      "id, sport, scheduled_start, status, host_school_id, home_team_id, away_team_id, youtube_video_id, final_home_score, final_away_score, hidden_from_viewers",
     )
     .order("scheduled_start", { ascending: false });
 

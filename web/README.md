@@ -50,9 +50,16 @@ separate product).
   match they were trying to watch — validated against being an absolute
   URL first (`lib/redirect.ts`), since an unchecked redirect target from a
   query string is a classic open-redirect hole.
+- **`/report-concern`** — spec 4.5's public takedown/opt-out intake form,
+  no sign-in required. See "Broadcast consent" and `/admin/concern-reports`
+  below for the full flow.
+- **`/privacy`, `/terms`** — draft policy pages, explicitly marked as such.
+  See below for why.
 - Signed-in state shows in the header (email + Sign out) via
   `app/layout.tsx`, which is why every page — even ones that don't
-  explicitly gate anything — reads the current session.
+  explicitly gate anything — reads the current session. A small footer
+  (also `app/layout.tsx`) links `/privacy`, `/terms`, and `/report-concern`
+  from every page.
 
 **Scope of the gate, deliberately:** only the video itself is behind
 sign-in, not the schedule or a match's metadata. The sensitive thing is
@@ -112,7 +119,41 @@ they have one.
   (confirm-guarded; cascades `fixture_sponsors` and
   `fixture_broadcast_credentials`, migration 0001 — the YouTube broadcast
   itself isn't torn down via the API, it's just left orphaned/unlisted on
-  the channel).
+  the channel). Also has **Take down video** / **Make video visible
+  again** (`VisibilityToggleForm`, confirm-guarded) — spec 4.5's takedown/
+  opt-out lever, flipping `fixtures.hidden_from_viewers` (migration 0012).
+  `/matches/[id]` checks that flag ahead of sign-in state entirely: a
+  taken-down fixture shows "This video has been taken down" for everyone,
+  full stop. This does not touch the underlying YouTube video (still
+  merely unlisted, per spec 4.4) — it only stops this platform itself
+  from serving it, the same access-control boundary login-gating already
+  relies on.
+- **`/admin/concern-reports`** — spec 4.5's takedown/opt-out intake queue,
+  `platform_admin` only (a report's `fixture_id` is optional, so there's
+  no reliable way to scope one to a `school_operator`'s own school).
+  Reports arrive from the public `/report-concern` form (no sign-in
+  required — a concerned parent may not have an account) — reporter
+  name/email, a free-text description, and an optional `fixture_id`
+  pre-filled when reached via a match page's own "Report a concern" link.
+  `ConcernReportRow`'s **Mark reviewed**/**Mark resolved** just updates the
+  report's own status; it deliberately doesn't also flip
+  `hidden_from_viewers` — reviewing a report and deciding to actually take
+  a video down are different actions, and conflating them would mean
+  "this was a false alarm" and "we're taking it down" look the same in the
+  audit trail. Jump to the referenced fixture's own detail page (its
+  **Take down video** button, above) to actually act on one. Same public-
+  insert/admin-manage RLS shape as `school_signup_requests` (migration
+  0007) — `concern_reports_insert_public`/`concern_reports_admin_manage`,
+  migration 0013.
+- **`/privacy`, `/terms`** — draft, explicitly-labeled-as-such pages
+  (a red "not yet reviewed by a lawyer" banner on both) giving spec 4.5's
+  "clear data-processing position and privacy policy" somewhere to live.
+  Written honestly about what the platform actually does today, including
+  the spec 4.4 access-control limitation (gated, not cryptographically
+  closed) — not legal advice, and not a substitute for the POPIA-expertise
+  review the spec calls for before real schools go live. Linked from a
+  small footer on every page (`app/layout.tsx`), alongside
+  `/report-concern`.
 - **`/admin/teams`**, **`/admin/teams/new`**, **`/admin/teams/[id]/edit`** —
   list/create/edit teams for a school. A prerequisite for creating a
   fixture (a fixture needs two existing team IDs), so it had to come first.
@@ -165,6 +206,21 @@ they have one.
   rather than trusting the form is defense-in-depth, not the real
   boundary. Read by the Android app to composite into the live overlay's
   home-team logo slot — see the top-level README's crew sign-in section.
+- **Broadcast consent** — `/admin/school`'s `ConsentForm`, above the logo
+  upload. Spec 4.5 (`PROJECT_SPEC.md`, POPIA & child-safeguarding): "the
+  software must support consent flags per school/team." This is that flag
+  — a required, timestamped attestation (`schools.consent_confirmed_at`/
+  `consent_confirmed_by`, migration 0011) that a school holds appropriate
+  parental/guardian consent to film and broadcast its students, gating
+  `/admin/fixtures/new` (both the page and `createFixtureAction`
+  friendly-error-check it, `fixtures_insert_own_school` RLS is the real
+  backstop) until it's on file. Deliberately a factual attestation, not an
+  explanation of what adequate consent looks like — this software can't
+  determine that; per the spec, POPIA expertise needs to be engaged
+  separately before real schools go live, this just makes "did the school
+  say yes" a real, enforced gate instead of an assumption. Fails closed:
+  every school that existed before this migration needs to confirm too,
+  there's no grandfathering.
 - **`/admin/school/new`** — creates a `schools` row (name, optional contact
   email/phone) so onboarding a school no longer means a raw SQL insert.
   `platform_admin` only (`createSchoolAction` checks the role; RLS's
@@ -490,6 +546,18 @@ worth doing before this goes anywhere near real production traffic.
   platform_admin-side SQL update to the `subscriptions` row, same as
   everything else in the "concierge onboarding" model this project is on
   for now.
+- **Takedown doesn't reach YouTube itself** — "Take down video" (above)
+  stops this platform serving a fixture's video; the underlying unlisted
+  YouTube video is untouched. A truly urgent takedown (making the YouTube
+  video itself private, not just unreachable through this site) is still a
+  manual step in YouTube Studio using the fixture's `youtube_video_id` —
+  automating that via the YouTube Data API is a reasonable follow-up, not
+  done here to keep this pass's scope to what the site itself controls.
+- **POPIA compliance itself is not something this software can claim.**
+  Consent attestation, the takedown intake, and these draft policy pages
+  are the *support* spec 4.5 asked for — real POPIA/child-safeguarding
+  legal review, before any real school's students are filmed, is still
+  outstanding and has to happen outside this codebase.
 - Local timezone display — kickoff times are shown in a fixed UTC format
   (deliberately, to avoid a server/client hydration mismatch); converting to
   the visitor's local time would need a small client component.

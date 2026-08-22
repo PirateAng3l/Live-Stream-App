@@ -60,7 +60,14 @@ export default async function MatchPage({ params }: MatchPageProps) {
       <p className="mt-1 text-sm text-textsecondary">{formatKickoff(fixture.scheduledStart)}</p>
 
       <div className="relative mt-6">
-        {fixture.youtubeVideoId ? (
+        {fixture.hiddenFromViewers ? (
+          // Spec 4.5's takedown lever (migration 0012) — checked ahead of
+          // sign-in state entirely, since a taken-down video should stay
+          // down for everyone, not just show a normal sign-in prompt.
+          <div className="flex aspect-video flex-col items-center justify-center rounded-lg border border-white/10 bg-panel p-6 text-center text-textsecondary">
+            <p>This video has been taken down and is no longer available.</p>
+          </div>
+        ) : fixture.youtubeVideoId ? (
           parent ? (
             // Same video ID serves both the live stream and, once it ends,
             // the replay — that's how YouTube Live broadcasts work (spec
@@ -93,15 +100,26 @@ export default async function MatchPage({ params }: MatchPageProps) {
           </div>
         )}
         {/* Only over the aspect-video-sized states above — the "no video
-            yet" box is a different shape and sponsors placed on it would
-            just look wrong, not just unnecessary. */}
-        {fixture.youtubeVideoId && <SponsorOverlay assignments={sponsorAssignments} />}
+            yet" and taken-down boxes are a different shape (or shouldn't
+            carry sponsor branding at all, in the taken-down case) and
+            sponsors placed on them would just look wrong. */}
+        {fixture.youtubeVideoId && !fixture.hiddenFromViewers && <SponsorOverlay assignments={sponsorAssignments} />}
       </div>
 
       {hasFinalScore && (
         <p className="mt-4 text-lg font-semibold">
           Final score: {fixture.homeTeamName} {fixture.finalHomeScore} – {fixture.finalAwayScore}{" "}
           {fixture.awayTeamName}
+        </p>
+      )}
+
+      {!fixture.hiddenFromViewers && (
+        <p className="mt-6 text-xs text-textsecondary">
+          Concerned about this video?{" "}
+          <Link href={`/report-concern?fixture=${fixture.id}`} className="text-accent hover:underline">
+            Report a concern
+          </Link>
+          .
         </p>
       )}
     </div>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { SchoolPicker } from "../../_school-picker";
 import { LoadError } from "../../../_components";
-import { loadAllSchools, loadTeamsForSchool, resolveSchoolContext } from "@/lib/admin";
+import { loadAllSchools, loadSchoolById, loadTeamsForSchool, resolveSchoolContext } from "@/lib/admin";
 import { getCurrentStaffProfile } from "@/lib/staff";
 import { isSubscriptionOperational, subscriptionStatusLabel } from "@/lib/subscriptions";
 import { loadSubscriptionForSchool } from "@/lib/subscriptions-server";
@@ -27,6 +27,26 @@ export default async function NewFixturePage({ searchParams }: NewFixturePagePro
       return <LoadError message={(error as Error).message} />;
     }
     return <SchoolPicker schools={schools} basePath="/admin/fixtures/new" title="New fixture" />;
+  }
+
+  // Spec 4.5's consent gate (migration 0011) — checked first since it's
+  // the more fundamental blocker of the two. Same re-check-in-the-Server-
+  // Action-too, RLS-is-the-real-backstop pattern as the subscription check
+  // right below.
+  const school = await loadSchoolById(schoolId).catch(() => null);
+  if (school && !school.consentConfirmedAt) {
+    return (
+      <p className="text-textsecondary">
+        This school hasn&apos;t confirmed broadcast consent yet — new fixtures can&apos;t be created until it does.{" "}
+        <Link
+          href={staff.role === "platform_admin" ? `/admin/school?school=${schoolId}` : "/admin/school"}
+          className="text-accent"
+        >
+          Confirm consent
+        </Link>
+        .
+      </p>
+    );
   }
 
   // Same subscription check the Server Action re-runs before actually

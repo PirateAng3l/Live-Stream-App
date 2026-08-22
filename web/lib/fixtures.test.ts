@@ -22,6 +22,7 @@ function fixtureRow(overrides: Partial<FixtureRow> = {}): FixtureRow {
     youtube_video_id: null,
     final_home_score: null,
     final_away_score: null,
+    hidden_from_viewers: false,
     ...overrides,
   };
 }
@@ -50,6 +51,7 @@ describe("resolveFixtureSummaries", () => {
         youtubeVideoId: null,
         finalHomeScore: null,
         finalAwayScore: null,
+        hiddenFromViewers: false,
       },
     ]);
   });

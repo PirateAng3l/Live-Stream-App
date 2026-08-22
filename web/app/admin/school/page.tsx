@@ -2,6 +2,7 @@ import { SchoolPicker } from "../_school-picker";
 import { LoadError } from "../../_components";
 import { loadAllSchools, loadSchoolById, resolveSchoolContext } from "@/lib/admin";
 import { getCurrentStaffProfile } from "@/lib/staff";
+import { ConsentForm } from "./consent-form";
 import { OperatorInviteForm } from "./operator-invite-form";
 import { ResendInviteForm } from "./resend-invite-form";
 import { SchoolLogoForm } from "./school-logo-form";
@@ -38,6 +39,7 @@ export default async function SchoolPage({ searchParams }: SchoolPageProps) {
 
   return (
     <div>
+      <ConsentForm school={school} />
       <SchoolLogoForm school={school} />
       {/* Inviting a login is a platform_admin action, same as creating the
           school itself — a school_operator managing their own logo has no

@@ -53,6 +53,17 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           </nav>
         </header>
         <main className="mx-auto max-w-4xl px-6 py-8">{children}</main>
+        <footer className="mx-auto flex max-w-4xl flex-wrap gap-4 px-6 py-6 text-xs text-textsecondary">
+          <Link href="/privacy" className="hover:text-textprimary">
+            Privacy
+          </Link>
+          <Link href="/terms" className="hover:text-textprimary">
+            Terms
+          </Link>
+          <Link href="/report-concern" className="hover:text-textprimary">
+            Report a concern
+          </Link>
+        </footer>
       </body>
     </html>
   );

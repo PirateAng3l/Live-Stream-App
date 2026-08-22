@@ -13,6 +13,32 @@ export interface ActionState {
 }
 
 /**
+ * Spec 4.5's per-school consent flag (migration 0011) — a required
+ * attestation before that school can create a new fixture
+ * (fixtures_insert_own_school). This only records that the school
+ * affirmatively said yes and when/who; it doesn't and can't verify the
+ * underlying parental consent process is actually adequate — see the
+ * checkbox copy on ConsentForm itself for how that's framed.
+ */
+export async function confirmSchoolConsentAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const staff = await getCurrentStaffProfile();
+  if (!staff) return { error: "Not signed in as staff" };
+
+  const schoolId = resolveSchoolContext(staff, String(formData.get("school_id") ?? ""));
+  if (!schoolId) return { error: "A school is required" };
+
+  const supabase = createSupabaseServerClient();
+  const { error } = await supabase
+    .from("schools")
+    .update({ consent_confirmed_at: new Date().toISOString(), consent_confirmed_by: staff.id })
+    .eq("id", schoolId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/school");
+  return { success: "Consent confirmed — this school can now create fixtures." };
+}
+
+/**
  * Not the link itself — the *base* the Invite user / Reset Password email
  * templates build their link from, via Supabase's `{{ .RedirectTo }}`
  * template variable (Authentication → Emails → Templates, dashboard-only,

@@ -42,7 +42,7 @@ export async function loadFixtures(): Promise<FixtureSummary[]> {
   const { data, error } = await supabase
     .from("fixtures")
     .select(
-      "id, sport, scheduled_start, status, host_school_id, home_team_id, away_team_id, youtube_video_id, final_home_score, final_away_score",
+      "id, sport, scheduled_start, status, host_school_id, home_team_id, away_team_id, youtube_video_id, final_home_score, final_away_score, hidden_from_viewers",
     )
     .order("scheduled_start", { ascending: false });
   if (error) throw new Error(`Could not load fixtures: ${error.message}`);
@@ -59,7 +59,7 @@ export async function loadFixtureById(id: string): Promise<FixtureSummary | null
   const { data, error } = await supabase
     .from("fixtures")
     .select(
-      "id, sport, scheduled_start, status, host_school_id, home_team_id, away_team_id, youtube_video_id, final_home_score, final_away_score",
+      "id, sport, scheduled_start, status, host_school_id, home_team_id, away_team_id, youtube_video_id, final_home_score, final_away_score, hidden_from_viewers",
     )
     .eq("id", id)
     .maybeSingle();

@@ -18,6 +18,7 @@ export interface FixtureRow {
   youtube_video_id: string | null;
   final_home_score: number | null;
   final_away_score: number | null;
+  hidden_from_viewers: boolean;
 }
 
 export interface TeamRow {
@@ -44,6 +45,7 @@ export interface FixtureSummary {
   youtubeVideoId: string | null;
   finalHomeScore: number | null;
   finalAwayScore: number | null;
+  hiddenFromViewers: boolean;
 }
 
 /**
@@ -74,6 +76,7 @@ export function resolveFixtureSummaries(
     youtubeVideoId: fixture.youtube_video_id,
     finalHomeScore: fixture.final_home_score,
     finalAwayScore: fixture.final_away_score,
+    hiddenFromViewers: fixture.hidden_from_viewers,
   }));
 }
 

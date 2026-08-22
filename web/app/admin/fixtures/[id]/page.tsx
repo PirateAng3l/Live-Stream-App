@@ -6,7 +6,7 @@ import { loadFixtureSponsors, loadSponsorsForSchool } from "@/lib/sponsors-serve
 import { sponsorLayerLabel, sponsorPositionLabel, sponsorTierLabel } from "@/lib/sponsors";
 import { getCurrentStaffProfile } from "@/lib/staff";
 import { loadFixtureById } from "@/lib/supabase";
-import { DeleteFixtureForm } from "./fixture-actions";
+import { DeleteFixtureForm, VisibilityToggleForm } from "./fixture-actions";
 import { AssignSponsorForm, RemoveSponsorForm } from "./sponsor-forms";
 
 export const dynamic = "force-dynamic";
@@ -69,8 +69,14 @@ export default async function FixtureDetailPage({ params }: FixtureDetailPagePro
         >
           Edit fixture
         </Link>
+        <VisibilityToggleForm fixtureId={fixture.id} hidden={fixture.hiddenFromViewers} />
         <DeleteFixtureForm fixtureId={fixture.id} />
       </div>
+      {fixture.hiddenFromViewers && (
+        <p className="mt-2 text-xs text-live">
+          This fixture&apos;s video is currently taken down — it won&apos;t play on the match page for anyone.
+        </p>
+      )}
 
       <div className="mt-8">
         <h2 className="mb-3 text-lg font-semibold">Sponsors on this fixture</h2>
