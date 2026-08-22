@@ -17,6 +17,18 @@ export function EditTeamForm({ team }: { team: TeamDetail }) {
       <form action={formAction} className="space-y-4">
         <input type="hidden" name="team_id" value={team.id} />
         <input name="name" required defaultValue={team.name} placeholder="Team name" className={authInputClass} />
+        <div>
+          <input
+            name="short_name"
+            defaultValue={team.shortName ?? ""}
+            placeholder="Short name (optional, e.g. Rev High 1st Team)"
+            className={authInputClass}
+          />
+          <p className="mt-1 text-xs text-textsecondary">
+            Shown on the broadcast scoreboard instead of the full name, if set — useful for a long name
+            that would otherwise get shrunk or cut off on stream.
+          </p>
+        </div>
         <select name="sport" required defaultValue={team.sport} className={authInputClass}>
           {SPORTS.map((sport) => (
             <option key={sport} value={sport}>

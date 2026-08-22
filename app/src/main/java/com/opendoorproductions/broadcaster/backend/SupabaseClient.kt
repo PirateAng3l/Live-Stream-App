@@ -113,12 +113,16 @@ class SupabaseClient(private val baseUrl: String, private val anonKey: String) {
         }
         val teamsUrl = "$baseUrl/rest/v1/teams" +
             "?id=in.(${teamIds.joinToString(",") { encode(it) }})" +
-            "&select=id,name"
+            "&select=id,name,short_name"
         val teams = JSONArray(request("GET", teamsUrl, authHeaders(accessToken), null))
         val teamNames = mutableMapOf<String, String>()
         for (i in 0 until teams.length()) {
             val row = teams.getJSONObject(i)
-            teamNames[row.getString("id")] = row.getString("name")
+            // A school's own preferred scoreboard abbreviation, if it set
+            // one (web /admin/teams) — falls back to the full name, same as
+            // when short_name is left unset entirely.
+            val shortName = row.optNullableString("short_name")
+            teamNames[row.getString("id")] = if (shortName.isNullOrBlank()) row.getString("name") else shortName
         }
 
         // Every fixture here shares the same schoolId (the caller's own),
@@ -175,12 +179,16 @@ class SupabaseClient(private val baseUrl: String, private val anonKey: String) {
 
         val teamsUrl = "$baseUrl/rest/v1/teams" +
             "?id=in.(${teamIds.joinToString(",") { encode(it) }})" +
-            "&select=id,name"
+            "&select=id,name,short_name"
         val teams = JSONArray(request("GET", teamsUrl, authHeaders(accessToken), null))
         val teamNames = mutableMapOf<String, String>()
         for (i in 0 until teams.length()) {
             val row = teams.getJSONObject(i)
-            teamNames[row.getString("id")] = row.getString("name")
+            // A school's own preferred scoreboard abbreviation, if it set
+            // one (web /admin/teams) — falls back to the full name, same as
+            // when short_name is left unset entirely.
+            val shortName = row.optNullableString("short_name")
+            teamNames[row.getString("id")] = if (shortName.isNullOrBlank()) row.getString("name") else shortName
         }
 
         val schoolsUrl = "$baseUrl/rest/v1/schools" +

@@ -24,11 +24,14 @@ export async function createTeamAction(_prev: ActionState, formData: FormData): 
 
   const name = String(formData.get("name") ?? "").trim();
   const sport = String(formData.get("sport") ?? "");
+  const shortName = String(formData.get("short_name") ?? "").trim();
   if (!name) return { error: "Team name is required" };
   if (!sport) return { error: "Sport is required" };
 
   const supabase = createSupabaseServerClient();
-  const { error } = await supabase.from("teams").insert({ name, sport, school_id: schoolId });
+  const { error } = await supabase
+    .from("teams")
+    .insert({ name, sport, school_id: schoolId, short_name: shortName || null });
   if (error) return { error: error.message };
 
   revalidatePath("/admin/teams");
@@ -69,11 +72,15 @@ export async function updateTeamAction(_prev: ActionState, formData: FormData): 
 
   const name = String(formData.get("name") ?? "").trim();
   const sport = String(formData.get("sport") ?? "");
+  const shortName = String(formData.get("short_name") ?? "").trim();
   if (!name) return { error: "Team name is required" };
   if (!sport) return { error: "Sport is required" };
 
   const supabase = createSupabaseServerClient();
-  const { error } = await supabase.from("teams").update({ name, sport }).eq("id", teamId);
+  const { error } = await supabase
+    .from("teams")
+    .update({ name, sport, short_name: shortName || null })
+    .eq("id", teamId);
   if (error) return { error: error.message };
 
   revalidatePath("/admin/teams");

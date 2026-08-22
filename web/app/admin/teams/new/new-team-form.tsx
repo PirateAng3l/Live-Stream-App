@@ -16,6 +16,13 @@ export function NewTeamForm({ schoolId }: { schoolId: string }) {
       <form action={formAction} className="space-y-4">
         <input type="hidden" name="school_id" value={schoolId} />
         <input name="name" required placeholder="Team name" className={authInputClass} />
+        <div>
+          <input name="short_name" placeholder="Short name (optional, e.g. Rev High 1st Team)" className={authInputClass} />
+          <p className="mt-1 text-xs text-textsecondary">
+            Shown on the broadcast scoreboard instead of the full name, if set — useful for a long name
+            that would otherwise get shrunk or cut off on stream.
+          </p>
+        </div>
         <select name="sport" required defaultValue="" className={authInputClass}>
           <option value="" disabled>
             Sport

@@ -120,7 +120,14 @@ they have one.
   `away_team_id` have no `ON DELETE` behavior, deliberately — an orphaned
   reference would be a data-integrity mess) fails with a friendly message
   instead of a raw Postgres foreign-key error — `deleteTeamAction` catches
-  Postgres error code `23503` specifically.
+  Postgres error code `23503` specifically. A team also has an optional
+  `short_name` (migration 0008) — a school's own preferred scoreboard
+  abbreviation, e.g. "Rev High 1st Team" for "Revelation High 1st Team".
+  The Android crew app prefers it over the full name when it's set
+  (`SupabaseClient.getUpcomingFixtures`/`getAllUpcomingFixtures`), falling
+  back to `name` when it isn't — on top of, not instead of,
+  `TeamOverlayRenderer`'s own auto-shrink/ellipsis, which still handles
+  whatever name actually ends up on screen, short or full.
 - **`/admin/sponsors`**, **`/admin/sponsors/new`**, **`/admin/sponsors/[id]/edit`**
   — list/create/edit a school's sponsor inventory (name, tier, default
   position, optional logo and click-through URLs). This is the "who" —

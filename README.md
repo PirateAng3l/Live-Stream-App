@@ -202,6 +202,13 @@ in the RTMP URL/key (pulled from `fixture_broadcast_credentials`, provisioned
 automatically when the fixture was created — see
 `backend/supabase/functions/provision-fixture-broadcast/`), plus the team names and
 sport, exactly the way manual entry would. Sign out to clear the stored session.
+If a team has a `short_name` set on the web (`/admin/teams`, e.g. "Rev High 1st
+Team" for "Revelation High 1st Team"), that's what fills the name field instead
+of the full name (`SupabaseClient.getUpcomingFixtures`/`getAllUpcomingFixtures`)
+— still just plain text in an editable field, so crew can override it per match
+same as manual entry. `TeamOverlayRenderer`'s own auto-shrink/ellipsis
+(`drawFittedName`) is the backstop regardless — a name with no `short_name` set,
+or one still too long even so, never overflows into the score.
 
 **Setup:** the app needs a Supabase project URL + anon key to talk to, read from
 `local.properties` (gitignored, never committed) at build time — add:

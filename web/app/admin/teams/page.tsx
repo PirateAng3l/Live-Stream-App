@@ -61,7 +61,10 @@ export default async function AdminTeamsPage({ searchParams }: AdminTeamsPagePro
               key={team.id}
               className="flex items-center justify-between rounded-lg border border-white/10 bg-panel px-4 py-3"
             >
-              <span>{team.name}</span>
+              <span>
+                {team.name}
+                {team.shortName && <span className="ml-2 text-xs text-textsecondary">({team.shortName})</span>}
+              </span>
               <div className="flex items-center gap-4">
                 <span className="text-xs uppercase tracking-wide text-textsecondary">
                   {sportLabel(team.sport)}

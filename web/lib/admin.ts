@@ -16,6 +16,7 @@ export interface TeamOption {
   id: string;
   name: string;
   sport: string;
+  shortName: string | null;
 }
 
 /**
@@ -61,11 +62,11 @@ export async function loadTeamsForSchool(schoolId: string): Promise<TeamOption[]
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("teams")
-    .select("id, name, sport")
+    .select("id, name, sport, short_name")
     .eq("school_id", schoolId)
     .order("name");
   if (error) throw new Error(`Could not load teams: ${error.message}`);
-  return data ?? [];
+  return (data ?? []).map((row) => ({ id: row.id, name: row.name, sport: row.sport, shortName: row.short_name }));
 }
 
 export interface TeamDetail extends TeamOption {
@@ -76,12 +77,18 @@ export async function loadTeamById(id: string): Promise<TeamDetail | null> {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("teams")
-    .select("id, name, sport, school_id")
+    .select("id, name, sport, school_id, short_name")
     .eq("id", id)
     .maybeSingle();
   if (error) throw new Error(`Could not load team ${id}: ${error.message}`);
   if (!data) return null;
-  return { id: data.id, name: data.name, sport: data.sport, schoolId: data.school_id };
+  return {
+    id: data.id,
+    name: data.name,
+    sport: data.sport,
+    schoolId: data.school_id,
+    shortName: data.short_name,
+  };
 }
 
 /**
