@@ -3,6 +3,7 @@ import { LoadError } from "../../../../_components";
 import { loadSponsorById } from "@/lib/sponsors-server";
 import { getCurrentStaffProfile } from "@/lib/staff";
 import { EditSponsorForm } from "./edit-sponsor-form";
+import { SponsorLogoForm } from "./sponsor-logo-form";
 
 export const dynamic = "force-dynamic";
 
@@ -26,5 +27,10 @@ export default async function EditSponsorPage({ params }: EditSponsorPageProps) 
     notFound();
   }
 
-  return <EditSponsorForm sponsor={sponsor} />;
+  return (
+    <div>
+      <SponsorLogoForm sponsor={sponsor} />
+      <EditSponsorForm sponsor={sponsor} />
+    </div>
+  );
 }

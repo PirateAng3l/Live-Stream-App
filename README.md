@@ -243,6 +243,23 @@ account today — it falls back to Open Door Live's own mark
 equivalent stripe to begin with, so this only applies to the `TWO_TEAM` sports
 (rugby/soccer/netball/hockey/other).
 
+**Loading a fixture also fetches its assigned sponsor logos.** Whatever a
+school assigned to the fixture on the web (`/admin/fixtures/[id]`'s "Assign
+sponsor" form, `layer=baked_in`) downloads and fills the headline/left/right
+sponsor slots automatically — the same three slots the Settings panel's
+Sponsor Ads tab lets crew pick manually, so an auto-loaded logo shows up
+there too (thumbnail, persisted to disk) and can still be overridden by hand
+afterward if needed. All three slots are cleared first, then repopulated
+from whatever this fixture actually has assigned (`applyFixtureSponsors`,
+`SupabaseClient.getFixtureSponsors`) — same "Load Fixture overwrites
+wholesale" behavior as the RTMP credentials/team names/sport above, so a
+previous fixture's sponsor doesn't linger in a slot this one leaves empty.
+A sponsor's logo has to actually be uploaded on the web
+(`/admin/sponsors/[id]/edit`, Supabase Storage — see
+`backend/supabase/migrations/0009_sponsor_logo_storage.sql`) for any of this
+to have something to fetch; a sponsor with no logo set yet is skipped, same
+as a school with no logo falls back to the default mark above.
+
 **Brand assets.** `res/drawable-nodpi/odl_mark.png` (the scoreboard fallback
 above) and `res/drawable-nodpi/ic_launcher_foreground.png` (the actual app
 launcher icon, referenced from `mipmap-anydpi-v26/ic_launcher.xml`) are both

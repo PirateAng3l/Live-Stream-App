@@ -42,6 +42,18 @@ data class FixtureSummary(
 data class BroadcastCredentials(val ingestionAddress: String, val streamKey: String)
 
 /**
+ * One school-uploaded sponsor logo, baked into this fixture's overlay —
+ * mirrors web/lib/sponsors-server.ts's loadFixtureSponsors, but filtered
+ * to layer='baked_in' server-side (web_overlay assignments are that
+ * site's own territory, not this app's). `position` is always one of
+ * TeamOverlayRenderer's three sponsor slot names (lower_third/bottom_left/
+ * bottom_right) — the sponsor_position Postgres enum (migration 0001)
+ * guarantees that at the source, so it's read as a plain String rather
+ * than re-validated here.
+ */
+data class FixtureSponsor(val position: String, val logoUrl: String)
+
+/**
  * Minimal blocking client for the two Supabase APIs the app needs: Auth
  * (email/password sign-in + refresh) and PostgREST (reading fixtures and
  * broadcast credentials, both scoped by RLS to whoever's signed in — see
@@ -232,6 +244,44 @@ class SupabaseClient(private val baseUrl: String, private val anonKey: String) {
             throw IOException("This fixture hasn't finished provisioning yet — try again shortly")
         }
         return BroadcastCredentials(ingestionAddress, streamKey)
+    }
+
+    /**
+     * Two flat queries (fixture_sponsors, then sponsors by id), same
+     * reasoning as getUpcomingFixtures' team lookup and this project's
+     * web-side loadFixtureSponsors: simpler than an embedded-relation
+     * select and doesn't depend on a foreign-key constraint name staying
+     * stable. Rows with no logo_url set (a sponsor added but never
+     * uploaded a logo) are skipped — nothing useful to bake into the
+     * overlay yet, same as a fixture with no baked_in sponsors at all.
+     */
+    fun getFixtureSponsors(accessToken: String, fixtureId: String): List<FixtureSponsor> {
+        val assignmentsUrl = "$baseUrl/rest/v1/fixture_sponsors" +
+            "?fixture_id=eq.${encode(fixtureId)}" +
+            "&layer=eq.baked_in" +
+            "&select=sponsor_id,position"
+        val assignments = JSONArray(request("GET", assignmentsUrl, authHeaders(accessToken), null))
+        if (assignments.length() == 0) return emptyList()
+
+        val sponsorIds = LinkedHashSet<String>()
+        for (i in 0 until assignments.length()) {
+            sponsorIds.add(assignments.getJSONObject(i).getString("sponsor_id"))
+        }
+        val sponsorsUrl = "$baseUrl/rest/v1/sponsors" +
+            "?id=in.(${sponsorIds.joinToString(",") { encode(it) }})" +
+            "&select=id,logo_url"
+        val sponsors = JSONArray(request("GET", sponsorsUrl, authHeaders(accessToken), null))
+        val logoUrlById = mutableMapOf<String, String?>()
+        for (i in 0 until sponsors.length()) {
+            val row = sponsors.getJSONObject(i)
+            logoUrlById[row.getString("id")] = row.optNullableString("logo_url")
+        }
+
+        return (0 until assignments.length()).mapNotNull { i ->
+            val row = assignments.getJSONObject(i)
+            val logoUrl = logoUrlById[row.getString("sponsor_id")]
+            if (logoUrl.isNullOrBlank()) null else FixtureSponsor(position = row.getString("position"), logoUrl = logoUrl)
+        }
     }
 
     private fun authHeaders(accessToken: String) = mapOf(

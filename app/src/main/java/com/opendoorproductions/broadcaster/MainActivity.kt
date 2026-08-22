@@ -36,6 +36,7 @@ import com.google.android.material.tabs.TabLayout
 import com.opendoorproductions.broadcaster.backend.BackendConfig
 import com.opendoorproductions.broadcaster.backend.BroadcastCredentials
 import com.opendoorproductions.broadcaster.backend.CrewSession
+import com.opendoorproductions.broadcaster.backend.FixtureSponsor
 import com.opendoorproductions.broadcaster.backend.FixtureSummary
 import com.opendoorproductions.broadcaster.backend.SupabaseClient
 import com.opendoorproductions.broadcaster.databinding.ActivityMainBinding
@@ -554,9 +555,18 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
             try {
                 val fresh = ensureFreshSessionBlocking(session)
                 val credentials = supabaseClient.getBroadcastCredentials(fresh.accessToken, fixture.id)
+                // Best-effort: a sponsor-fetch failure shouldn't block loading the
+                // fixture's actual stream credentials, which is the one thing this
+                // button can't proceed without.
+                val sponsors = try {
+                    supabaseClient.getFixtureSponsors(fresh.accessToken, fixture.id)
+                } catch (error: Exception) {
+                    Log.w(TAG, "Could not load fixture sponsors", error)
+                    emptyList()
+                }
                 uiHandler.post {
                     binding.loadFixtureBtn.isEnabled = true
-                    applyLoadedFixture(fixture, credentials)
+                    applyLoadedFixture(fixture, credentials, sponsors)
                 }
             } catch (error: Exception) {
                 Log.e(TAG, "Load fixture failed", error)
@@ -572,7 +582,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         }.start()
     }
 
-    private fun applyLoadedFixture(fixture: FixtureSummary, credentials: BroadcastCredentials) {
+    private fun applyLoadedFixture(fixture: FixtureSummary, credentials: BroadcastCredentials, sponsors: List<FixtureSponsor>) {
         binding.rtmpUrlInput.setText(credentials.ingestionAddress)
         binding.rtmpKeyInput.setText(credentials.streamKey)
         binding.homeNameInput.setText(fixture.homeTeamName)
@@ -589,7 +599,79 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         homeTeamLogoBitmap = null
         refreshOverlay()
         fixture.homeLogoUrl?.let { fetchHomeTeamLogo(fixture.id, it) }
+        applyFixtureSponsors(fixture.id, sponsors)
         Toast.makeText(this, R.string.fixture_loaded, Toast.LENGTH_SHORT).show()
+    }
+
+    /**
+     * "Load Fixture" already overwrites RTMP credentials/team names/sport
+     * wholesale — sponsor logos get the same treatment for consistency,
+     * driven by whatever the school assigned on the web (`/admin/fixtures/
+     * [id]`'s "Assign sponsor" form, layer=baked_in). All three slots are
+     * cleared first (not just the ones this fixture has an assignment for)
+     * so a previous fixture's sponsor doesn't linger in a slot this one
+     * intentionally leaves empty — same reasoning as homeTeamLogoBitmap's
+     * clear-then-fetch above. A position with more than one baked_in
+     * sponsor assigned just uses whichever one the query returns first;
+     * each overlay slot only ever shows one image at a time.
+     */
+    private fun applyFixtureSponsors(expectedFixtureId: String, sponsors: List<FixtureSponsor>) {
+        setSponsorSlotImage(null, SPONSOR_HEADLINE_IMAGE_FILE, binding.sponsorHeadlineThumbnail)
+        sponsorHeadlineBitmap = null
+        setSponsorSlotImage(null, SPONSOR_LEFT_IMAGE_FILE, binding.sponsorLeftThumbnail)
+        sponsorLeftBitmap = null
+        setSponsorSlotImage(null, SPONSOR_RIGHT_IMAGE_FILE, binding.sponsorRightThumbnail)
+        sponsorRightBitmap = null
+        refreshOverlay()
+
+        sponsors.forEach { sponsor ->
+            when (sponsor.position) {
+                "lower_third" -> fetchSponsorLogo(
+                    expectedFixtureId, sponsor.logoUrl, SPONSOR_HEADLINE_IMAGE_FILE, binding.sponsorHeadlineThumbnail
+                ) { sponsorHeadlineBitmap = it }
+                "bottom_left" -> fetchSponsorLogo(
+                    expectedFixtureId, sponsor.logoUrl, SPONSOR_LEFT_IMAGE_FILE, binding.sponsorLeftThumbnail
+                ) { sponsorLeftBitmap = it }
+                "bottom_right" -> fetchSponsorLogo(
+                    expectedFixtureId, sponsor.logoUrl, SPONSOR_RIGHT_IMAGE_FILE, binding.sponsorRightThumbnail
+                ) { sponsorRightBitmap = it }
+            }
+        }
+    }
+
+    /**
+     * Same expectedFixtureId-guarded background-download shape as
+     * fetchHomeTeamLogo, generalized across all three sponsor slots.
+     * Routes through setSponsorSlotImage (rather than just setting the
+     * in-memory Bitmap field directly) so an auto-loaded sponsor logo is
+     * cached to disk and shows in the Settings panel thumbnail exactly
+     * like a manually picked one — Load Fixture is meant to be a
+     * complete stand-in for manual entry, not a separate, less-durable
+     * path.
+     */
+    private fun fetchSponsorLogo(
+        expectedFixtureId: String,
+        url: String,
+        fileName: String,
+        thumbnail: ImageView,
+        setBitmap: (Bitmap) -> Unit,
+    ) {
+        Thread {
+            val bitmap = try {
+                URL(url).openStream().use { BitmapFactory.decodeStream(it) }
+            } catch (error: Exception) {
+                Log.w(TAG, "Could not download sponsor logo", error)
+                null
+            }
+            if (bitmap == null || loadedFixtureId != expectedFixtureId) return@Thread
+            uiHandler.post {
+                if (loadedFixtureId == expectedFixtureId) {
+                    setSponsorSlotImage(bitmap, fileName, thumbnail)
+                    setBitmap(bitmap)
+                    refreshOverlay()
+                }
+            }
+        }.start()
     }
 
     /**

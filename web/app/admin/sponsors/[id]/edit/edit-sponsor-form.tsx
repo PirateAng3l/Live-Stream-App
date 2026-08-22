@@ -13,7 +13,7 @@ export function EditSponsorForm({ sponsor }: { sponsor: SponsorDetail }) {
 
   return (
     <div className="mx-auto max-w-sm">
-      <h1 className="mb-6 text-2xl font-bold">Edit sponsor</h1>
+      <h2 className="mb-6 text-lg font-semibold">Sponsor details</h2>
       <form action={formAction} className="space-y-4">
         <input type="hidden" name="sponsor_id" value={sponsor.id} />
         <input
@@ -40,13 +40,6 @@ export function EditSponsorForm({ sponsor }: { sponsor: SponsorDetail }) {
           ))}
         </select>
 
-        <input
-          name="logo_url"
-          type="url"
-          defaultValue={sponsor.logoUrl ?? ""}
-          placeholder="Logo URL (optional)"
-          className={authInputClass}
-        />
         <input
           name="click_url"
           type="url"

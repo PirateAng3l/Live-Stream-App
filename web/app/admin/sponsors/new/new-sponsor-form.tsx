@@ -40,12 +40,6 @@ export function NewSponsorForm({ schoolId }: { schoolId: string }) {
         </select>
 
         <input
-          name="logo_url"
-          type="url"
-          placeholder="Logo URL (optional)"
-          className={authInputClass}
-        />
-        <input
           name="click_url"
           type="url"
           placeholder="Click-through URL (optional)"
@@ -55,6 +49,9 @@ export function NewSponsorForm({ schoolId }: { schoolId: string }) {
         {state?.error && <p className="text-sm text-live">{state.error}</p>}
         <SubmitButton />
       </form>
+      <p className="mt-4 text-xs text-textsecondary">
+        You&apos;ll upload the sponsor&apos;s logo on the next screen, once it exists.
+      </p>
     </div>
   );
 }

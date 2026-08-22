@@ -130,13 +130,27 @@ they have one.
   whatever name actually ends up on screen, short or full.
 - **`/admin/sponsors`**, **`/admin/sponsors/new`**, **`/admin/sponsors/[id]/edit`**
   — list/create/edit a school's sponsor inventory (name, tier, default
-  position, optional logo and click-through URLs). This is the "who" —
-  which sponsors a school has under contract; assigning one of them to a
-  specific fixture happens on that fixture's own detail page
-  (`/admin/fixtures/[id]`), since the same sponsor can appear on many
-  fixtures with different placements each time. Deleting a sponsor cascades
-  its `fixture_sponsors` assignments (migration 0001) — nothing blocks it
-  the way an in-use team blocks a delete.
+  position, optional click-through URL, logo). This is the "who" — which
+  sponsors a school has under contract; assigning one of them to a specific
+  fixture happens on that fixture's own detail page (`/admin/fixtures/[id]`),
+  since the same sponsor can appear on many fixtures with different
+  placements each time. Deleting a sponsor cascades its `fixture_sponsors`
+  assignments (migration 0001) — nothing blocks it the way an in-use team
+  blocks a delete. `/admin/sponsors/new` is text fields only (same reasoning
+  as `/admin/school/new`: a sponsor needs to exist before there's an id to
+  upload a logo against) and redirects straight into the new sponsor's edit
+  page, same as creating a school does. Logo upload
+  (`SponsorLogoForm`/`updateSponsorLogoAction`, `/admin/sponsors/[id]/edit`)
+  is its own separate form/action from `EditSponsorForm`/`updateSponsorAction`
+  — same split as the school logo below, so saving an unrelated field (say,
+  the click-through URL) never wipes out an already-uploaded logo. Goes to
+  a public Storage bucket (`sponsor-logos`, migration 0009) at a fixed path
+  (`<school_id>/<sponsor_id>.<ext>`, upsert, cache-busted `?v=` — all the
+  same reasoning as the school logo upload immediately below), and from
+  there into `sponsors.logo_url`, the same plain text column
+  `sponsor-overlay.tsx` (web `web_overlay` layer) and now the Android app
+  (`baked_in` layer — see the top-level README's crew sign-in section) both
+  read.
 - **`/admin/school`** — upload the school's own logo (PNG/JPEG/WebP, up to
   5MB). Goes to a public Supabase Storage bucket (`school-logos`, migration
   0006), always at a fixed path (`<school_id>/logo.<ext>`, upsert) so
@@ -271,10 +285,10 @@ enough to bother with.
 `SponsorOverlay` (`app/matches/[id]/sponsor-overlay.tsx`) renders a
 fixture's `web_overlay`-layer sponsors as absolutely-positioned badges over
 the video container — the "web-layer sponsor slots" spec 7.3.3 calls out
-and the counterpart to the broadcaster app's baked-in overlay (the app
-still isn't wired to `fixture_sponsors` at all, so a `baked_in`-layer
-assignment made in `/admin` doesn't show up anywhere yet — see the
-top-level README). `webOverlaySponsors()` and `groupByPosition()`
+and the counterpart to the broadcaster app's baked-in overlay (the Android
+app reads its own `baked_in`-layer assignments directly from Supabase now —
+see the top-level README's crew sign-in section). `webOverlaySponsors()`
+and `groupByPosition()`
 (`lib/sponsors.ts`) are the pure logic behind it — filtering to the right
 layer and bucketing by slot — and are unit-tested (`lib/sponsors.test.ts`)
 the same way `lib/fixtures.ts`'s helpers are.
@@ -456,17 +470,6 @@ worth doing before this goes anywhere near real production traffic.
   revisiting if that field starts being shown to viewers anywhere. The edge
   function's own README already flags re-provisioning (e.g. after a
   transient provisioning failure) as unbuilt too.
-- **No logo file upload for sponsors** — `logo_url` is a plain URL text
-  field; a school has to host the image somewhere else first and paste the
-  link in. Fine for now, matches the "no file upload" scope call already
-  made for `click_url`/`logo_url` when this was built.
-- **`baked_in`-layer sponsors still don't render anywhere** — the
-  `web_overlay` layer now shows on `/matches/[id]` (see "Web-layer sponsor
-  overlay" above), but the broadcaster app's video overlay still isn't
-  wired to `fixture_sponsors` at all; its sponsor slots are still local
-  image picks made on the device (see the top-level README), independent
-  of anything set in `/admin`. Connecting the two means the app fetching
-  fixture_sponsors + resolved logo URLs during setup, which it doesn't do.
 - **Crew account management, partially.** Inviting a school_operator now
   has a real flow (`/admin/school`'s "Invite an operator", see the admin
   panel section above), and a lost/expired invite can be recovered without

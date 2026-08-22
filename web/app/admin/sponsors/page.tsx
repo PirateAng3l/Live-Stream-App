@@ -67,7 +67,15 @@ export default async function AdminSponsorsPage({ searchParams }: AdminSponsorsP
               key={sponsor.id}
               className="flex items-center justify-between rounded-lg border border-white/10 bg-panel px-4 py-3"
             >
-              <span>{sponsor.name}</span>
+              <span className="flex items-center gap-2">
+                {sponsor.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- a
+                  // small list-row thumbnail of an arbitrary uploaded logo,
+                  // not a known-dimension site asset.
+                  <img src={sponsor.logoUrl} alt="" className="h-6 w-6 rounded object-contain" />
+                ) : null}
+                {sponsor.name}
+              </span>
               <div className="flex items-center gap-4">
                 <span className="text-xs uppercase tracking-wide text-textsecondary">
                   {sponsorTierLabel(sponsor.tier)} · {sponsorPositionLabel(sponsor.defaultPosition)}
