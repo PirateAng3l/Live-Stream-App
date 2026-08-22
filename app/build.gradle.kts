@@ -18,6 +18,24 @@ val localProperties = Properties().apply {
     }
 }
 
+// Release signing. The keystore itself is never committed (gitignored,
+// see .gitignore) — this just looks for one at a fixed local path so a
+// release build works the same way whether it's run here or in CI:
+// build-release-apk.yml decodes its RELEASE_KEYSTORE_BASE64 secret to
+// exactly this path before calling assembleRelease. Passwords come from
+// env vars first (how CI provides them) falling back to local.properties
+// (how a dev machine that actually holds the keystore would), same
+// fallback shape as SUPABASE_URL/SUPABASE_ANON_KEY above.
+//
+// Deliberately conditional rather than a hard requirement: assembleDebug
+// (what CI builds on every push, build-apk.yml) and a plain local
+// assembleRelease with no keystore configured both still need to work —
+// this only wires signing in when there's actually something to sign
+// with, leaving `release` unsigned otherwise exactly as it always was.
+val releaseKeystoreFile = rootProject.file("app/release-keystore.jks")
+fun releaseSigningProperty(envName: String, propertyName: String): String? =
+    System.getenv(envName)?.takeIf { it.isNotBlank() } ?: localProperties.getProperty(propertyName)?.takeIf { it.isNotBlank() }
+
 android {
     namespace = "com.opendoorproductions.broadcaster"
     compileSdk = 34
@@ -33,10 +51,24 @@ android {
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"${localProperties.getProperty("SUPABASE_ANON_KEY", "")}\"")
     }
 
+    signingConfigs {
+        if (releaseKeystoreFile.exists()) {
+            create("release") {
+                storeFile = releaseKeystoreFile
+                storePassword = releaseSigningProperty("RELEASE_KEYSTORE_PASSWORD", "RELEASE_KEYSTORE_PASSWORD")
+                keyAlias = releaseSigningProperty("RELEASE_KEY_ALIAS", "RELEASE_KEY_ALIAS")
+                keyPassword = releaseSigningProperty("RELEASE_KEY_PASSWORD", "RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (releaseKeystoreFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

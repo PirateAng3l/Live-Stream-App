@@ -14,3 +14,8 @@ local.properties
 *.ap_
 *.dex
 *.class
+
+# Release signing key — never committed. See app/build.gradle.kts and
+# .github/workflows/build-release-apk.yml for how it's supplied instead.
+*.jks
+*.keystore

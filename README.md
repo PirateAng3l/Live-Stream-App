@@ -304,9 +304,64 @@ touches `app/`, or on demand via the Actions tab's "Run workflow" button. Grab t
 result from that workflow run's Summary page → Artifacts → `broadcaster-debug-apk`,
 unzip it, and sideload `app-debug.apk` onto a device (unknown sources must be allowed).
 It's a debug build (auto-generated debug keystore, `isMinifyEnabled = false`) — fine for
-testing, not for a Play Store submission. `SUPABASE_URL`/`SUPABASE_ANON_KEY` repo secrets
-are wired in if set; otherwise the build degrades the same way an unconfigured
-`local.properties` does locally — crew sign-in unavailable, everything else unaffected.
+testing, not for handing to school crews long-term (see "Signed release build" below).
+`SUPABASE_URL`/`SUPABASE_ANON_KEY` repo secrets are wired in if set; otherwise the build
+degrades the same way an unconfigured `local.properties` does locally — crew sign-in
+unavailable, everything else unaffected.
+
+### Signed release build
+
+`.github/workflows/build-release-apk.yml` builds a properly signed release APK —
+`workflow_dispatch` only (Actions tab → "Build signed release APK" → "Run workflow"),
+deliberately not automatic on every push the way the debug build is, since cutting a
+release should be a deliberate action. Not for Play Store distribution — this project
+sideloads APKs directly to school crews, so there's no AAB, no Play Console listing, no
+review process, just a real signing key instead of the auto-generated debug one every
+Android SDK install has, so the app's identity (and its ability to receive updates
+without every device uninstalling and reinstalling first) is actually stable release to
+release.
+
+**One-time setup**, already done for this project's own keystore — only relevant again if
+that keystore is ever lost and a new one has to be generated (see the consequences of
+that in the next paragraph before ever doing so):
+```
+keytool -genkeypair -v -keystore open-door-live-release.jks -alias open-door-live \
+  -keyalg RSA -keysize 2048 -validity 10000 \
+  -dname "CN=Open Door Live, O=Open Door Live, L=South Africa, C=ZA"
+base64 -w0 open-door-live-release.jks > open-door-live-release.jks.base64
+```
+Modern `keytool` generates a PKCS12 keystore, which requires the key password to match
+the store password — expect a warning about that and just use the same password for
+both when prompted.
+
+Then, in this repo's GitHub Settings → Secrets and variables → Actions, add:
+- `RELEASE_KEYSTORE_BASE64` — the full contents of the `.jks.base64` file above
+- `RELEASE_KEYSTORE_PASSWORD` / `RELEASE_KEY_PASSWORD` — the same value (PKCS12), the
+  password `keytool` prompted for
+- `RELEASE_KEY_ALIAS` — `open-door-live`, or whatever `-alias` was used above
+
+**The keystore file and its passwords only exist in exactly one place once generated —
+they are not recoverable from this repo, CI, or anywhere else.** Losing them means every
+future release needs a brand-new signing identity, which Android treats as a completely
+different app for update purposes: every school's device would need to uninstall the old
+one and sideload the new one from scratch, losing whatever local settings (RTMP presets,
+sponsor picks, saved crew session) that device had. Back up the keystore file and its
+passwords somewhere durable outside this repo (a password manager, encrypted backup) the
+moment they're generated — the same warning `keytool` and every Android signing guide
+gives, worth repeating here since this project has no other copy either.
+
+`app/build.gradle.kts`'s `signingConfigs` block only activates when a keystore file
+actually exists at the fixed path `app/release-keystore.jks` (what the workflow decodes
+`RELEASE_KEYSTORE_BASE64` to) — reads its passwords from env vars first (how CI supplies
+them), falling back to `local.properties` (for signing a release build locally, if the
+keystore file and its passwords are both on that machine). Without a keystore present at
+all, `assembleRelease` still works, it just produces an unsigned APK — same as before
+this was set up, so nothing about the existing debug-build workflow changes.
+
+Grab the signed APK the same way as the debug one: that workflow run's Summary page →
+Artifacts → `broadcaster-release-apk`. `versionCode`/`versionName`
+(`app/build.gradle.kts`) are still manual — bump both before cutting a new release so
+Android recognizes it as an update rather than rejecting the install as a downgrade.
 
 ## Files
 
