@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { StatusBadge } from "./_components";
-import { type FixtureSummary, formatKickoff, groupFixturesByTab } from "@/lib/fixtures";
+import { getCurrentParent } from "@/lib/auth";
+import { loadFavouriteSchoolIds } from "@/lib/favourites-server";
+import { filterByFavouriteSchools, type FixtureSummary, formatKickoff, groupFixturesByTab } from "@/lib/fixtures";
 import { isBackendConfigured, loadFixtures } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +18,22 @@ export default async function HomePage() {
   if (isBackendConfigured) {
     try {
       const fixtures = await loadFixtures();
-      upcoming = groupFixturesByTab(fixtures).upcoming.slice(0, PREVIEW_COUNT);
+      let filtered = fixtures;
+
+      // Same favourite-schools filter as /schedule, applied before the
+      // preview slice so a parent's "Coming up" teaser matches what they'd
+      // see on the full schedule, not the platform-wide list.
+      const parent = await getCurrentParent();
+      if (parent) {
+        try {
+          const favouriteSchoolIds = await loadFavouriteSchoolIds(parent.id);
+          filtered = filterByFavouriteSchools(fixtures, favouriteSchoolIds);
+        } catch {
+          filtered = fixtures;
+        }
+      }
+
+      upcoming = groupFixturesByTab(filtered).upcoming.slice(0, PREVIEW_COUNT);
     } catch {
       upcoming = [];
     }

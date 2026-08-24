@@ -100,6 +100,23 @@ export function filterBySport(fixtures: FixtureSummary[], sport: string | null):
   return fixtures.filter((f) => f.sport.toLowerCase() === sport.toLowerCase());
 }
 
+/**
+ * A parent who hasn't picked any schools yet sees the same unfiltered list
+ * as a signed-out visitor — an empty favourites list is "no preference
+ * set", not "show nothing". This is also what makes admins/staff (who have
+ * no favourites rows at all) automatically see every fixture without any
+ * role check here: the caller just passes whatever favourites lookup came
+ * back with, and an empty result falls through to unfiltered either way.
+ */
+export function filterByFavouriteSchools(
+  fixtures: FixtureSummary[],
+  favouriteSchoolIds: string[] | null,
+): FixtureSummary[] {
+  if (!favouriteSchoolIds || favouriteSchoolIds.length === 0) return fixtures;
+  const ids = new Set(favouriteSchoolIds);
+  return fixtures.filter((f) => ids.has(f.hostSchoolId));
+}
+
 export function distinctSports(fixtures: FixtureSummary[]): string[] {
   return Array.from(new Set(fixtures.map((f) => f.sport))).sort();
 }

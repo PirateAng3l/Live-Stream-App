@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { FavouritesSync } from "./_favourites-sync";
 import { SignOutButton } from "./_sign-out-button";
 import "./globals.css";
 import { getCurrentParent } from "@/lib/auth";
@@ -24,6 +25,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="en">
       <body className="min-h-screen bg-background text-textprimary">
+        {parent && <FavouritesSync />}
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-6 py-4">
           <a href="/" className="text-lg font-bold tracking-wide">
             OPEN DOOR <span className="text-accent">LIVE</span>
@@ -42,6 +44,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             )}
             {parent ? (
               <div className="flex items-center gap-3">
+                <Link href="/account" className="font-semibold text-textsecondary hover:text-textprimary">
+                  Account
+                </Link>
                 <span className="hidden text-textsecondary sm:inline">{parent.email}</span>
                 <SignOutButton />
               </div>

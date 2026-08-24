@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { BackendNotConfigured, LoadError, StatusBadge } from "../_components";
+import { getCurrentParent } from "@/lib/auth";
+import { loadFavouriteSchoolIds } from "@/lib/favourites-server";
 import {
   distinctSports,
+  filterByFavouriteSchools,
   filterBySport,
   type FixtureSummary,
   formatKickoff,
@@ -33,6 +36,22 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
     fixtures = await loadFixtures();
   } catch (error) {
     return <LoadError message={(error as Error).message} />;
+  }
+
+  // A signed-in parent with favourite schools only sees those schools'
+  // fixtures here; everyone else (signed-out visitors, a parent with no
+  // favourites picked yet, and staff — who have no favourites rows at all)
+  // sees the full list, same as before this feature existed.
+  const parent = await getCurrentParent();
+  if (parent) {
+    try {
+      const favouriteSchoolIds = await loadFavouriteSchoolIds(parent.id);
+      fixtures = filterByFavouriteSchools(fixtures, favouriteSchoolIds);
+    } catch {
+      // Favourites is a filter on top of the schedule, not the schedule
+      // itself — if this lookup fails, fall back to the unfiltered list
+      // rather than taking down the whole page over it.
+    }
   }
 
   const sports = distinctSports(fixtures);

@@ -11,11 +11,28 @@ separate product).
   fixtures (linking into `/schedule` for the full list). Deliberately fails
   soft if the fixtures query errors — a broken preview shouldn't take out the
   marketing page the way a genuine data problem should on `/schedule` itself.
+  The preview is filtered to a signed-in parent's favourite schools too, same
+  as `/schedule` below.
 - **`/schedule`** — the schedule ("Live Matches"): Upcoming/Completed tabs, a
   sport filter, one row per fixture linking to its match page. Tabs and the
   sport filter are plain links with query params (`?tab=completed&sport=rugby`),
   not client-side state — works with JS disabled, no hydration to worry about.
-  Public — no sign-in needed to browse what matches exist.
+  Public — no sign-in needed to browse what matches exist. A signed-in parent
+  who's picked favourite schools (at sign-up or from `/account`) only sees
+  those schools' fixtures here; everyone else — signed-out visitors, a parent
+  with no favourites picked, and staff/admins (who have no favourites rows at
+  all) — sees the full platform-wide list, unchanged from before this
+  feature. `lib/fixtures.ts`'s `filterByFavouriteSchools` is the one place
+  that rule lives, applied after `loadFixtures()` and before
+  `groupFixturesByTab`; a failure loading favourites falls back to
+  unfiltered rather than breaking the page.
+- **`/account`** — a signed-in parent's own page: pick which school(s) they
+  support via checkboxes (`lib/favourites-server.ts`'s
+  `setFavouriteSchoolIds`, which replaces the full set rather than diffing
+  it). This is the same picker shown at sign-up, just editable afterwards —
+  a parent's kids change schools, or they just want to add one later.
+  Signed-out visitors get a "sign in" prompt instead of a redirect, same
+  style as the video gate on `/matches/[id]`.
 - **`/about`** — static "About Us" page. Includes a "Not just match day"
   section spelling out that Clean Slate/Event isn't only for sport — matric
   farewells, cross country, chess, choir, opening days, assemblies,
@@ -41,7 +58,23 @@ separate product).
     there's no path from this form to a school_operator or platform_admin
     account. Handles both possible email-confirmation settings on the
     Supabase project (shows "check your email" if confirmation is
-    required, signs straight in if not).
+    required, signs straight in if not). Also shows an optional "which
+    school(s) do you support" checkbox list (schools fetched server-side in
+    `/sign-up/page.tsx`, same `loadAllSchools()` the admin panel uses,
+    since `schools` is public-read). What happens to that pick depends on
+    which of the two email-confirmation paths above fires: with
+    confirmation off, `data.session` exists immediately, so the picked
+    schools are written to `favourites` right there via the browser
+    client. With confirmation on (the default), there's no session yet —
+    `auth.uid()` doesn't exist for the `favourites` RLS policy to check —
+    so the pick is stashed in `localStorage`
+    (`lib/favourites-pending.ts`) instead. `FavouritesSync`
+    (`app/_favourites-sync.tsx`), mounted in the root layout whenever
+    `getCurrentParent()` finds a session, picks up any stashed schools on
+    the next page load after the parent actually confirms and signs in,
+    writes them, and clears storage. A parent can always add or change
+    schools later from `/account` regardless of which path they went
+    through.
   - **School** doesn't create an account or session at all — it's a public
     insert into `school_signup_requests` (migration 0007: school name,
     contact name/email/phone, optional notes) for platform_admin to review
@@ -584,11 +617,11 @@ worth doing before this goes anywhere near real production traffic.
 
 ## Not built yet
 
-- **Parent account features beyond sign-in** (spec 7.3.4) — favourites
-  (follow a school/team) and notify subscriptions. The backend tables for
-  both (`favourites`, `notify_subscriptions`) already exist with RLS
-  scoping a parent to their own rows; nothing in this app writes to them
-  yet.
+- **Team-level favourites and notify subscriptions** (spec 7.3.4) —
+  `favourites.team_id` and the whole `notify_subscriptions` table still
+  have nothing writing to them. School-level favourites are built (see
+  `/account` below); following an individual team, and "notify me" email
+  subscriptions, are not.
 - **"Notify me" for upcoming fixtures** (spec 7.3.2) and the countdown-to-kickoff
   display.
 - **Re-provisioning on fixture edit** — editing a fixture's kickoff time

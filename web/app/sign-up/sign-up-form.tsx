@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { type ReactNode, useState } from "react";
+import type { SchoolOption } from "@/lib/admin";
 import { safeRedirectTarget } from "@/lib/redirect";
 import { ParentSignUpForm } from "./parent-sign-up-form";
 import { SchoolRequestForm } from "./school-request-form";
 
 type SignUpMode = "parent" | "school";
 
-export function SignUpForm() {
+export function SignUpForm({ schools }: { schools: SchoolOption[] }) {
   const searchParams = useSearchParams();
   const redirectTarget = safeRedirectTarget(searchParams.get("redirect"));
   const [mode, setMode] = useState<SignUpMode>("parent");
@@ -28,7 +29,7 @@ export function SignUpForm() {
       </div>
 
       {mode === "parent" ? (
-        <ParentSignUpForm redirectTarget={redirectTarget} />
+        <ParentSignUpForm redirectTarget={redirectTarget} schools={schools} />
       ) : (
         <SchoolRequestForm />
       )}

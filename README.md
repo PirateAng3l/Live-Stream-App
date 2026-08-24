@@ -18,7 +18,10 @@ This repo now holds all three components of the platform described in
   YouTube player, parent sign-up/sign-in, and an internal `/admin` panel
   (create fixtures/teams/sponsors — creating a fixture is what triggers
   YouTube provisioning — and assign sponsors to individual fixtures) for
-  `platform_admin`/`school_operator` accounts. See `web/README.md`.
+  `platform_admin`/`school_operator` accounts. A parent can pick which
+  school(s) they support (at sign-up or later from `/account`) so their
+  schedule only shows those schools' fixtures — signed-out visitors and
+  staff/admins still see every fixture, unchanged. See `web/README.md`.
 
 **Live at [opendoorlive.co.za](https://opendoorlive.co.za)** — a purchased
 custom domain routed through Vercel (apex + `www` both live), replacing the

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   distinctSports,
+  filterByFavouriteSchools,
   filterBySport,
   type FixtureRow,
   formatKickoff,
@@ -91,6 +92,29 @@ describe("filterBySport", () => {
     );
     expect(filterBySport(summaries, "rugby").map((f) => f.id)).toEqual(["a"]);
     expect(filterBySport(summaries, null).map((f) => f.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("filterByFavouriteSchools", () => {
+  const summaries = resolveFixtureSummaries(
+    [
+      fixtureRow({ id: "a", host_school_id: "school-1" }),
+      fixtureRow({ id: "b", host_school_id: "school-2" }),
+    ],
+    TEAMS,
+    [
+      { id: "school-1", name: "Riverside High" },
+      { id: "school-2", name: "Oak Park High" },
+    ],
+  );
+
+  it("only keeps fixtures hosted by a favourited school", () => {
+    expect(filterByFavouriteSchools(summaries, ["school-2"]).map((f) => f.id)).toEqual(["b"]);
+  });
+
+  it("passes everything through when there are no favourites (null or empty)", () => {
+    expect(filterByFavouriteSchools(summaries, null).map((f) => f.id)).toEqual(["a", "b"]);
+    expect(filterByFavouriteSchools(summaries, []).map((f) => f.id)).toEqual(["a", "b"]);
   });
 });
 
