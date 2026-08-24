@@ -183,6 +183,58 @@ export async function setVideoEmbeddable(
     },
   );
   await parseOrThrow<unknown>(response, "videos.update");
+
+  // A 200 OK here turned out not to be enough evidence that embeddable
+  // actually stuck — a fixture provisioned after this call went out still
+  // showed the "disabled by the video owner" embed error days later, in
+  // both a signed-out Incognito window and a signed-in account, which
+  // rules out a per-viewer restriction. Rather than guess further, read
+  // the flag straight back and log clearly if it didn't take, so the next
+  // real provisioning run leaves a direct answer in this function's own
+  // logs instead of more inference from browser behavior.
+  await verifyVideoEmbeddable(fetchFn, params);
+}
+
+interface VideosListResponse {
+  items?: { status?: { embeddable?: boolean } }[];
+}
+
+async function verifyVideoEmbeddable(
+  fetchFn: FetchFn,
+  params: { accessToken: string; videoId: string },
+): Promise<void> {
+  try {
+    const response = await fetchFn(
+      `${YOUTUBE_API_BASE}/videos?part=status&id=${
+        encodeURIComponent(params.videoId)
+      }`,
+      { headers: { Authorization: `Bearer ${params.accessToken}` } },
+    );
+    const body = await parseOrThrow<VideosListResponse>(
+      response,
+      "videos.list (embeddable verification)",
+    );
+    const embeddable = body.items?.[0]?.status?.embeddable;
+    if (embeddable !== true) {
+      console.warn(
+        `setVideoEmbeddable: videos.update reported success for ${params.videoId}, ` +
+          `but a follow-up videos.list still shows embeddable=${embeddable}. This ` +
+          "points to a channel-level restriction (e.g. the channel isn't phone-" +
+          "verified for embedding, or another YouTube eligibility requirement) " +
+          "rather than a bug in the update call itself — check the channel's own " +
+          "verification/embedding settings in YouTube Studio.",
+      );
+    }
+  } catch (error) {
+    // Best-effort: this is a diagnostic check, not part of what
+    // provisioning actually needs to succeed — the update call above
+    // already got its own 200 OK. A failure here just means this
+    // particular run has no extra confirmation either way.
+    console.warn(
+      `setVideoEmbeddable: could not verify embeddable status for ${params.videoId}`,
+      error,
+    );
+  }
 }
 
 /** Connects the ingest point to the event so RTMP pushed into it goes live on that broadcast. */

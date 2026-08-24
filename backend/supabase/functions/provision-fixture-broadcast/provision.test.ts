@@ -44,7 +44,7 @@ function fakeDb(overrides: Partial<ProvisionDb> = {}) {
   return { db, savedCredentials, savedVideoIds };
 }
 
-/** Routes a fake fetch by URL so it can play all 4 real HTTP calls in one test. */
+/** Routes a fake fetch by URL so it can play all 5 real HTTP calls in one test. */
 function fakeGoogleApi() {
   const calls: string[] = [];
   const fn = (async (url: string | URL) => {
@@ -78,6 +78,15 @@ function fakeGoogleApi() {
         { status: 200 },
       );
     }
+    if (u.includes("/videos?part=status&id=")) {
+      // The verification read setVideoEmbeddable makes right after the PUT
+      // below — answering "yes, it actually stuck" keeps these tests quiet
+      // rather than exercising the (separately tested) warning path.
+      return new Response(
+        JSON.stringify({ items: [{ status: { embeddable: true } }] }),
+        { status: 200 },
+      );
+    }
     if (u.includes("/videos?part=status")) {
       return new Response(JSON.stringify({ id: "bcast-1" }), { status: 200 });
     }
@@ -104,13 +113,15 @@ Deno.test("provisionFixtureBroadcast runs the full flow and persists the result"
     streamKey: "the-stream-key",
   });
 
-  // token refresh -> create broadcast -> create stream -> bind -> set embeddable, in that order
-  assert.deepEqual(calls.length, 5);
+  // token refresh -> create broadcast -> create stream -> bind -> set
+  // embeddable -> verify embeddable, in that order
+  assert.deepEqual(calls.length, 6);
   assert.deepEqual(calls[0].includes("oauth2.googleapis.com/token"), true);
   assert.deepEqual(calls[1].includes("/liveBroadcasts?"), true);
   assert.deepEqual(calls[2].includes("/liveStreams"), true);
   assert.deepEqual(calls[3].includes("/liveBroadcasts/bind"), true);
   assert.deepEqual(calls[4].includes("/videos?part=status"), true);
+  assert.deepEqual(calls[5].includes("/videos?part=status&id="), true);
 
   assert.deepEqual(savedCredentials, [
     {
@@ -150,6 +161,12 @@ Deno.test("the broadcast title is built from both team names and the sport", asy
             ingestionInfo: { ingestionAddress: "rtmp://x", streamName: "key" },
           },
         }),
+        { status: 200 },
+      );
+    }
+    if (u.includes("/videos?part=status&id=")) {
+      return new Response(
+        JSON.stringify({ items: [{ status: { embeddable: true } }] }),
         { status: 200 },
       );
     }

@@ -98,17 +98,62 @@ Deno.test("bindBroadcastToStream puts both IDs in the query string", async () =>
 });
 
 Deno.test("setVideoEmbeddable PUTs status with embeddable true, keeping privacyStatus unlisted", async () => {
-  const { fn, calls } = fakeFetch(200, { id: "bcast-1" });
+  const calls: { url: string; init: RequestInit }[] = [];
+  const fn = (async (url: string | URL, init?: RequestInit) => {
+    const u = url.toString();
+    calls.push({ url: u, init: init ?? {} });
+    if (u.includes("part=status&id=")) {
+      return new Response(
+        JSON.stringify({ items: [{ status: { embeddable: true } }] }),
+        { status: 200 },
+      );
+    }
+    return new Response(JSON.stringify({ id: "bcast-1" }), { status: 200 });
+  }) as typeof fetch;
 
   await setVideoEmbeddable(fn, { accessToken: "at-123", videoId: "bcast-1" });
 
-  assert.equal(calls.length, 1);
+  // The PUT itself, then a follow-up GET to confirm the flag actually stuck.
+  assert.equal(calls.length, 2);
   assert.ok(calls[0].url.includes("/videos?part=status"));
   assert.equal(calls[0].init.method, "PUT");
   const sent = JSON.parse(calls[0].init.body as string);
   assert.equal(sent.id, "bcast-1");
   assert.equal(sent.status.embeddable, true);
   assert.equal(sent.status.privacyStatus, "unlisted");
+
+  assert.ok(calls[1].url.includes("/videos?part=status&id=bcast-1"));
+  assert.equal(
+    (calls[1].init.headers as Record<string, string>)["Authorization"],
+    "Bearer at-123",
+  );
+});
+
+Deno.test("setVideoEmbeddable does not throw when the verification read shows embeddable still false", async () => {
+  const fn = (async (url: string | URL) => {
+    if (url.toString().includes("part=status&id=")) {
+      return new Response(
+        JSON.stringify({ items: [{ status: { embeddable: false } }] }),
+        { status: 200 },
+      );
+    }
+    return new Response(JSON.stringify({ id: "bcast-1" }), { status: 200 });
+  }) as typeof fetch;
+
+  // Should resolve, not reject — this is a diagnostic warning (logged),
+  // not a reason to fail the provisioning flow that already succeeded.
+  await setVideoEmbeddable(fn, { accessToken: "at-123", videoId: "bcast-1" });
+});
+
+Deno.test("setVideoEmbeddable does not throw when the verification read itself fails", async () => {
+  const fn = (async (url: string | URL) => {
+    if (url.toString().includes("part=status&id=")) {
+      return new Response("boom", { status: 500 });
+    }
+    return new Response(JSON.stringify({ id: "bcast-1" }), { status: 200 });
+  }) as typeof fetch;
+
+  await setVideoEmbeddable(fn, { accessToken: "at-123", videoId: "bcast-1" });
 });
 
 Deno.test("a non-ok response throws with the Google error message, not a silent failure", async () => {

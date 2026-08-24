@@ -60,6 +60,19 @@ session token as normal.
   needs its embeddable setting flipped by hand (YouTube Studio → that
   video → Details → Advanced settings → "Allow embedding") if it's showing
   this error.
+- **The embeddable setting is read back and logged, not just trusted.** A
+  200 OK from `videos.update` turned out not to be reliable proof the flag
+  actually stuck — a fixture provisioned after the fix above still showed
+  the same embed error days later, confirmed in both a signed-out
+  Incognito window and a signed-in account (ruling out a per-viewer
+  restriction). `setVideoEmbeddable` now follows the `PUT` with a
+  `videos.list?part=status` read and `console.warn`s (visible in this
+  function's own Supabase logs) if `embeddable` still isn't `true` —
+  likely pointing at a channel-level restriction (e.g. the channel not
+  being phone-verified for embedding) rather than a bug in the call
+  itself. Deliberately never throws from this check: it's a diagnostic on
+  top of an update that already succeeded, not something that should fail
+  the whole provisioning run.
 - **`enableAutoStart`/`enableAutoStop` are always on**, so the broadcast
   goes live/ends automatically when the app starts/stops pushing RTMP,
   rather than needing a separate "go live" API call.
