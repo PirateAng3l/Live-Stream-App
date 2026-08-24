@@ -313,13 +313,25 @@ never automatic either (see below) — a dropped connection is this app's
 own reconnect logic kicking in, not the match actually ending. Best-effort
 and silent on failure (logged, not surfaced to crew) — a broadcast that's
 already successfully live should never be interrupted or nagged over a
-badge on the website failing to update. One implementation wrinkle:
+badge on the website failing to update.
+
 `HttpURLConnection` only allows a hardcoded set of HTTP methods and
-rejects `PATCH` outright, so `SupabaseClient.setPatchMethod` reflectively
-overwrites the `method` field `java.net.HttpURLConnection` itself
-declares — the standard workaround, since `PUT` isn't a safe substitute
+rejects `PATCH` outright — `PUT` isn't a safe substitute either
 (PostgREST's `PUT` semantics require replacing every column on the row,
-not patching one).
+not patching one). The first fix here reflectively overwrote the `method`
+field `java.net.HttpURLConnection` declares to force `PATCH` through
+anyway — a commonly-cited workaround that compiled and worked in local
+testing, but a live field test caught it actually failing: the exact same
+RLS-gated update succeeded instantly through the web admin's "Mark as
+completed" action (same policy, same account), proving the problem was
+specific to how that reflection-based request left the device, not the
+database. `SupabaseClient.patch` now uses OkHttp instead, which supports
+`PATCH` natively with no workaround — the one new Gradle dependency this
+app has, added specifically because the hand-rolled alternative was
+demonstrated to be unreliable, not swapped in preemptively. Only
+`markFixtureLive` and `completeFixture` go through it; every GET/POST call
+elsewhere in `SupabaseClient` is untouched, still plain
+`HttpURLConnection`.
 
 **Ending the stream offers to complete the fixture too, with the score
 already on screen.** Tapping END STREAM on a fixture loaded via crew

@@ -107,4 +107,12 @@ dependencies {
     // https://github.com/pedroSG94/RootEncoder/releases (or JitPack) and bump
     // this version if 2.5.2 no longer resolves.
     implementation("com.github.pedroSG94.RootEncoder:library:2.5.2")
+
+    // Used only for the two PATCH calls in SupabaseClient (markFixtureLive,
+    // completeFixture) — java.net.HttpURLConnection has no native PATCH
+    // support (a hardcoded method whitelist rejects it outright), and the
+    // usual reflection workaround to force it through proved unreliable in
+    // the field (see SupabaseClient's own comment). GET/POST calls
+    // elsewhere in that class are untouched, still plain HttpURLConnection.
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

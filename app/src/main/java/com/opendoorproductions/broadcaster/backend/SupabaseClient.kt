@@ -1,5 +1,9 @@
 package com.opendoorproductions.broadcaster.backend
 
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
@@ -249,10 +253,9 @@ class SupabaseClient(private val baseUrl: String, private val anonKey: String) {
      */
     fun markFixtureLive(accessToken: String, fixtureId: String) {
         val body = JSONObject().put("status", "live")
-        request(
-            "PATCH",
+        patch(
             "$baseUrl/rest/v1/fixtures?id=eq.${encode(fixtureId)}",
-            authHeaders(accessToken) + ("Content-Type" to "application/json"),
+            authHeaders(accessToken),
             body.toString(),
         )
     }
@@ -272,10 +275,9 @@ class SupabaseClient(private val baseUrl: String, private val anonKey: String) {
             .put("status", "completed")
             .put("final_home_score", homeScore)
             .put("final_away_score", awayScore)
-        request(
-            "PATCH",
+        patch(
             "$baseUrl/rest/v1/fixtures?id=eq.${encode(fixtureId)}",
-            authHeaders(accessToken) + ("Content-Type" to "application/json"),
+            authHeaders(accessToken),
             body.toString(),
         )
     }
@@ -354,26 +356,43 @@ class SupabaseClient(private val baseUrl: String, private val anonKey: String) {
 
     private fun encode(value: String) = URLEncoder.encode(value, StandardCharsets.UTF_8.name())
 
+    private val httpClient by lazy { OkHttpClient() }
+
     /**
-     * HttpURLConnection.setRequestMethod() only accepts a hardcoded list
-     * (GET/POST/HEAD/OPTIONS/PUT/DELETE/TRACE) and throws ProtocolException
-     * for anything else, PATCH included — true on both the JDK and Android's
-     * implementation. PostgREST update requests need a real PATCH (PUT has
-     * different, row-replacement semantics that would require sending every
-     * column), so this is the standard workaround: reflectively overwrite
-     * the `method` field that java.net.HttpURLConnection declares, bypassing
-     * setRequestMethod's whitelist rather than actually calling it.
+     * PATCH only, via OkHttp — java.net.HttpURLConnection's
+     * setRequestMethod() only accepts a hardcoded list (GET/POST/HEAD/
+     * OPTIONS/PUT/DELETE/TRACE) and throws ProtocolException for PATCH.
+     * The commonly-cited workaround (reflectively overwriting the
+     * `method` field HttpURLConnection declares, bypassing that
+     * whitelist) compiled and ran locally but proved unreliable in the
+     * field: a live test confirmed the exact same RLS-gated update
+     * succeeds instantly through the web admin panel — same policy, same
+     * account — so the failure was specific to how that reflection-based
+     * request was actually being sent from the device, not the database.
+     * OkHttp supports PATCH natively with no workaround, so markFixtureLive
+     * and completeFixture use this instead. Everything else in this class
+     * (GET/POST) is untouched, still plain HttpURLConnection via request().
+     *
+     * PUT isn't a safe substitute for either caller: PostgREST's PUT
+     * semantics replace the whole row, requiring every column to be sent.
      */
-    private fun setPatchMethod(connection: HttpURLConnection) {
-        val methodField = HttpURLConnection::class.java.getDeclaredField("method")
-        methodField.isAccessible = true
-        methodField.set(connection, "PATCH")
+    private fun patch(urlStr: String, headers: Map<String, String>, body: String) {
+        var requestBuilder = Request.Builder()
+            .url(urlStr)
+            .patch(body.toRequestBody("application/json".toMediaType()))
+        headers.forEach { (key, value) -> requestBuilder = requestBuilder.addHeader(key, value) }
+        httpClient.newCall(requestBuilder.build()).execute().use { response ->
+            if (!response.isSuccessful) {
+                val text = response.body?.string().orEmpty()
+                throw IOException(extractErrorMessage(text, response.code))
+            }
+        }
     }
 
     private fun request(method: String, urlStr: String, headers: Map<String, String>, body: String?): String {
         val connection = URL(urlStr).openConnection() as HttpURLConnection
         try {
-            if (method == "PATCH") setPatchMethod(connection) else connection.requestMethod = method
+            connection.requestMethod = method
             connection.connectTimeout = 15_000
             connection.readTimeout = 15_000
             headers.forEach { (key, value) -> connection.setRequestProperty(key, value) }
