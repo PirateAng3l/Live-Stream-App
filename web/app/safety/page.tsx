@@ -32,19 +32,22 @@ export default function SafetyPage() {
 
         <section>
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-accent">Viewing</p>
-          <h2 className="mb-3 text-xl font-bold">Only signed-in families can watch</h2>
+          <h2 className="mb-3 text-xl font-bold">Watching on our site requires signing in first</h2>
           <div className="space-y-4 rounded-lg border border-white/10 bg-panel p-6">
             <p className="text-textsecondary">
               Anyone can see that a match happened — the date, the teams, the final score. But to actually
-              watch the footage, a visitor has to sign in with an account first. Nobody can stumble onto a
-              match by browsing the site anonymously.
+              watch the footage <em>through Open Door Live</em>, a visitor has to sign in with an account
+              first. Nobody can stumble onto a match by browsing this site anonymously.
             </p>
             <div className="rounded-lg border border-live/30 bg-live/10 p-4 text-sm text-textprimary">
-              Being honest about the limits: the video itself is stored as an &ldquo;unlisted&rdquo; file, not
-              a fully private one. Our sign-in wall controls who reaches it <em>through this site</em> — but
-              a link that leaves the site some other way (a screenshot, a forward) isn&apos;t something we
-              can technically stop. We&apos;d rather tell you that plainly than overstate how locked-down it
-              is.
+              Being honest about how this actually works: match footage is published as a public YouTube
+              video, not a private or unlisted one — the same as if your school posted it to its own YouTube
+              channel directly. That means the footage can also be found and watched directly on YouTube —
+              through search, by browsing the channel, or via a shared link — without ever visiting this site
+              or signing in. Our sign-in wall only controls access <em>through Open Door Live itself</em>.
+              Schools have chosen this openly: real, findable match coverage is what makes the channel
+              credible to sponsors and gives other schools something genuine to see before they sign up. If
+              that changes how you feel about a specific match, use the report link below.
             </div>
           </div>
         </section>
@@ -126,8 +129,11 @@ export default function SafetyPage() {
               <span className="text-lg font-bold text-ok">3</span>
               <p className="text-sm text-textsecondary">
                 <span className="block font-semibold text-textprimary">We act.</span>
-                A video can be pulled from the site immediately, for every viewer, the moment we decide
-                it&apos;s warranted.
+                A video can be pulled from Open Door Live immediately, for every viewer, the moment we
+                decide it&apos;s warranted. Because match footage is public on YouTube (see &ldquo;Viewing&rdquo;
+                above), that step alone doesn&apos;t remove it from YouTube itself — if you need it fully
+                taken down there too, say so in your report and we&apos;ll handle that as an additional
+                step.
               </p>
             </li>
           </ol>
@@ -140,8 +146,9 @@ export default function SafetyPage() {
             <div className="p-5">
               <p className="mb-1 font-semibold text-textprimary">Can this video show up in a Google search?</p>
               <p className="text-sm text-textsecondary">
-                No — it&apos;s not indexed or publicly listed. It only becomes reachable through a direct
-                link, and only plays for a signed-in viewer.
+                Yes — match footage is published as a public YouTube video, so it can appear in YouTube
+                (and potentially Google) search results, the same as any other public video. It&apos;s not
+                limited to people who found it through this site.
               </p>
             </div>
             <div className="p-5">

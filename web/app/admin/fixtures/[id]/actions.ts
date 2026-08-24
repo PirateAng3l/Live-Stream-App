@@ -282,7 +282,9 @@ export async function deleteFixtureAction(_prev: ActionState, formData: FormData
   // fixture_sponsors and fixture_broadcast_credentials both cascade on
   // delete (migration 0001) — no need to clean those up separately. The
   // YouTube broadcast itself isn't deleted via the API; it's simply left
-  // orphaned/unlisted on the channel, same as ending any other stream.
+  // orphaned on the channel, same as ending any other stream — and, since
+  // videos are public rather than unlisted, still fully visible/findable
+  // there even with no fixture row left on this side.
   const { error } = await supabase.from("fixtures").delete().eq("id", fixtureId);
   if (error) return { error: error.message };
 

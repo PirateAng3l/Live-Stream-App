@@ -1,11 +1,14 @@
 -- Spec 4.5's "takedown / opt-out process for any child whose guardian
 -- objects." The site's actual access control (spec 4.4) is the login-
--- gated web platform, not the underlying YouTube video itself (which
--- stays merely unlisted) — so this is the concrete, immediate lever a
--- takedown request maps to: stop the video rendering on /matches/[id]
--- regardless of sign-in state, without depending on a YouTube API call
--- this project doesn't otherwise make. It does not revoke or privatize
--- the YouTube video itself — see web/README.md for that follow-up note.
+-- gated web platform, not the underlying YouTube video itself (later
+-- deliberately made public, not unlisted — see PROJECT_SPEC.md's 4.4
+-- update note) — so this is the concrete, immediate lever a takedown
+-- request maps to: stop the video rendering on /matches/[id] regardless
+-- of sign-in state, without depending on a YouTube API call this project
+-- doesn't otherwise make. It does not revoke or privatize the YouTube
+-- video itself, which — now that videos are public rather than merely
+-- unlisted — matters more than it used to: see web/README.md's follow-up
+-- note.
 --
 -- No RLS change needed: fixtures_update_own_school / fixtures_write_admin
 -- (migrations 0001/0005) already let a school hide its own fixture or a

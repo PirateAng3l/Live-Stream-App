@@ -66,8 +66,13 @@ export async function refreshAccessToken(
 
 /**
  * Creates the scheduled broadcast (the "event"). Privacy is hardcoded to
- * unlisted per the spec's viewing-access decision (4.4) — this is not
- * meant to be a public YouTube-search-discoverable video.
+ * public — a deliberate reversal of the original `unlisted`/search-hidden
+ * decision (spec 4.4), made explicitly for channel growth, sponsor
+ * visibility, and giving prospective schools something real to see before
+ * signing up. Viewing on this site is still login-gated regardless
+ * (`/matches/[id]`); this only affects whether the video is independently
+ * discoverable via YouTube's own search/browse/recommendations, which it
+ * now is.
  */
 export async function createLiveBroadcast(
   fetchFn: FetchFn,
@@ -92,7 +97,7 @@ export async function createLiveBroadcast(
           description: params.description,
           scheduledStartTime: params.scheduledStartTime,
         },
-        status: { privacyStatus: "unlisted" },
+        status: { privacyStatus: "public" },
         contentDetails: {
           enableAutoStart: true,
           enableAutoStop: true,
@@ -162,7 +167,10 @@ export async function createLiveStream(
  * played fine directly on YouTube — nothing here was ever setting this.
  *
  * `videos.update` replaces the whole `status` part, so privacyStatus has
- * to be repeated here or it would silently reset away from "unlisted".
+ * to be repeated here or it would silently reset away from whatever
+ * createLiveBroadcast set (public) back to PostgREST's/YouTube's own
+ * update-time default — this call's whole purpose is additive
+ * (embeddable), never a chance to quietly re-narrow visibility.
  */
 export async function setVideoEmbeddable(
   fetchFn: FetchFn,
@@ -178,7 +186,7 @@ export async function setVideoEmbeddable(
       },
       body: JSON.stringify({
         id: params.videoId,
-        status: { privacyStatus: "unlisted", embeddable: true },
+        status: { privacyStatus: "public", embeddable: true },
       }),
     },
   );

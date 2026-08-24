@@ -7,8 +7,10 @@ import Link from "next/link";
 // someone with real POPIA expertise before this goes live for real
 // schools — the spec is explicit that this project must not skip that
 // step. Written honestly about what the platform actually does today,
-// including its known limitation (spec 4.4: gated viewing, not a fully
-// private video).
+// including its known limitation: video is gated behind sign-in on this
+// site, but the underlying YouTube video is public, not private — spec
+// 4.4 originally called for unlisted, later deliberately changed to
+// public for channel/sponsor visibility (see backend README).
 export const metadata = { title: "Privacy Policy — Open Door Live" };
 
 export default function PrivacyPage() {
@@ -49,11 +51,13 @@ export default function PrivacyPage() {
         is the school&apos;s responsibility.
       </p>
       <p>
-        Viewing match footage requires a signed-in account. The underlying video is hosted as an unlisted
-        YouTube video, not a fully private one — this platform controls who can reach it through the site, but
-        an unlisted link that leaves the site (for example, forwarded by someone who found it) is not something
-        we can technically prevent. We are open about this limitation rather than overstating how closed the
-        video actually is.
+        Viewing match footage through Open Door Live requires a signed-in account. The underlying video is
+        hosted as a public YouTube video, not a private or unlisted one — it can also be found and watched
+        directly on YouTube, through search or by browsing the channel, without ever visiting this site or
+        signing in. This platform&apos;s sign-in requirement only controls access through Open Door Live
+        itself. Schools have chosen this openly, so that real match coverage is genuinely visible to
+        sponsors and prospective schools. Taking a video down through this platform (see &ldquo;Your
+        rights&rdquo; below) removes it from Open Door Live but does not, on its own, remove it from YouTube.
       </p>
 
       <h2 className="pt-2 text-lg font-semibold text-textprimary">Who else sees this data</h2>

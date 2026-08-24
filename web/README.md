@@ -126,11 +126,16 @@ and nothing sensitive (a stream key, say) is ever fetched here. Real access
 control for *those* tables is RLS, not keeping the anon key secret; real
 access control for *viewing* is the session check in `lib/auth.ts`.
 
-**Honest limit of this gate, same as the spec itself flags:** the YouTube
-video behind it is "unlisted," not private — someone who extracts the raw
-YouTube URL (view source, browser devtools) could bypass this login wall
-entirely and watch directly on YouTube. That's spec 4.4's own documented
-tradeoff for v1, not something introduced here.
+**Honest limit of this gate:** the YouTube video behind it is now fully
+**public**, not private or unlisted — deliberately, a later reversal of
+spec 4.4's original "unlisted" v1 recommendation, made for channel growth
+and sponsor/school visibility (see `PROJECT_SPEC.md`'s 4.4 update note).
+Anyone can find and watch the footage directly on YouTube — through
+search, browsing the channel, or a shared link — without ever visiting
+this site or signing in. This login wall only ever controlled access
+*through this site*; that was true even back when the video was merely
+unlisted (a link could always be extracted and shared), and is simply
+more visible now that the video doesn't need a link to be found at all.
 
 ## Admin panel (`/admin`)
 
@@ -168,16 +173,19 @@ they have one.
   teams, kickoff time — `/admin/fixtures/[id]/edit`) and **Delete fixture**
   (confirm-guarded; cascades `fixture_sponsors` and
   `fixture_broadcast_credentials`, migration 0001 — the YouTube broadcast
-  itself isn't torn down via the API, it's just left orphaned/unlisted on
-  the channel). Also has **Take down video** / **Make video visible
-  again** (`VisibilityToggleForm`, confirm-guarded) — spec 4.5's takedown/
-  opt-out lever, flipping `fixtures.hidden_from_viewers` (migration 0012).
-  `/matches/[id]` checks that flag ahead of sign-in state entirely: a
-  taken-down fixture shows "This video has been taken down" for everyone,
-  full stop. This does not touch the underlying YouTube video (still
-  merely unlisted, per spec 4.4) — it only stops this platform itself
-  from serving it, the same access-control boundary login-gating already
-  relies on.
+  itself isn't torn down via the API, it's just left orphaned on the
+  channel — still fully public and findable there, since videos are
+  public rather than unlisted now). Also has **Take down video** / **Make
+  video visible again** (`VisibilityToggleForm`, confirm-guarded) — spec
+  4.5's takedown/opt-out lever, flipping `fixtures.hidden_from_viewers`
+  (migration 0012). `/matches/[id]` checks that flag ahead of sign-in
+  state entirely: a taken-down fixture shows "This video has been taken
+  down" for everyone, full stop. This does not touch the underlying
+  YouTube video (now public, per `PROJECT_SPEC.md`'s 4.4 update note) — it
+  only stops this platform itself from serving it. That gap matters more
+  than it used to: with an unlisted video, someone needed the raw link to
+  bypass a takedown; with a public one, anyone can already be watching
+  independent of this site entirely, takedown or not.
   **Match result** (`CompleteFixtureForm`) is the other manual lever this
   page needed: nothing anywhere — not the Android app, not any backend
   trigger — ever set `status='completed'` or wrote a final score, so a
@@ -666,12 +674,21 @@ worth doing before this goes anywhere near real production traffic.
   everything else in the "concierge onboarding" model this project is on
   for now.
 - **Takedown doesn't reach YouTube itself** — "Take down video" (above)
-  stops this platform serving a fixture's video; the underlying unlisted
-  YouTube video is untouched. A truly urgent takedown (making the YouTube
-  video itself private, not just unreachable through this site) is still a
-  manual step in YouTube Studio using the fixture's `youtube_video_id` —
-  automating that via the YouTube Data API is a reasonable follow-up, not
-  done here to keep this pass's scope to what the site itself controls.
+  stops this platform serving a fixture's video; the underlying YouTube
+  video, now public rather than merely unlisted, is untouched and stays
+  fully findable there regardless. This gap existed before the switch to
+  public privacy too, but mattered less then (someone needed the raw link
+  to bypass a takedown); now anyone can already be watching independent
+  of this site, takedown or not, which makes closing this gap a real
+  near-term priority rather than a nice-to-have. A truly urgent takedown
+  (making the YouTube video itself private, not just unreachable through
+  this site) is still a manual step in YouTube Studio using the fixture's
+  `youtube_video_id` — automating that via the YouTube Data API (extend
+  `VisibilityToggleForm`'s action to also call `videos.update` with
+  `privacyStatus: "private"`, using the same OAuth-holding edge-function
+  pattern `provision-fixture-broadcast` already established) is the
+  obvious next step, not done here to keep this pass's scope to what was
+  actually asked for.
 - **POPIA compliance itself is not something this software can claim.**
   Consent attestation, the takedown intake, and these draft policy pages
   are the *support* spec 4.5 asked for — real POPIA/child-safeguarding

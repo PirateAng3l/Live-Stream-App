@@ -40,7 +40,7 @@ Deno.test("refreshAccessToken posts client credentials + refresh token as form d
   assert.ok(sentBody.includes("grant_type=refresh_token"));
 });
 
-Deno.test("createLiveBroadcast sends unlisted privacy + auto start/stop", async () => {
+Deno.test("createLiveBroadcast sends public privacy + auto start/stop", async () => {
   const { fn, calls } = fakeFetch(200, { id: "bcast-1" });
 
   const result = await createLiveBroadcast(fn, {
@@ -52,7 +52,7 @@ Deno.test("createLiveBroadcast sends unlisted privacy + auto start/stop", async 
 
   assert.equal(result.id, "bcast-1");
   const sent = JSON.parse(calls[0].init.body as string);
-  assert.equal(sent.status.privacyStatus, "unlisted");
+  assert.equal(sent.status.privacyStatus, "public");
   assert.equal(sent.contentDetails.enableAutoStart, true);
   assert.equal(sent.contentDetails.enableAutoStop, true);
   assert.equal(sent.snippet.scheduledStartTime, "2026-08-20T14:00:00Z");
@@ -97,7 +97,7 @@ Deno.test("bindBroadcastToStream puts both IDs in the query string", async () =>
   assert.ok(calls[0].url.includes("streamId=stream-1"));
 });
 
-Deno.test("setVideoEmbeddable PUTs status with embeddable true, keeping privacyStatus unlisted", async () => {
+Deno.test("setVideoEmbeddable PUTs status with embeddable true, keeping privacyStatus public", async () => {
   const calls: { url: string; init: RequestInit }[] = [];
   const fn = (async (url: string | URL, init?: RequestInit) => {
     const u = url.toString();
@@ -120,7 +120,7 @@ Deno.test("setVideoEmbeddable PUTs status with embeddable true, keeping privacyS
   const sent = JSON.parse(calls[0].init.body as string);
   assert.equal(sent.id, "bcast-1");
   assert.equal(sent.status.embeddable, true);
-  assert.equal(sent.status.privacyStatus, "unlisted");
+  assert.equal(sent.status.privacyStatus, "public");
 
   assert.ok(calls[1].url.includes("/videos?part=status&id=bcast-1"));
   assert.equal(
