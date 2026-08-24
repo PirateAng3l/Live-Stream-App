@@ -46,9 +46,10 @@ school's students are filmed.
   mark when no sponsor's assigned there) **onto the video itself**, live — what you
   see on screen is what gets streamed and what ends up in the YouTube recording.
 - **Per-sport scoring**, chosen from a dropdown in setup:
-  - Rugby / Soccer / Netball / Hockey — a shared home-vs-away scoreboard, with
+  - Rugby / Soccer / Netball / Hockey / Tennis — a shared home-vs-away scoreboard, with
     rugby additionally getting named scoring-event chips (Try +5, Con +2, Pen +3,
-    Drop +3) alongside the plain +/-1.
+    Drop +3) alongside the plain +/-1. Tennis uses the same plain +/-1 scoreboard —
+    the running score is sets won, not goals or points.
   - Cricket — a genuinely different model and overlay: runs/wickets/overs with legal-ball
     rollover, extras (wide/no-ball, bye), a wicket cap at 10, swap-innings with a
     target/chase line, and its own undo/reset.

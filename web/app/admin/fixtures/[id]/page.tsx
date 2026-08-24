@@ -6,7 +6,7 @@ import { loadFixtureSponsors, loadSponsorsForSchool } from "@/lib/sponsors-serve
 import { sponsorLayerLabel, sponsorPositionLabel, sponsorTierLabel } from "@/lib/sponsors";
 import { getCurrentStaffProfile } from "@/lib/staff";
 import { loadFixtureById } from "@/lib/supabase";
-import { DeleteFixtureForm, VisibilityToggleForm } from "./fixture-actions";
+import { CompleteFixtureForm, DeleteFixtureForm, VisibilityToggleForm } from "./fixture-actions";
 import { AssignSponsorForm, RemoveSponsorForm } from "./sponsor-forms";
 
 export const dynamic = "force-dynamic";
@@ -77,6 +77,21 @@ export default async function FixtureDetailPage({ params }: FixtureDetailPagePro
           This fixture&apos;s video is currently taken down — it won&apos;t play on the match page for anyone.
         </p>
       )}
+
+      <div className="mt-8 rounded-lg border border-white/10 bg-panel p-4">
+        <h2 className="mb-1 text-sm font-semibold text-textsecondary">Match result</h2>
+        <p className="mb-3 text-xs text-textsecondary">
+          {fixture.status === "completed"
+            ? "Marking it completed again updates the recorded score. This also moves the fixture to the Completed tab on the public schedule."
+            : "Once the broadcast has actually ended, mark it completed here — that's what moves it to the Completed tab and (for scored sports) shows the final score on the site. Nothing does this automatically."}
+        </p>
+        <CompleteFixtureForm
+          fixtureId={fixture.id}
+          showScore={fixture.sport !== "other"}
+          finalHomeScore={fixture.finalHomeScore}
+          finalAwayScore={fixture.finalAwayScore}
+        />
+      </div>
 
       <div className="mt-8">
         <h2 className="mb-3 text-lg font-semibold">Sponsors on this fixture</h2>

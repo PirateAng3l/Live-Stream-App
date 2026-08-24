@@ -36,6 +36,12 @@ enum class Sport(
         periodLabels = listOf("1st Quarter", "2nd Quarter", "3rd Quarter", "4th Quarter")
     ),
     HOCKEY("Hockey", emptyList(), ScoreboardLayout.TWO_TEAM, periodLabels = listOf("1st Half", "2nd Half")),
+    // Sets won, not goals/points — same plain +/-1 scoreboard as soccer/hockey since a set
+    // is just a running tally, no different from any other TWO_TEAM sport's score. No period
+    // labels: "Set 1"/"Set 2" would need its own crew-advanced indicator like rugby's
+    // half/quarter labels, not asked for here — the running score already says how many
+    // sets each side has taken.
+    TENNIS("Tennis", emptyList(), ScoreboardLayout.TWO_TEAM),
     CRICKET("Cricket", emptyList(), ScoreboardLayout.CRICKET),
 
     // No scoreboard at all — for a broadcast that isn't a team-vs-team match:

@@ -1,9 +1,71 @@
 "use client";
 
 import { useFormState, useFormStatus } from "react-dom";
-import { deleteFixtureAction, toggleFixtureVisibilityAction, type ActionState } from "./actions";
+import { completeFixtureAction, deleteFixtureAction, toggleFixtureVisibilityAction, type ActionState } from "./actions";
 
 const initialState: ActionState = {};
+
+const scoreInputClass =
+  "w-16 rounded-lg border border-white/10 bg-background px-2 py-1.5 text-sm text-textprimary focus:border-accent focus:outline-none";
+
+export function CompleteFixtureForm({
+  fixtureId,
+  showScore,
+  finalHomeScore,
+  finalAwayScore,
+}: {
+  fixtureId: string;
+  showScore: boolean;
+  finalHomeScore: number | null;
+  finalAwayScore: number | null;
+}) {
+  const [state, formAction] = useFormState(completeFixtureAction, initialState);
+
+  return (
+    <form action={formAction} className="flex flex-wrap items-end gap-3">
+      <input type="hidden" name="fixture_id" value={fixtureId} />
+      {showScore && (
+        <>
+          <label className="flex flex-col gap-1 text-xs text-textsecondary">
+            Home score
+            <input
+              type="number"
+              name="final_home_score"
+              min={0}
+              defaultValue={finalHomeScore ?? ""}
+              className={scoreInputClass}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-textsecondary">
+            Away score
+            <input
+              type="number"
+              name="final_away_score"
+              min={0}
+              defaultValue={finalAwayScore ?? ""}
+              className={scoreInputClass}
+            />
+          </label>
+        </>
+      )}
+      <CompleteSubmitButton />
+      {state?.error && <p className="w-full text-xs text-live">{state.error}</p>}
+    </form>
+  );
+}
+
+function CompleteSubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="rounded-full bg-ok/20 px-4 py-2 text-sm font-semibold text-ok hover:bg-ok/30 disabled:opacity-50"
+    >
+      {pending ? "Saving…" : "Mark as completed"}
+    </button>
+  );
+}
 
 export function VisibilityToggleForm({ fixtureId, hidden }: { fixtureId: string; hidden: boolean }) {
   const [state, formAction] = useFormState(toggleFixtureVisibilityAction, initialState);

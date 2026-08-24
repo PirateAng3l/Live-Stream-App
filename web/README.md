@@ -16,7 +16,11 @@ separate product).
   sport filter are plain links with query params (`?tab=completed&sport=rugby`),
   not client-side state — works with JS disabled, no hydration to worry about.
   Public — no sign-in needed to browse what matches exist.
-- **`/about`** — static "About Us" page.
+- **`/about`** — static "About Us" page. Includes a "Not just match day"
+  section spelling out that Clean Slate/Event isn't only for sport — matric
+  farewells, cross country, chess, choir, opening days, assemblies,
+  prize-giving, a student-led school walkthrough, anything a school wants
+  in front of a camera, not just what has a scoreboard.
 - **`/matches/[id]`** — a single fixture: teams, school, kickoff time, final
   score if completed, and (spec 4.4) the actual video is gated: signed-out
   visitors see a "Sign in to watch" prompt instead of the embedded player.
@@ -128,6 +132,21 @@ they have one.
   merely unlisted, per spec 4.4) — it only stops this platform itself
   from serving it, the same access-control boundary login-gating already
   relies on.
+  **Match result** (`CompleteFixtureForm`) is the other manual lever this
+  page needed: nothing anywhere — not the Android app, not any backend
+  trigger — ever set `status='completed'` or wrote a final score, so a
+  finished match just sat under "Upcoming" forever with no score, which is
+  what showed up in testing. Marking it completed here (home/away score
+  for a scored sport, or just the status for a Clean Slate/Event fixture,
+  which has no scoreboard to record) is what moves it to `/schedule`'s
+  Completed tab (`groupFixturesByTab`, `lib/fixtures.ts`, already keyed off
+  `status`) and surfaces the final score on `/schedule` and `/matches/[id]`
+  (both already rendered `finalHomeScore`/`finalAwayScore` when present —
+  that display logic was never the gap, nothing was ever writing the data
+  it reads). Deliberately a manual concierge action rather than an
+  automatic one: a dropped stream isn't the same as a final whistle, so
+  guessing "stream ended" as "match finished" would be wrong as often as
+  it's right. Re-submittable if a score needs correcting after the fact.
 - **`/admin/concern-reports`** — spec 4.5's takedown/opt-out intake queue,
   `platform_admin` only (a report's `fixture_id` is optional, so there's
   no reliable way to scope one to a `school_operator`'s own school).

@@ -199,6 +199,67 @@ export async function toggleFixtureVisibilityAction(_prev: ActionState, formData
   return {};
 }
 
+/**
+ * Nothing else in this app ever set status='completed' or wrote a final
+ * score — Android only ever queries status=eq.scheduled, it never writes a
+ * status back, and there was no admin control for this either. A fixture
+ * could stream, end, and just sit under "Upcoming" forever with no score,
+ * which is exactly what showed up in testing. This is the fix: a manual
+ * concierge action, same pattern as every other state change in this admin
+ * panel, rather than trying to guess from the stream itself that a match
+ * has actually finished (a dropped connection isn't the same as a final
+ * whistle).
+ *
+ * Score fields are optional — a Clean Slate/Event fixture (sport "other")
+ * has no scoreboard and no outcome to record, so the form for those just
+ * submits blank score fields and this only flips status.
+ */
+export async function completeFixtureAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const staff = await getCurrentStaffProfile();
+  if (!staff) return { error: "Not signed in as staff" };
+
+  const fixtureId = String(formData.get("fixture_id") ?? "");
+  if (!fixtureId) return { error: "Missing fixture" };
+
+  let hostSchoolId: string | null;
+  try {
+    hostSchoolId = await loadFixtureHostSchool(fixtureId);
+  } catch (error) {
+    return { error: (error as Error).message };
+  }
+  if (!hostSchoolId) return { error: "Fixture not found" };
+  if (staff.role === "school_operator" && staff.schoolId !== hostSchoolId) {
+    return { error: "This fixture belongs to a different school" };
+  }
+
+  const homeScoreRaw = String(formData.get("final_home_score") ?? "").trim();
+  const awayScoreRaw = String(formData.get("final_away_score") ?? "").trim();
+
+  let homeScore: number | null = null;
+  let awayScore: number | null = null;
+  if (homeScoreRaw !== "") {
+    homeScore = Number(homeScoreRaw);
+    if (!Number.isInteger(homeScore) || homeScore < 0) return { error: "Home score must be a whole number" };
+  }
+  if (awayScoreRaw !== "") {
+    awayScore = Number(awayScoreRaw);
+    if (!Number.isInteger(awayScore) || awayScore < 0) return { error: "Away score must be a whole number" };
+  }
+
+  const supabase = createSupabaseServerClient();
+  const { error } = await supabase
+    .from("fixtures")
+    .update({ status: "completed", final_home_score: homeScore, final_away_score: awayScore })
+    .eq("id", fixtureId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/admin/fixtures/${fixtureId}`);
+  revalidatePath("/admin");
+  revalidatePath(`/matches/${fixtureId}`);
+  revalidatePath("/schedule");
+  return {};
+}
+
 export async function deleteFixtureAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const staff = await getCurrentStaffProfile();
   if (!staff) return { error: "Not signed in as staff" };

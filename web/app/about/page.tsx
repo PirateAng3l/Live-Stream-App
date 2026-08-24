@@ -36,6 +36,18 @@ export default function AboutPage() {
         </section>
 
         <section>
+          <h2 className="mb-2 text-lg font-semibold text-accent">Not just match day</h2>
+          <p className="text-textsecondary">
+            Rugby, netball, hockey, cricket, and tennis fixtures get the full live scoreboard.
+            But the same phone and the same platform work just as well for anything else
+            happening in front of the school community — matric farewells, cross country,
+            chess tournaments, choir performances, opening days, assemblies, prize-giving, even
+            a student-led walkthrough of the school for prospective families. Anyone comfortable
+            in front of a camera can present it, no scoreboard required.
+          </p>
+        </section>
+
+        <section>
           <h2 className="mb-2 text-lg font-semibold text-accent">Who&apos;s behind it</h2>
           <p className="text-textsecondary">
             Open Door Live is run by a small, hands-on team — and it&apos;s built to stay

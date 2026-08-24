@@ -4,7 +4,7 @@
 // case-insensitively when a crew member loads a fixture, so a sport
 // created here needs to spell the same way for the right scoreboard
 // layout (e.g. cricket's very different overlay) to come up automatically.
-export const SPORTS = ["rugby", "soccer", "netball", "hockey", "cricket", "other"] as const;
+export const SPORTS = ["rugby", "soccer", "netball", "hockey", "tennis", "cricket", "other"] as const;
 
 export type SportOption = (typeof SPORTS)[number];
 
