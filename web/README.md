@@ -673,22 +673,20 @@ worth doing before this goes anywhere near real production traffic.
   platform_admin-side SQL update to the `subscriptions` row, same as
   everything else in the "concierge onboarding" model this project is on
   for now.
-- **Takedown doesn't reach YouTube itself** — "Take down video" (above)
-  stops this platform serving a fixture's video; the underlying YouTube
-  video, now public rather than merely unlisted, is untouched and stays
-  fully findable there regardless. This gap existed before the switch to
-  public privacy too, but mattered less then (someone needed the raw link
-  to bypass a takedown); now anyone can already be watching independent
-  of this site, takedown or not, which makes closing this gap a real
-  near-term priority rather than a nice-to-have. A truly urgent takedown
-  (making the YouTube video itself private, not just unreachable through
-  this site) is still a manual step in YouTube Studio using the fixture's
-  `youtube_video_id` — automating that via the YouTube Data API (extend
-  `VisibilityToggleForm`'s action to also call `videos.update` with
-  `privacyStatus: "private"`, using the same OAuth-holding edge-function
-  pattern `provision-fixture-broadcast` already established) is the
-  obvious next step, not done here to keep this pass's scope to what was
-  actually asked for.
+- **Takedown doesn't reach YouTube itself — deliberately, not a gap to
+  close.** "Take down video" (above) stops this platform serving a
+  fixture's video; the underlying YouTube video, now public rather than
+  merely unlisted, is untouched and stays fully findable there regardless.
+  Raised with the school owner once the public-privacy switch made this
+  matter more (a taken-down video used to still need its raw unlisted
+  link to bypass a takedown; now anyone can already be watching
+  independent of this site, takedown or not) — and kept manual on
+  purpose. A takedown request serious enough to need one should trigger a
+  real internal "why was this asked for" review before the YouTube
+  video's own visibility changes, not a silent API call nobody had to
+  look at first. Making the YouTube video itself private is a manual
+  YouTube Studio step (using the fixture's `youtube_video_id`) for
+  whoever runs that review — not something to automate away.
 - **POPIA compliance itself is not something this software can claim.**
   Consent attestation, the takedown intake, and these draft policy pages
   are the *support* spec 4.5 asked for — real POPIA/child-safeguarding
