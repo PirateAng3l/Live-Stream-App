@@ -78,6 +78,9 @@ function fakeGoogleApi() {
         { status: 200 },
       );
     }
+    if (u.includes("/videos?part=status")) {
+      return new Response(JSON.stringify({ id: "bcast-1" }), { status: 200 });
+    }
     throw new Error(`Unexpected URL in test: ${u}`);
   }) as typeof fetch;
   return { fn, calls };
@@ -101,12 +104,13 @@ Deno.test("provisionFixtureBroadcast runs the full flow and persists the result"
     streamKey: "the-stream-key",
   });
 
-  // token refresh -> create broadcast -> create stream -> bind, in that order
-  assert.deepEqual(calls.length, 4);
+  // token refresh -> create broadcast -> create stream -> bind -> set embeddable, in that order
+  assert.deepEqual(calls.length, 5);
   assert.deepEqual(calls[0].includes("oauth2.googleapis.com/token"), true);
   assert.deepEqual(calls[1].includes("/liveBroadcasts?"), true);
   assert.deepEqual(calls[2].includes("/liveStreams"), true);
   assert.deepEqual(calls[3].includes("/liveBroadcasts/bind"), true);
+  assert.deepEqual(calls[4].includes("/videos?part=status"), true);
 
   assert.deepEqual(savedCredentials, [
     {

@@ -151,6 +151,40 @@ export async function createLiveStream(
   };
 }
 
+/**
+ * A liveBroadcast's `status` part has no `embeddable` field — that field
+ * only exists on the `videos` resource. Since a liveBroadcast IS a video
+ * resource under the same ID, this is a `videos.update` call on that same
+ * ID rather than anything in the liveBroadcasts.insert call above. Without
+ * it, a broadcast created via the API defaults to non-embeddable, which is
+ * exactly why `/matches/[id]`'s YouTube iframe showed "Playback on other
+ * websites has been disabled by the video owner" on a live match that
+ * played fine directly on YouTube — nothing here was ever setting this.
+ *
+ * `videos.update` replaces the whole `status` part, so privacyStatus has
+ * to be repeated here or it would silently reset away from "unlisted".
+ */
+export async function setVideoEmbeddable(
+  fetchFn: FetchFn,
+  params: { accessToken: string; videoId: string },
+): Promise<void> {
+  const response = await fetchFn(
+    `${YOUTUBE_API_BASE}/videos?part=status`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${params.accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id: params.videoId,
+        status: { privacyStatus: "unlisted", embeddable: true },
+      }),
+    },
+  );
+  await parseOrThrow<unknown>(response, "videos.update");
+}
+
 /** Connects the ingest point to the event so RTMP pushed into it goes live on that broadcast. */
 export async function bindBroadcastToStream(
   fetchFn: FetchFn,

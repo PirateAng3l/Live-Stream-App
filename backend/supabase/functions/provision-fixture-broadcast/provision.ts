@@ -12,6 +12,7 @@ import {
   createLiveBroadcast,
   createLiveStream,
   refreshAccessToken,
+  setVideoEmbeddable,
 } from "./youtube.ts";
 
 export interface FixtureForProvisioning {
@@ -98,6 +99,14 @@ export async function provisionFixtureBroadcast(
     accessToken: token.access_token,
     broadcastId: broadcast.id,
     streamId: stream.id,
+  });
+
+  // Without this, the broadcast defaults to non-embeddable and the web
+  // player at /matches/[id] shows "Playback on other websites has been
+  // disabled by the video owner" — see setVideoEmbeddable's own comment.
+  await setVideoEmbeddable(deps.fetchFn, {
+    accessToken: token.access_token,
+    videoId: broadcast.id,
   });
 
   await deps.db.saveBroadcastCredentials(fixtureId, {

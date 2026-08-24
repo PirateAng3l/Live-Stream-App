@@ -4,6 +4,7 @@ import {
   createLiveBroadcast,
   createLiveStream,
   refreshAccessToken,
+  setVideoEmbeddable,
 } from "./youtube.ts";
 
 /** Records every call made through it and replays a canned response. */
@@ -94,6 +95,20 @@ Deno.test("bindBroadcastToStream puts both IDs in the query string", async () =>
 
   assert.ok(calls[0].url.includes("id=bcast-1"));
   assert.ok(calls[0].url.includes("streamId=stream-1"));
+});
+
+Deno.test("setVideoEmbeddable PUTs status with embeddable true, keeping privacyStatus unlisted", async () => {
+  const { fn, calls } = fakeFetch(200, { id: "bcast-1" });
+
+  await setVideoEmbeddable(fn, { accessToken: "at-123", videoId: "bcast-1" });
+
+  assert.equal(calls.length, 1);
+  assert.ok(calls[0].url.includes("/videos?part=status"));
+  assert.equal(calls[0].init.method, "PUT");
+  const sent = JSON.parse(calls[0].init.body as string);
+  assert.equal(sent.id, "bcast-1");
+  assert.equal(sent.status.embeddable, true);
+  assert.equal(sent.status.privacyStatus, "unlisted");
 });
 
 Deno.test("a non-ok response throws with the Google error message, not a silent failure", async () => {

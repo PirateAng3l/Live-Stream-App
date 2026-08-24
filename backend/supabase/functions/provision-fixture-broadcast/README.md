@@ -4,8 +4,8 @@ Edge function that turns a fixture into an actual YouTube Live broadcast:
 looks up which YouTube account the fixture's host school should provision
 under, refreshes that account's access token, creates the broadcast
 (`liveBroadcasts.insert`), creates a fresh ingest point
-(`liveStreams.insert`), binds them together, and saves the results back
-onto the fixture.
+(`liveStreams.insert`), binds them together, marks the resulting video
+embeddable (`videos.update`), and saves the results back onto the fixture.
 
 ## How it gets called
 
@@ -46,6 +46,20 @@ session token as normal.
 
 - **Privacy is hardcoded to `unlisted`.** Matches the viewing-access
   decision (spec 4.4) — not meant to be publicly searchable on YouTube.
+- **The video is explicitly marked embeddable.** `liveBroadcasts.insert`'s
+  `status` part has no `embeddable` field — that only exists on the
+  `videos` resource, and a liveBroadcast IS a video resource under the same
+  ID. Without a follow-up `videos.update?part=status` call, a broadcast
+  created via the API defaults to non-embeddable, which is what caused
+  `/matches/[id]`'s YouTube iframe to show "Playback on other websites has
+  been disabled by the video owner" for a live match that played fine
+  directly on YouTube. That call has to repeat `privacyStatus: "unlisted"`
+  alongside `embeddable: true`, since `videos.update` replaces the whole
+  `status` part rather than patching one field. This only fixes broadcasts
+  provisioned after this change — an already-provisioned fixture's video
+  needs its embeddable setting flipped by hand (YouTube Studio → that
+  video → Details → Advanced settings → "Allow embedding") if it's showing
+  this error.
 - **`enableAutoStart`/`enableAutoStop` are always on**, so the broadcast
   goes live/ends automatically when the app starts/stops pushing RTMP,
   rather than needing a separate "go live" API call.
