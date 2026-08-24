@@ -308,18 +308,40 @@ all. Only fires when a fixture was actually loaded via crew sign-in
 (`loadedFixtureId != null`) — manual RTMP entry has no fixture row to
 update and is unaffected. Deliberately one-way: nothing here ever reverts
 status back to `scheduled` on disconnect, same "nothing does this
-automatically" reasoning as why marking a fixture *completed* stays a
-manual admin action (see `web/README.md`'s `/admin/fixtures/[id]` section)
-— a dropped connection is this app's own reconnect logic kicking in, not
-the match actually ending. Best-effort and silent on failure (logged, not
-surfaced to crew) — a broadcast that's already successfully live should
-never be interrupted or nagged over a badge on the website failing to
-update. One implementation wrinkle: `HttpURLConnection` only allows a
-hardcoded set of HTTP methods and rejects `PATCH` outright, so
-`SupabaseClient.setPatchMethod` reflectively overwrites the `method` field
-`java.net.HttpURLConnection` itself declares — the standard workaround,
-since `PUT` isn't a safe substitute (PostgREST's `PUT` semantics require
-replacing every column on the row, not patching one).
+automatically" reasoning as why marking a fixture *completed* is still
+never automatic either (see below) — a dropped connection is this app's
+own reconnect logic kicking in, not the match actually ending. Best-effort
+and silent on failure (logged, not surfaced to crew) — a broadcast that's
+already successfully live should never be interrupted or nagged over a
+badge on the website failing to update. One implementation wrinkle:
+`HttpURLConnection` only allows a hardcoded set of HTTP methods and
+rejects `PATCH` outright, so `SupabaseClient.setPatchMethod` reflectively
+overwrites the `method` field `java.net.HttpURLConnection` itself
+declares — the standard workaround, since `PUT` isn't a safe substitute
+(PostgREST's `PUT` semantics require replacing every column on the row,
+not patching one).
+
+**Ending the stream offers to complete the fixture too, with the score
+already on screen.** Tapping END STREAM on a fixture loaded via crew
+sign-in — for a `TWO_TEAM`-scoreboard sport only (rugby/soccer/netball/
+hockey/tennis) — pops a confirm dialog showing the current score
+(`MainActivity.maybeOfferToCompleteFixture`) with "Mark completed" and
+"Just stop streaming." Confirming calls the same
+`SupabaseClient.completeFixture` PATCH the web admin's "Mark as completed"
+action makes (`status='completed'` plus both final scores) — same
+destination, just triggered from the crew's own device instead of a
+separate trip to `/admin/fixtures/[id]`. This is deliberately a confirm
+dialog, not automatic on every End Stream: crew stops streaming for
+reasons that have nothing to do with the match being over (a technical
+restart, switching devices, a break), and finalizing the wrong score at
+that moment would just mean someone has to go fix it on the web anyway.
+Dismissing the dialog does exactly what End Stream always did — stops the
+stream, nothing else. Cricket is excluded on purpose: `CricketState` only
+tracks the *current* innings, overwriting the first team's total the
+moment the second innings starts (`CricketController.swapInnings`), so
+there's no reliable final score to offer yet without new state-tracking;
+Clean Slate/Event has no scoreboard at all. Both still get completed by
+hand from the web admin panel, same as before this feature existed.
 
 **Brand assets.** `res/drawable-nodpi/odl_mark.png` (the scoreboard fallback
 above) and `res/drawable-nodpi/ic_launcher_foreground.png` (the actual app

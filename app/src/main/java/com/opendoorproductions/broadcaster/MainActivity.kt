@@ -1598,6 +1598,65 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         rtmpCamera2.stopStream()
         binding.goLiveBtn.setText(R.string.go_live)
         updateStatus(R.string.status_offline, Color.parseColor("#B7C2CC"))
+        maybeOfferToCompleteFixture()
+    }
+
+    /**
+     * Only offered when a fixture was actually loaded via crew sign-in
+     * (loadedFixtureId is set by applyLoadedFixture) and it's a sport this
+     * app tracks a reliable final score for — TWO_TEAM only. Cricket's
+     * state only tracks the current innings (the first team's total is
+     * overwritten the moment the second innings starts, see CricketState),
+     * so there's no reliable final score to offer there yet; Clean Slate/
+     * Event has no scoreboard at all. Crew can still finish either of
+     * those from the web admin panel exactly as before. Deliberately a
+     * confirm dialog, never automatic — End Stream gets tapped for reasons
+     * that have nothing to do with the match actually being over (a
+     * technical restart, switching devices, a break), and finalizing the
+     * wrong score would need a trip to the web to fix anyway.
+     */
+    private fun maybeOfferToCompleteFixture() {
+        val fixtureId = loadedFixtureId ?: return
+        if (currentSport.layout != ScoreboardLayout.TWO_TEAM) return
+        val session = loadStoredCrewSession() ?: return
+        val state = scoreController.state
+        AlertDialog.Builder(this)
+            .setTitle(R.string.match_finished_title)
+            .setMessage(
+                getString(
+                    R.string.match_finished_message,
+                    state.homeName,
+                    state.homeScore,
+                    state.awayScore,
+                    state.awayName,
+                ),
+            )
+            .setNegativeButton(R.string.just_stop_streaming, null)
+            .setPositiveButton(R.string.mark_completed) { _, _ ->
+                completeFixtureInBackground(session, fixtureId, state.homeScore, state.awayScore)
+            }
+            .show()
+    }
+
+    private fun completeFixtureInBackground(session: CrewSession, fixtureId: String, homeScore: Int, awayScore: Int) {
+        Thread {
+            try {
+                val fresh = ensureFreshSessionBlocking(session)
+                supabaseClient.completeFixture(fresh.accessToken, fixtureId, homeScore, awayScore)
+                uiHandler.post {
+                    Toast.makeText(this, R.string.fixture_marked_completed, Toast.LENGTH_SHORT).show()
+                }
+            } catch (error: Exception) {
+                Log.e(TAG, "Could not mark fixture completed", error)
+                uiHandler.post {
+                    Toast.makeText(
+                        this,
+                        getString(R.string.mark_completed_failed, error.message ?: "unknown error"),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
+        }.start()
     }
 
     private fun cancelReconnect() {

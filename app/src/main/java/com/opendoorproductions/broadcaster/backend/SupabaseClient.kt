@@ -257,6 +257,29 @@ class SupabaseClient(private val baseUrl: String, private val anonKey: String) {
         )
     }
 
+    /**
+     * The in-app equivalent of the web admin's "Mark as completed" action
+     * (web/app/admin/fixtures/[id]/actions.ts's completeFixtureAction) —
+     * same two fields, same status flip, just triggered from the crew's
+     * own confirm dialog on End Stream instead of a separate trip to
+     * /admin. Deliberately requires the crew to confirm first
+     * (MainActivity's End Stream handler) rather than firing automatically
+     * on every stream stop — a crew member might stop streaming for a
+     * reason that has nothing to do with the match actually being over.
+     */
+    fun completeFixture(accessToken: String, fixtureId: String, homeScore: Int, awayScore: Int) {
+        val body = JSONObject()
+            .put("status", "completed")
+            .put("final_home_score", homeScore)
+            .put("final_away_score", awayScore)
+        request(
+            "PATCH",
+            "$baseUrl/rest/v1/fixtures?id=eq.${encode(fixtureId)}",
+            authHeaders(accessToken) + ("Content-Type" to "application/json"),
+            body.toString(),
+        )
+    }
+
     fun getBroadcastCredentials(accessToken: String, fixtureId: String): BroadcastCredentials {
         val url = "$baseUrl/rest/v1/fixture_broadcast_credentials" +
             "?fixture_id=eq.${encode(fixtureId)}" +

@@ -123,6 +123,13 @@
     <string name="reset_score_message">This sets both scores back to 0. This cannot be undone.</string>
     <string name="cancel">Cancel</string>
 
+    <string name="match_finished_title">Match finished?</string>
+    <string name="match_finished_message">Final score: %1$s %2$d – %3$d %4$s\n\nThis marks the fixture completed on the site and shows this score, so make sure it\'s right before confirming.</string>
+    <string name="mark_completed">Mark completed</string>
+    <string name="just_stop_streaming">Just stop streaming</string>
+    <string name="fixture_marked_completed">Fixture marked completed</string>
+    <string name="mark_completed_failed">Could not mark the fixture completed: %1$s</string>
+
     <string name="camera_permission_required">Camera and microphone permission are required to stream.</string>
     <string name="enter_rtmp_details">Enter an RTMP URL and stream key before going live.</string>
 </resources>
