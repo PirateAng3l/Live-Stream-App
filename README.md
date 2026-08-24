@@ -291,6 +291,36 @@ picked locally either) means Open Door Live's own mark shows there instead
 (`renderCurrentOverlayBitmap`'s `logoBitmap ?: odlMarkBitmap`), never a bare
 gap the way the other three sponsor corners go blank when unassigned.
 
+**Loading a fixture also means the app can mark it live on the site.**
+Nothing used to flip a fixture's status to `live` at all — the public
+schedule (`web`'s `/schedule` and `/`) showed every fixture as "Scheduled"
+right up until an admin visited `/admin/fixtures/[id]` and manually marked
+it completed, with no indication in between that a match was actually
+streaming. Now, the moment the RTMP connection actually succeeds
+(`MainActivity.onConnectionSuccess`, including a reconnect after a drop),
+`SupabaseClient.markFixtureLive` PATCHes that fixture's `status` to `live` —
+RLS (`fixtures_update_own_school`, migration 0005) already lets a
+school_operator update any column on their own school's fixtures, the same
+policy that lets them enter a final score. The web's `StatusBadge`
+component already renders a `live` status as a red "LIVE" badge (it just
+never had anything to show it for), so this needed no web-side change at
+all. Only fires when a fixture was actually loaded via crew sign-in
+(`loadedFixtureId != null`) — manual RTMP entry has no fixture row to
+update and is unaffected. Deliberately one-way: nothing here ever reverts
+status back to `scheduled` on disconnect, same "nothing does this
+automatically" reasoning as why marking a fixture *completed* stays a
+manual admin action (see `web/README.md`'s `/admin/fixtures/[id]` section)
+— a dropped connection is this app's own reconnect logic kicking in, not
+the match actually ending. Best-effort and silent on failure (logged, not
+surfaced to crew) — a broadcast that's already successfully live should
+never be interrupted or nagged over a badge on the website failing to
+update. One implementation wrinkle: `HttpURLConnection` only allows a
+hardcoded set of HTTP methods and rejects `PATCH` outright, so
+`SupabaseClient.setPatchMethod` reflectively overwrites the `method` field
+`java.net.HttpURLConnection` itself declares — the standard workaround,
+since `PUT` isn't a safe substitute (PostgREST's `PUT` semantics require
+replacing every column on the row, not patching one).
+
 **Brand assets.** `res/drawable-nodpi/odl_mark.png` (the scoreboard fallback
 above) and `res/drawable-nodpi/ic_launcher_foreground.png` (the actual app
 launcher icon, referenced from `mipmap-anydpi-v26/ic_launcher.xml`) are both

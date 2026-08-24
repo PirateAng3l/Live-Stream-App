@@ -1759,6 +1759,31 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
             binding.goLiveBtn.setText(R.string.end_stream)
             updateStatus(R.string.status_live, Color.parseColor("#3ECF6E"))
         }
+        markFixtureLiveInBackground()
+    }
+
+    /**
+     * No-op for manual RTMP entry (loadedFixtureId stays null unless a
+     * fixture was actually loaded via crew sign-in) — the standalone flow
+     * has no fixture row to update and must keep working exactly as
+     * before. Fires on every successful connection, including a
+     * reconnect, which just re-PATCHes the same status='live' value —
+     * harmless, not worth guarding against.
+     */
+    private fun markFixtureLiveInBackground() {
+        val fixtureId = loadedFixtureId ?: return
+        val session = loadStoredCrewSession() ?: return
+        Thread {
+            try {
+                val fresh = ensureFreshSessionBlocking(session)
+                supabaseClient.markFixtureLive(fresh.accessToken, fixtureId)
+            } catch (error: Exception) {
+                // Best-effort: the "LIVE" badge on the public schedule is a
+                // nice-to-have, not something that should ever get in the way
+                // of the actual broadcast that's already successfully live.
+                Log.w(TAG, "Could not mark fixture live", error)
+            }
+        }.start()
     }
 
     override fun onDisconnect() {

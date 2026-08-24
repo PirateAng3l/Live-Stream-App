@@ -230,6 +230,33 @@ class SupabaseClient(private val baseUrl: String, private val anonKey: String) {
         }
     }
 
+    /**
+     * Flips a fixture to status='live' the moment the RTMP connection
+     * actually succeeds (MainActivity.onConnectionSuccess) — nothing else
+     * in the system ever sets this, so without it the schedule page shows
+     * every fixture as "Scheduled" right up until a school_operator visits
+     * /admin and manually marks it completed. RLS's fixtures_update_own_school
+     * (migration 0005) is what allows this: a school_operator can update any
+     * column, including status, on their own school's fixtures — the same
+     * policy that already lets them enter a final score.
+     *
+     * Deliberately one-way: nothing here ever reverts status back to
+     * 'scheduled' on disconnect. A dropped connection triggers this app's
+     * own reconnect logic (not a real end of broadcast), and a deliberate
+     * stop still isn't the same as the match actually finishing — same
+     * "nothing does this automatically" reasoning as why completing a
+     * fixture stays a manual admin action (see web's completeFixtureAction).
+     */
+    fun markFixtureLive(accessToken: String, fixtureId: String) {
+        val body = JSONObject().put("status", "live")
+        request(
+            "PATCH",
+            "$baseUrl/rest/v1/fixtures?id=eq.${encode(fixtureId)}",
+            authHeaders(accessToken) + ("Content-Type" to "application/json"),
+            body.toString(),
+        )
+    }
+
     fun getBroadcastCredentials(accessToken: String, fixtureId: String): BroadcastCredentials {
         val url = "$baseUrl/rest/v1/fixture_broadcast_credentials" +
             "?fixture_id=eq.${encode(fixtureId)}" +
@@ -304,10 +331,26 @@ class SupabaseClient(private val baseUrl: String, private val anonKey: String) {
 
     private fun encode(value: String) = URLEncoder.encode(value, StandardCharsets.UTF_8.name())
 
+    /**
+     * HttpURLConnection.setRequestMethod() only accepts a hardcoded list
+     * (GET/POST/HEAD/OPTIONS/PUT/DELETE/TRACE) and throws ProtocolException
+     * for anything else, PATCH included — true on both the JDK and Android's
+     * implementation. PostgREST update requests need a real PATCH (PUT has
+     * different, row-replacement semantics that would require sending every
+     * column), so this is the standard workaround: reflectively overwrite
+     * the `method` field that java.net.HttpURLConnection declares, bypassing
+     * setRequestMethod's whitelist rather than actually calling it.
+     */
+    private fun setPatchMethod(connection: HttpURLConnection) {
+        val methodField = HttpURLConnection::class.java.getDeclaredField("method")
+        methodField.isAccessible = true
+        methodField.set(connection, "PATCH")
+    }
+
     private fun request(method: String, urlStr: String, headers: Map<String, String>, body: String?): String {
         val connection = URL(urlStr).openConnection() as HttpURLConnection
         try {
-            connection.requestMethod = method
+            if (method == "PATCH") setPatchMethod(connection) else connection.requestMethod = method
             connection.connectTimeout = 15_000
             connection.readTimeout = 15_000
             headers.forEach { (key, value) -> connection.setRequestProperty(key, value) }
