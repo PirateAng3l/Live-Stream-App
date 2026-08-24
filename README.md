@@ -14,8 +14,9 @@ This repo now holds all three components of the platform described in
   model, and an edge function that auto-provisions each fixture's YouTube Live
   broadcast. See `backend/README.md`.
 - **`web/` — the public site + admin panel.** The match schedule (Upcoming /
-  Completed, filterable by sport), per-match pages with a login-gated embedded
-  YouTube player, parent sign-up/sign-in, and an internal `/admin` panel
+  Completed, filterable by sport), per-match pages with a login-gated
+  "Watch on YouTube" link (not an embedded player — see `web/README.md`'s
+  `/matches/[id]` section for why), parent sign-up/sign-in, and an internal `/admin` panel
   (create fixtures/teams/sponsors — creating a fixture is what triggers
   YouTube provisioning — and assign sponsors to individual fixtures) for
   `platform_admin`/`school_operator` accounts. A parent can pick which

@@ -46,33 +46,33 @@ session token as normal.
 
 - **Privacy is hardcoded to `unlisted`.** Matches the viewing-access
   decision (spec 4.4) — not meant to be publicly searchable on YouTube.
-- **The video is explicitly marked embeddable.** `liveBroadcasts.insert`'s
-  `status` part has no `embeddable` field — that only exists on the
-  `videos` resource, and a liveBroadcast IS a video resource under the same
-  ID. Without a follow-up `videos.update?part=status` call, a broadcast
-  created via the API defaults to non-embeddable, which is what caused
-  `/matches/[id]`'s YouTube iframe to show "Playback on other websites has
-  been disabled by the video owner" for a live match that played fine
-  directly on YouTube. That call has to repeat `privacyStatus: "unlisted"`
-  alongside `embeddable: true`, since `videos.update` replaces the whole
-  `status` part rather than patching one field. This only fixes broadcasts
-  provisioned after this change — an already-provisioned fixture's video
-  needs its embeddable setting flipped by hand (YouTube Studio → that
-  video → Details → Advanced settings → "Allow embedding") if it's showing
-  this error.
-- **The embeddable setting is read back and logged, not just trusted.** A
-  200 OK from `videos.update` turned out not to be reliable proof the flag
-  actually stuck — a fixture provisioned after the fix above still showed
-  the same embed error days later, confirmed in both a signed-out
-  Incognito window and a signed-in account (ruling out a per-viewer
-  restriction). `setVideoEmbeddable` now follows the `PUT` with a
-  `videos.list?part=status` read and `console.warn`s (visible in this
-  function's own Supabase logs) if `embeddable` still isn't `true` —
-  likely pointing at a channel-level restriction (e.g. the channel not
-  being phone-verified for embedding) rather than a bug in the call
-  itself. Deliberately never throws from this check: it's a diagnostic on
-  top of an update that already succeeded, not something that should fail
-  the whole provisioning run.
+- **The video is still marked embeddable, best-effort, even though the web
+  app no longer relies on it.** `liveBroadcasts.insert`'s `status` part has
+  no `embeddable` field — that only exists on the `videos` resource, and a
+  liveBroadcast IS a video resource under the same ID — so this is a
+  follow-up `videos.update?part=status` call. Confirmed via a live test
+  (`setVideoEmbeddable`'s own read-back check, below) that this is hitting
+  a real, longstanding gap in the YouTube Data API itself:
+  `videos.update` reports 200 OK, but a `videos.list` read straight after
+  still shows `embeddable=false` — not a bug in this call, and not a
+  channel-eligibility issue either (that was the original hypothesis;
+  ruled out once the read-back confirmed the exact "reports success but
+  ignores the change" pattern that's been reported against this same API
+  endpoint by other developers for years, with no known workaround). The
+  practical fix was on the web side instead: `/matches/[id]` links out to
+  YouTube's own watch page rather than embedding an iframe, since direct
+  playback has worked in every test regardless of account. This call
+  stays in provisioning anyway — it's a no-cost best-effort attempt that
+  costs nothing if YouTube's behavior here ever changes, and embeddable
+  still matters for anyone who wants to embed the video somewhere other
+  than this site.
+- **The embeddable setting is read back and logged, not just trusted.**
+  `setVideoEmbeddable` follows its `PUT` with a `videos.list?part=status`
+  read and `console.warn`s (visible in this function's own Supabase logs)
+  if `embeddable` still isn't `true` — which, per the above, it currently
+  always will. Deliberately never throws from this check: it's a
+  diagnostic on top of an update that already succeeded, not something
+  that should fail the whole provisioning run.
 - **`enableAutoStart`/`enableAutoStop` are always on**, so the broadcast
   goes live/ends automatically when the app starts/stops pushing RTMP,
   rather than needing a separate "go live" API call.

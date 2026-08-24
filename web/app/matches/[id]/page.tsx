@@ -72,17 +72,35 @@ export default async function MatchPage({ params }: MatchPageProps) {
           </div>
         ) : fixture.youtubeVideoId ? (
           parent ? (
-            // Same video ID serves both the live stream and, once it ends,
-            // the replay — that's how YouTube Live broadcasts work (spec
-            // 9.7), so this embed needs no "is it live or a replay" branch.
-            <div className="aspect-video overflow-hidden rounded-lg border border-white/10">
-              <iframe
-                className="h-full w-full"
-                src={`https://www.youtube.com/embed/${fixture.youtubeVideoId}`}
-                title={`${fixture.homeTeamName} vs ${fixture.awayTeamName}`}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
+            // Not an embedded iframe: YouTube's `embeddable` flag turned out
+            // to be a known, longstanding gap in the Data API — videos.update
+            // reports success but the flag doesn't actually take effect (see
+            // provision-fixture-broadcast's own comment), so an in-page
+            // embed just shows YouTube's "disabled by the video owner"
+            // error for anyone who isn't the channel owner. Direct YouTube
+            // playback has worked in every test regardless, so this links
+            // straight to the watch page instead — same login gate (still
+            // has to be a signed-in parent to see this button at all), just
+            // the actual playback happens on YouTube's own page rather than
+            // inline here. Same video ID serves both the live stream and,
+            // once it ends, the replay (spec 9.7), so this needs no "is it
+            // live or a replay" branch either.
+            <div className="flex aspect-video flex-col items-center justify-center gap-4 rounded-lg border border-white/10 bg-panel p-6 text-center">
+              <p className="text-textsecondary">
+                {fixture.status === "live"
+                  ? "This match is streaming live now."
+                  : fixture.status === "completed"
+                    ? "Watch the replay on YouTube."
+                    : "The stream will play on YouTube once it goes live."}
+              </p>
+              <a
+                href={`https://www.youtube.com/watch?v=${fixture.youtubeVideoId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white"
+              >
+                {fixture.status === "live" ? "Watch live on YouTube" : "Watch on YouTube"}
+              </a>
             </div>
           ) : (
             <div className="flex aspect-video flex-col items-center justify-center gap-3 rounded-lg border border-white/10 bg-panel p-6 text-center">

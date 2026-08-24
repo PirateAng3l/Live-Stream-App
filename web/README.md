@@ -40,17 +40,30 @@ separate product).
   in front of a camera, not just what has a scoreboard.
 - **`/matches/[id]`** — a single fixture: teams, school, kickoff time, final
   score if completed, and (spec 4.4) the actual video is gated: signed-out
-  visitors see a "Sign in to watch" prompt instead of the embedded player.
-  The same video ID serves both the live stream and the replay once it ends
-  (that's how a YouTube Live broadcast works), so there's no "is this live or
-  a replay" branch — a signed-in visitor sees the embed whenever the ID
-  exists, live or not. Also shows that fixture's `web_overlay`-layer sponsor
+  visitors see a "Sign in to watch" prompt instead of a way to watch. A
+  signed-in visitor gets a "Watch on YouTube" button that opens the video
+  on YouTube's own site — **not an embedded iframe**. That used to be an
+  embed, but YouTube's `embeddable` video setting turned out to be a real,
+  longstanding gap in the Data API: `videos.update` reports success but the
+  flag doesn't actually take effect (confirmed live — a follow-up
+  `videos.list` read straight after the update still showed `false`; see
+  `provision-fixture-broadcast`'s own README), so an embed just showed
+  YouTube's "Playback on other websites has been disabled by the video
+  owner" error for every viewer except the channel's own owner. Direct
+  YouTube playback worked in every test regardless of account, so this
+  links straight there instead of fighting an API limitation with no known
+  workaround. Same login gate either way — only a signed-in parent sees the
+  button at all. The same video ID serves both the live stream and the
+  replay once it ends (that's how a YouTube Live broadcast works), so
+  there's no "is this live or a replay" branch — the button's own label
+  just says "Watch live on YouTube" vs "Watch on YouTube" depending on
+  `fixture.status`. Also shows that fixture's `web_overlay`-layer sponsor
   badges (logo if set, else a text pill; clickable if a click-through URL is
-  set), absolutely positioned over the video area in the same four slots
-  (lower-third/bottom-left/bottom-right/top-right) the broadcaster app's
-  baked-in overlay uses — see "Web-layer sponsor overlay" below. Shown regardless of
-  sign-in state, since the video is what's gated, not the sponsor badges
-  sitting on top of its placeholder.
+  set), absolutely positioned over that button's placeholder in the same
+  four slots (lower-third/bottom-left/bottom-right/top-right) the
+  broadcaster app's baked-in overlay uses — see "Web-layer sponsor overlay"
+  below. Shown regardless of sign-in state, since the video is what's
+  gated, not the sponsor badges sitting on top of its placeholder.
 - **`/sign-up`**, **`/sign-in`** — email/password via Supabase Auth.
   `/sign-up` now leads with a Parent/School toggle:
   - **Parent** is the original flow — every account created here becomes a
