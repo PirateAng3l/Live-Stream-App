@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BackendNotConfigured, LoadError } from "../../_components";
+import { BackendNotConfigured, LoadError, StatusBadge } from "../../_components";
 import { getCurrentParent } from "@/lib/auth";
 import { formatKickoff } from "@/lib/fixtures";
 import type { FixtureSponsorAssignment } from "@/lib/sponsors";
@@ -54,9 +54,12 @@ export default async function MatchPage({ params }: MatchPageProps) {
       <p className="text-xs uppercase tracking-wide text-textsecondary">
         {fixture.sport} · {fixture.schoolName}
       </p>
-      <h1 className="mt-1 text-2xl font-bold">
-        {fixture.homeTeamName} <span className="text-textsecondary">vs</span> {fixture.awayTeamName}
-      </h1>
+      <div className="mt-1 flex items-center gap-3">
+        <h1 className="text-2xl font-bold">
+          {fixture.homeTeamName} <span className="text-textsecondary">vs</span> {fixture.awayTeamName}
+        </h1>
+        <StatusBadge status={fixture.status} />
+      </div>
       <p className="mt-1 text-sm text-textsecondary">{formatKickoff(fixture.scheduledStart)}</p>
 
       <div className="relative mt-6">
