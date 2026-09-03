@@ -40,6 +40,12 @@ team reference) exist as plain deliverables outside this repo — real
 POPIA/child-safeguarding legal review is still required before any real
 school's students are filmed.
 
+**Crew training.** `docs/training/` has the Field Guide — the illustrated
+booklet handed to a school's operator as part of onboarding, covering the
+admin panel, match-day roles/logistics, the app, per-sport scoring, and
+troubleshooting. Lives as one HTML source with a matching PDF and .docx
+generated from it (see that folder's own README for how).
+
 ## Broadcaster POC (Android)
 
 ## What it does

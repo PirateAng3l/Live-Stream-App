@@ -1,0 +1,9 @@
+{
+  "name": "open-door-live-training-booklet",
+  "private": true,
+  "description": "Regenerates the Field Guide's PDF, icon set, and the matching .docx. See ../README.md.",
+  "devDependencies": {
+    "docx": "^9.7.1",
+    "playwright": "^1.62.1"
+  }
+}
