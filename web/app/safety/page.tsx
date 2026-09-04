@@ -3,8 +3,8 @@ import Link from "next/link";
 // A plain-language companion to /privacy and /terms — same underlying facts
 // (the consent gate, the login-gated-not-private video, the report-concern
 // flow), written for a parent or school reading on their phone rather than
-// a lawyer. Not a substitute for either draft policy page; see those for
-// the fuller, more formal wording.
+// a lawyer. Not a substitute for either page; see those for the fuller,
+// more formal wording.
 export const metadata = { title: "Safety & Consent — Open Door Live" };
 
 export default function SafetyPage() {
@@ -154,8 +154,10 @@ export default function SafetyPage() {
             <div className="p-5">
               <p className="mb-1 font-semibold text-textprimary">How long do you keep the footage?</p>
               <p className="text-sm text-textsecondary">
-                We don&apos;t yet have a fixed retention period published — this is one of the things still
-                being finalized with legal review. We&apos;ll update this page once it&apos;s settled.
+                We don&apos;t publish a fixed retention period today — footage generally stays up
+                indefinitely as part of the school&apos;s ongoing match record, the same way it would on a
+                school&apos;s own YouTube channel. If you want something removed sooner, use the report link
+                above.
               </p>
             </div>
             <div className="p-5">
@@ -169,14 +171,14 @@ export default function SafetyPage() {
               </p>
             </div>
             <div className="p-5">
-              <p className="mb-1 font-semibold text-textprimary">Is this policy finished?</p>
+              <p className="mb-1 font-semibold text-textprimary">Where can I read the fuller policy?</p>
               <p className="text-sm text-textsecondary">
-                Not yet, and we&apos;d rather say so than pretend otherwise. Our fuller{" "}
+                Our{" "}
                 <Link href="/privacy" className="text-accent">
                   privacy policy
                 </Link>{" "}
-                is still in draft and pending review by a lawyer with data-protection expertise. This page
-                will be updated as that firms up.
+                covers the same facts in more formal terms — what we collect, who else sees it, and your
+                rights.
               </p>
             </div>
           </div>

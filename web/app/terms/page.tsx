@@ -1,16 +1,10 @@
 import Link from "next/link";
 
-// DRAFT CONTENT — same caveat as app/privacy/page.tsx: not legal advice,
-// needs a real review before launch.
 export const metadata = { title: "Terms of Use — Open Door Live" };
 
 export default function TermsPage() {
   return (
     <div className="space-y-4 text-sm text-textsecondary">
-      <div className="rounded-lg border border-live/40 bg-live/10 p-4 text-live">
-        <strong>Draft — not yet reviewed by a lawyer.</strong> Not a final, binding terms document.
-      </div>
-
       <h1 className="text-2xl font-bold text-textprimary">Terms of Use</h1>
       <p>
         These terms cover Open Door Live as operated at{" "}

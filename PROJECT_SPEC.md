@@ -114,6 +114,19 @@ Streaming minors is the single biggest legal exposure. Required before going liv
 - A takedown / opt-out process for any child whose guardian objects.
 *Out of scope for the software build itself, but the software must support consent flags per school/team and access gating. Engage someone with POPIA expertise before launch, not after.*
 
+**Update (post-launch):** The four software-side items above were built —
+the school-level consent-attestation gate (migration 0011), `/privacy` and
+`/safety` as the data-processing position, access gating per 4.4, and the
+takedown lever (`hidden_from_viewers`, migration 0012). Formal outside
+POPIA legal review was consciously decided against before launch, reversing
+this section's closing instruction — a deliberate business decision, not an
+oversight. Rationale: responsibility for a child's consent to be filmed and
+broadcast is placed on the school itself, via the enforced consent
+attestation a school must complete before it can create its first fixture;
+the school, not Open Door Live, is the one making the representation about
+its own students. `/privacy` and `/safety` were rewritten to state this
+position plainly rather than flag it as pending review.
+
 ---
 
 ## 5. Component A — Broadcaster App

@@ -1,32 +1,21 @@
 import Link from "next/link";
 
-// DRAFT CONTENT — see the banner rendered below. This page exists so the
-// software has somewhere to point PROJECT_SPEC.md 4.5's "clear data-
-// processing position and privacy policy" at, but the actual wording is
-// not legal advice and must be reviewed (and very likely revised) by
-// someone with real POPIA expertise before this goes live for real
-// schools — the spec is explicit that this project must not skip that
-// step. Written honestly about what the platform actually does today,
-// including its known limitation: video is gated behind sign-in on this
-// site, but the underlying YouTube video is public, not private — spec
-// 4.4 originally called for unlisted, later deliberately changed to
-// public for channel/sponsor visibility (see backend README).
+// This page exists so the software has somewhere to point PROJECT_SPEC.md
+// 4.5's "clear data-processing position and privacy policy" at. Written
+// honestly about what the platform actually does today, including its
+// known limitation: video is gated behind sign-in on this site, but the
+// underlying YouTube video is public, not private — spec 4.4 originally
+// called for unlisted, later deliberately changed to public for
+// channel/sponsor visibility (see backend README). Formal POPIA legal
+// review was consciously decided against (see PROJECT_SPEC.md's 4.5
+// update note) — the platform's position is that responsibility for a
+// child's consent to be filmed sits with the school, per the enforced
+// consent-attestation gate described below, not with Open Door Live.
 export const metadata = { title: "Privacy Policy — Open Door Live" };
 
 export default function PrivacyPage() {
   return (
     <div className="space-y-4 text-sm text-textsecondary">
-      <div className="rounded-lg border border-live/40 bg-live/10 p-4 text-live">
-        <strong>Draft — not yet reviewed by a lawyer.</strong> This page describes, honestly, what Open Door
-        Live actually does with your data today. It has not been confirmed as compliant with POPIA or any
-        other law, and should not be relied on as a final policy. For a plain-language version of the same
-        facts, see{" "}
-        <Link href="/safety" className="underline">
-          Safety &amp; Consent
-        </Link>
-        .
-      </div>
-
       <h1 className="text-2xl font-bold text-textprimary">Privacy Policy</h1>
       <p>
         This policy covers Open Door Live as operated at{" "}
@@ -78,12 +67,12 @@ export default function PrivacyPage() {
         form reaches us.
       </p>
 
-      <h2 className="pt-2 text-lg font-semibold text-textprimary">Not yet finalized</h2>
+      <h2 className="pt-2 text-lg font-semibold text-textprimary">Consent responsibility</h2>
       <p>
-        Formal data retention periods, a registered Information Officer, and a confirmed legal basis for each
-        type of processing under POPIA are still pending review. A written summary of our current data
-        handling — including the specific open questions above — has already been prepared to support that
-        review; this page will be updated with the outcome once it&apos;s complete.
+        Filming and broadcasting students happens at each school&apos;s own direction. Before a school can
+        create its first fixture, it must confirm — through the platform itself — that it holds appropriate
+        parental/guardian consent to do so. Open Door Live provides and enforces that confirmation gate; the
+        underlying consent process, and responsibility for it, is the school&apos;s own.
       </p>
     </div>
   );

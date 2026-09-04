@@ -36,9 +36,12 @@ switch, a public "Report a concern" form, and a parent/school-facing
 `/safety` explainer — lives in `web/`; see its README's "Broadcast
 consent" and "Compliance reference documents" sections for the detail.
 Two further reference documents (a lawyer-review brief and an internal
-team reference) exist as plain deliverables outside this repo — real
-POPIA/child-safeguarding legal review is still required before any real
-school's students are filmed.
+team reference) exist as plain deliverables outside this repo. Formal
+outside POPIA legal review was consciously decided against before launch
+— see `PROJECT_SPEC.md`'s 4.5 update note: responsibility for a child's
+consent to be filmed and broadcast is placed on the school itself, via
+the consent attestation it must complete before creating its first
+fixture.
 
 **Crew training.** `docs/training/` has the Field Guide — the illustrated
 booklet handed to a school's operator as part of onboarding, covering the

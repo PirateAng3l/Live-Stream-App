@@ -103,8 +103,9 @@ separate product).
 - **`/report-concern`** — spec 4.5's public takedown/opt-out intake form,
   no sign-in required. See "Broadcast consent" and `/admin/concern-reports`
   below for the full flow.
-- **`/privacy`, `/terms`** — draft policy pages, explicitly marked as such.
-  See below for why.
+- **`/privacy`, `/terms`** — the platform's stated policy pages. See below
+  for what they cover and what's deliberately not been pursued (formal
+  outside legal review).
 - Signed-in state shows in the header (email + Sign out) via
   `app/layout.tsx`, which is why every page — even ones that don't
   explicitly gate anything — reads the current session. A small footer
@@ -218,15 +219,14 @@ they have one.
   insert/admin-manage RLS shape as `school_signup_requests` (migration
   0007) — `concern_reports_insert_public`/`concern_reports_admin_manage`,
   migration 0013.
-- **`/privacy`, `/terms`** — draft, explicitly-labeled-as-such pages
-  (a red "not yet reviewed by a lawyer" banner on both) giving spec 4.5's
-  "clear data-processing position and privacy policy" somewhere to live.
-  Written honestly about what the platform actually does today, including
-  the spec 4.4 access-control limitation (gated, not cryptographically
-  closed) — not legal advice, and not a substitute for the POPIA-expertise
-  review the spec calls for before real schools go live. Linked from a
-  small footer on every page (`app/layout.tsx`), alongside
-  `/report-concern`.
+- **`/privacy`, `/terms`** — give spec 4.5's "clear data-processing
+  position and privacy policy" somewhere to live. Written honestly about
+  what the platform actually does today, including the spec 4.4
+  access-control limitation (gated, not cryptographically closed).
+  Formal outside POPIA legal review was consciously decided against
+  before launch — see `PROJECT_SPEC.md`'s 4.5 update note and the POPIA
+  bullet under "Not built yet" below. Linked from a small footer on every
+  page (`app/layout.tsx`), alongside `/report-concern`.
 - **`/safety`** — "Safety & Consent," a plain-language companion to
   `/privacy`/`/terms` aimed at a parent or school reading on their phone
   rather than a lawyer: the same underlying facts (login-gated-not-private
@@ -617,8 +617,12 @@ in-app instead, at `/safety` — see above):
   handling a takedown or concern report, for whoever's actually running
   the platform day to day.
 
-Neither is a compliance determination on their own — same caveat as the
-draft `/privacy`/`/terms` pages and the "Broadcast consent" section above.
+Neither is a compliance determination on their own — same caveat as
+`/privacy`/`/terms` and the "Broadcast consent" section above. Formal
+outside legal review of them was consciously decided against before
+launch (see `PROJECT_SPEC.md`'s 4.5 update note) — they remain useful as
+an internal record of the platform's actual data handling, not as
+evidence of a completed review.
 
 ## A known dependency tradeoff, not an oversight
 
@@ -687,11 +691,13 @@ worth doing before this goes anywhere near real production traffic.
   look at first. Making the YouTube video itself private is a manual
   YouTube Studio step (using the fixture's `youtube_video_id`) for
   whoever runs that review — not something to automate away.
-- **POPIA compliance itself is not something this software can claim.**
-  Consent attestation, the takedown intake, and these draft policy pages
-  are the *support* spec 4.5 asked for — real POPIA/child-safeguarding
-  legal review, before any real school's students are filmed, is still
-  outstanding and has to happen outside this codebase.
+- **Formal POPIA legal review — deliberately not pursued before launch,
+  not an oversight.** Consent attestation, the takedown intake, and
+  `/privacy`/`/safety` are the *support* spec 4.5 asked for, and are built.
+  Outside legal review of that setup was consciously declined (see
+  `PROJECT_SPEC.md`'s 4.5 update note): responsibility for a child's
+  consent to be filmed sits with the school, via the attestation it must
+  complete before creating its first fixture — not with Open Door Live.
 - Local timezone display — kickoff times are shown in a fixed UTC format
   (deliberately, to avoid a server/client hydration mismatch); converting to
   the visitor's local time would need a small client component.
