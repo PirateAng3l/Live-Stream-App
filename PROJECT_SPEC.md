@@ -279,6 +279,21 @@ The parent-facing branded website: discover upcoming fixtures (scheduling), watc
 - Favourites (follow a school/team).
 - Notify subscriptions.
 
+**Update (post-launch):** Favourites shipped at school-level only — a parent
+follows a whole school, not an individual team (`favourites.team_id` exists
+in the schema but nothing writes to it yet). Notify subscriptions were never
+built at all — the `notify_subscriptions` table exists, unused; no email or
+push goes out today when a followed fixture is about to go live. Both were
+deliberately deferred rather than dropped: school-level following covers the
+common case, and shipping without notifications avoided a chunk of
+send-time complexity (deliverability, unsubscribe, scheduling) before launch.
+Explicitly flagged by the owner as a feature they want — **push notifications
+specifically**, not just email — and asked to have this raised again the
+next time this platform gets updated or a new feature gets built, rather
+than waiting to be asked. Treat "team-level notify, push-first" as the
+standing next-feature candidate until it's built or the owner says
+otherwise.
+
 **7.3.5 Marketing / about pages**
 - Static informational pages (competitor reference: Image 2).
 
