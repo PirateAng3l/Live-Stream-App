@@ -219,6 +219,17 @@ they have one.
   insert/admin-manage RLS shape as `school_signup_requests` (migration
   0007) — `concern_reports_insert_public`/`concern_reports_admin_manage`,
   migration 0013.
+- **`/admin/directory`** — `platform_admin` only, the live "who's actually
+  signed up" view: every school (contact, subscription status, consent
+  status, operator/follower counts), every `school_operator` account, and
+  every `parent` account (with the schools each one follows). Nothing is
+  exported or snapshotted — it's a straight read of the current tables on
+  each visit (`lib/directory.ts`, flat queries joined in JS, same pattern
+  as `lib/admin.ts`). Needed `profiles.email` to exist, which it didn't —
+  email only ever lived on `auth.users`, unreachable through this app's
+  normal (non-service-role) RLS-scoped queries. Migration 0014 adds
+  `profiles.email`, backfills it from `auth.users`, and updates
+  `handle_new_user()` to keep populating it on every future signup.
 - **`/privacy`, `/terms`** — give spec 4.5's "clear data-processing
   position and privacy policy" somewhere to live. Written honestly about
   what the platform actually does today, including the spec 4.4

@@ -55,6 +55,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
               <Link href="/admin/concern-reports" className="hover:text-accent">
                 Concerns{newConcernReportCount > 0 ? ` (${newConcernReportCount})` : ""}
               </Link>
+              <Link href="/admin/directory" className="hover:text-accent">
+                Directory
+              </Link>
             </>
           )}
         </nav>
