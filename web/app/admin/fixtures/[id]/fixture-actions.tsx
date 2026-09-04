@@ -1,7 +1,13 @@
 "use client";
 
 import { useFormState, useFormStatus } from "react-dom";
-import { completeFixtureAction, deleteFixtureAction, toggleFixtureVisibilityAction, type ActionState } from "./actions";
+import {
+  completeFixtureAction,
+  deleteFixtureAction,
+  retryProvisioningAction,
+  toggleFixtureVisibilityAction,
+  type ActionState,
+} from "./actions";
 
 const initialState: ActionState = {};
 
@@ -101,6 +107,53 @@ function VisibilityToggleButton({ hidden }: { hidden: boolean }) {
       }
     >
       {pending ? "Saving…" : hidden ? "Make video visible again" : "Take down video"}
+    </button>
+  );
+}
+
+export function RetryProvisioningForm({ fixtureId }: { fixtureId: string }) {
+  const [state, formAction] = useFormState(retryProvisioningAction, initialState);
+
+  return (
+    <form
+      action={formAction}
+      onSubmit={(event) => {
+        if (
+          !window.confirm(
+            "Retry provisioning this fixture's broadcast? This creates a fresh YouTube stream key — only do this if the one above never got created.",
+          )
+        ) {
+          event.preventDefault();
+        }
+      }}
+    >
+      <input type="hidden" name="fixture_id" value={fixtureId} />
+      <RetryProvisioningButton />
+      {state?.error && (
+        <p className="mt-2 max-w-md text-xs text-live">
+          {state.error}
+          {state.error.toLowerCase().includes("quotaexceeded") && (
+            <>
+              {" "}
+              — that's YouTube's daily API limit, not a bug. It resets at midnight Pacific Time (~9am SAST); retry
+              after then.
+            </>
+          )}
+        </p>
+      )}
+    </form>
+  );
+}
+
+function RetryProvisioningButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-textprimary hover:border-accent disabled:opacity-50"
+    >
+      {pending ? "Provisioning…" : "Retry provisioning"}
     </button>
   );
 }

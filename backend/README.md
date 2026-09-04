@@ -118,6 +118,62 @@ see the edge function's own README for the exact commands. Until those
 are set, fixture inserts still succeed; the trigger just logs a warning
 and skips provisioning.
 
+## YouTube API quota
+
+Every fixture provisioned costs **201 units** against the YouTube Data
+API's daily quota — `liveBroadcasts.insert` (50), `liveStreams.insert`
+(50), `liveBroadcasts.bind` (50), `videos.update` for embeddable (50),
+`videos.list` to verify it stuck (1); see `youtube.ts`/`provision.ts` in
+the edge function above. Google's default daily quota is **10,000
+units per Google Cloud project**, resetting at midnight Pacific Time
+(~9am SAST) — so **~49 fixtures/day, platform-wide**, before it's spent.
+
+A few things worth knowing about that number:
+
+- **It's per Google Cloud project, not per YouTube channel.** Every
+  school shares this app's own `GOOGLE_OAUTH_CLIENT_ID`/`_SECRET`, even
+  a school streaming through its own connected channel — so this is a
+  platform-wide daily ceiling, not 49 fixtures per school.
+- **It's spent at fixture *creation*, not kickoff.** The trigger above
+  fires provisioning the moment a fixture row is inserted, so quota use
+  tracks how many fixtures get *created* on a given day, not how many
+  matches are actually played that day. Creating a month's fixtures in
+  one sitting is one day's quota hit, not spread across match days.
+  Watching/playback never touches this quota at all — `/matches/[id]`
+  links out to YouTube's own watch page rather than embedding, per the
+  edge function's own README.
+- **The embeddable pair (`videos.update` + `videos.list`, 51 of the 201
+  units) exists only for third-party embedding** — this site never
+  embeds. Dropping that pair would drop the per-fixture cost to 150
+  units (~66 fixtures/day) at the cost of a video no longer being
+  embeddable elsewhere (e.g. a sponsor's own site, a Facebook post). Not
+  done — a product tradeoff, not a bug — but the cheapest lever
+  available if quota ever becomes a real constraint.
+
+**How you'd know it's actually been hit:** a fixture sits on
+"Provisioning…" indefinitely (its admin page,
+`/admin/fixtures/[id]`) because `youtubeVideoId` never got set. The
+function's own logs (Supabase dashboard → Edge Functions →
+provision-fixture-broadcast → Logs) carry Google's error message
+verbatim — look for `quotaExceeded` specifically, e.g. `YouTube API
+error during liveBroadcasts.insert (403): quotaExceeded`. That string
+means "wait for the daily reset," not "something's broken." Proactively,
+Cloud Console → APIs & Services → YouTube Data API v3 → Quotas shows a
+live graph of the day's usage against the 10,000 cap — worth a glance
+ahead of any day with a lot of fixtures going up at once (a busy
+multi-school Saturday's worth of fixture creation, for instance).
+
+**If it happens:** nothing more provisions until the daily reset —
+already-live or already-scheduled broadcasts are completely unaffected,
+since going live/ending a stream is RTMP, not an API call. Once reset,
+retry the stuck fixture from its own admin page (**Retry provisioning**
+button, shown whenever `youtubeVideoId` is still unset —
+`retryProvisioningAction`, `web/app/admin/fixtures/[id]/actions.ts`). If
+this starts happening more than once, that's the actual signal to
+request a quota increase from Google (Cloud Console → YouTube Data API
+v3 → Quotas → request increase) — a review process that takes days, so
+worth starting once real usage says it's needed, not on the day it bites.
+
 ## RLS refinements found after the initial schema
 
 Follow-up migrations that tightened or extended policies from

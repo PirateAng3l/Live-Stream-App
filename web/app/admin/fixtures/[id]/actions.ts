@@ -260,6 +260,73 @@ export async function completeFixtureAction(_prev: ActionState, formData: FormDa
   return {};
 }
 
+/**
+ * provision-fixture-broadcast already accepts being called by a platform
+ * admin or the fixture's own school_operator, not just the on-insert
+ * trigger's service-role key — see that function's own index.ts/
+ * authorize.ts, which name "retry after a failure" as the reason a human
+ * caller is allowed at all. This is just the UI hook that was missing:
+ * before this, retrying meant someone manually POSTing to the function
+ * with a bearer token, which is exactly what this app is for not needing.
+ *
+ * Deliberately not idempotent, same as the function itself isn't — a
+ * successful retry creates a brand-new liveBroadcast/liveStream pair
+ * (fresh stream key) and overwrites this fixture's stored credentials.
+ * That's correct for the actual failure case (nothing usable was ever
+ * created), but means retrying an *already-provisioned* fixture would
+ * orphan the old broadcast and hand out a new stream key — the button
+ * this powers is only shown while youtubeVideoId is still unset.
+ */
+export async function retryProvisioningAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const staff = await getCurrentStaffProfile();
+  if (!staff) return { error: "Not signed in as staff" };
+
+  const fixtureId = String(formData.get("fixture_id") ?? "");
+  if (!fixtureId) return { error: "Missing fixture" };
+
+  let hostSchoolId: string | null;
+  try {
+    hostSchoolId = await loadFixtureHostSchool(fixtureId);
+  } catch (error) {
+    return { error: (error as Error).message };
+  }
+  if (!hostSchoolId) return { error: "Fixture not found" };
+  if (staff.role === "school_operator" && staff.schoolId !== hostSchoolId) {
+    return { error: "This fixture belongs to a different school" };
+  }
+
+  const supabase = createSupabaseServerClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return { error: "Not signed in as staff" };
+
+  const functionsUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/provision-fixture-broadcast`;
+  const response = await fetch(functionsUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ fixture_id: fixtureId }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    // Google's own message comes through verbatim (see youtube.ts's
+    // parseOrThrow) — for a quota exhaustion this is where "quotaExceeded"
+    // actually surfaces, e.g. "YouTube API error during
+    // liveBroadcasts.insert (403): quotaExceeded". Worth reading literally
+    // rather than treating as a generic failure: quota resets daily
+    // (midnight Pacific Time), so that specific message means "try again
+    // tomorrow," not "something's broken."
+    return { error: result.error ?? "Could not provision this fixture's broadcast" };
+  }
+
+  revalidatePath(`/admin/fixtures/${fixtureId}`);
+  revalidatePath("/admin");
+  return {};
+}
+
 export async function deleteFixtureAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const staff = await getCurrentStaffProfile();
   if (!staff) return { error: "Not signed in as staff" };

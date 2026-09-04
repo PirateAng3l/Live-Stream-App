@@ -6,7 +6,7 @@ import { loadFixtureSponsors, loadSponsorsForSchool } from "@/lib/sponsors-serve
 import { sponsorLayerLabel, sponsorPositionLabel, sponsorTierLabel } from "@/lib/sponsors";
 import { getCurrentStaffProfile } from "@/lib/staff";
 import { loadFixtureById } from "@/lib/supabase";
-import { CompleteFixtureForm, DeleteFixtureForm, VisibilityToggleForm } from "./fixture-actions";
+import { CompleteFixtureForm, DeleteFixtureForm, RetryProvisioningForm, VisibilityToggleForm } from "./fixture-actions";
 import { AssignSponsorForm, RemoveSponsorForm } from "./sponsor-forms";
 
 export const dynamic = "force-dynamic";
@@ -61,6 +61,18 @@ export default async function FixtureDetailPage({ params }: FixtureDetailPagePro
       <p className="mt-1 text-sm text-textsecondary">
         {fixture.youtubeVideoId ? "Ready to stream" : "Provisioning…"}
       </p>
+      {!fixture.youtubeVideoId && (
+        <div className="mt-2 rounded-lg border border-white/10 bg-panel p-3">
+          <p className="text-xs text-textsecondary">
+            Still on &quot;Provisioning…&quot; after a minute or two usually means the automatic attempt failed —
+            check this function&apos;s logs in the Supabase dashboard (Edge Functions →
+            provision-fixture-broadcast) for why, then retry below.
+          </p>
+          <div className="mt-2">
+            <RetryProvisioningForm fixtureId={fixture.id} />
+          </div>
+        </div>
+      )}
 
       <div className="mt-4 flex gap-3">
         <Link
