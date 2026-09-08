@@ -170,3 +170,20 @@ Deno.test("a non-ok response throws with the Google error message, not a silent 
     /quotaExceeded/,
   );
 });
+
+Deno.test("a token-refresh failure surfaces Google's OAuth error, not a bare status text", async () => {
+  const { fn } = fakeFetch(400, {
+    error: "invalid_grant",
+    error_description: "Token has been expired or revoked.",
+  });
+
+  await assert.rejects(
+    () =>
+      refreshAccessToken(fn, {
+        clientId: "client-id",
+        clientSecret: "client-secret",
+        refreshToken: "refresh-token",
+      }),
+    /invalid_grant: Token has been expired or revoked\./,
+  );
+});

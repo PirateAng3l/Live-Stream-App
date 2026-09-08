@@ -30,15 +30,45 @@ const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
 
 type FetchFn = typeof fetch;
 
-interface GoogleErrorBody {
+interface DataApiErrorBody {
   error?: { message?: string };
+}
+
+/**
+ * Google's OAuth2 token endpoint (oauth2.googleapis.com/token, hit by
+ * refreshAccessToken) uses a completely different, flatter error shape than
+ * the YouTube Data API — {error: "invalid_grant", error_description:
+ * "Token has been expired or revoked."} rather than {error: {message}}.
+ * Before this, parseOrThrow only knew the Data API shape, so every
+ * token-refresh failure fell through to the generic response.statusText —
+ * "Bad Request" for a 400 — with the actual reason (an expired/revoked
+ * refresh token, most commonly) silently discarded. That reason is exactly
+ * what distinguishes "reconnect this school's YouTube account" from "check
+ * GOOGLE_OAUTH_CLIENT_ID/SECRET," so it's worth surfacing rather than
+ * guessing from a bare "Bad Request" in the fixture admin page.
+ */
+interface OAuthErrorBody {
+  error?: string;
+  error_description?: string;
+}
+
+function extractErrorMessage(body: unknown, statusText: string): string {
+  const dataApiMessage = (body as DataApiErrorBody | null)?.error;
+  if (dataApiMessage && typeof dataApiMessage === "object") {
+    return dataApiMessage.message ?? statusText;
+  }
+  const oauthError = body as OAuthErrorBody | null;
+  if (typeof oauthError?.error === "string") {
+    return [oauthError.error, oauthError.error_description].filter(Boolean)
+      .join(": ");
+  }
+  return statusText;
 }
 
 async function parseOrThrow<T>(response: Response, action: string): Promise<T> {
   const body = await response.json().catch(() => null);
   if (!response.ok) {
-    const message = (body as GoogleErrorBody | null)?.error?.message ??
-      response.statusText;
+    const message = extractErrorMessage(body, response.statusText);
     throw new Error(
       `YouTube API error during ${action} (${response.status}): ${message}`,
     );
