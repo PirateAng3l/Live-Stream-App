@@ -28,6 +28,15 @@
     <string name="label_resolution">Resolution</string>
     <string name="label_stream_quality">Stream quality (bitrate)</string>
     <string name="camera_quality_change_after_stream">Change will apply next time you open the app</string>
+    <string name="label_frame_rate">Frame rate</string>
+    <string name="fps_format">%1$d fps</string>
+    <string name="label_auto_focus">Auto focus</string>
+    <string name="label_manual_exposure">Manual exposure</string>
+    <string name="exposure_format">%1$+d EV</string>
+
+    <string name="broadcast_notification_channel_name">Broadcasting</string>
+    <string name="broadcast_notification_title">Open Door Live is broadcasting</string>
+    <string name="broadcast_notification_text">Tap to return to the broadcast controls</string>
 
     <string name="section_crew_signin">CREW SIGN-IN</string>
     <string name="hint_crew_email">Email</string>

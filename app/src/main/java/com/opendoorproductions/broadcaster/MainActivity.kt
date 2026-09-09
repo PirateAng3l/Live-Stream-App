@@ -1,11 +1,13 @@
 package com.opendoorproductions.broadcaster
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -119,6 +121,21 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
             ?: StreamBitrate.STANDARD.kbps
     }
 
+    // Same "read once, changing it only takes effect on recreate()" rule as
+    // resolution/bitrate above — re-preparing the video encoder at a new fps
+    // mid-broadcast means tearing it down first, the same real risk. Falls
+    // back to DEFAULT_FPS if the saved value isn't (or is no longer, e.g.
+    // after a phone swap) one of this device's supportedFpsOptions().
+    private val streamFps: Int by lazy {
+        prefs.getInt(PREF_STREAM_FPS, DEFAULT_FPS).takeIf { it in supportedFpsOptions() } ?: DEFAULT_FPS
+    }
+
+    // Populated once the camera actually opens (readDeviceExposureRange, called
+    // from startPreview alongside readDeviceZoomRange) — Camera2's real min/max
+    // AE compensation varies by device, so this default is only ever used for
+    // the brief window before that first callback runs.
+    private var exposureRange = -2..2
+
     // Blank on purpose: OverlayChrome only draws these as a text fallback when a slot
     // has no image, and an unused/not-yet-set-up sponsor slot should be invisible on
     // the overlay rather than showing a generic placeholder label.
@@ -176,6 +193,18 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         }
     }
 
+    // Separate from the camera/mic request above (requested contextually, right
+    // before the first Go Live, rather than bundled into that upfront request)
+    // so an existing install upgrading to this version — camera/mic already
+    // granted long ago — still gets asked. Best-effort only: declining doesn't
+    // block Go Live or BroadcastForegroundService, which still pins the process
+    // at foreground importance either way (that's the background-camera
+    // restriction this whole feature exists for) — it only means the
+    // service's mandatory ongoing notification won't actually be visible.
+    private val notificationPermissionRequest = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
+
     private val pickLogoImage = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         applyPickedImage(uri, LOGO_IMAGE_FILE, binding.logoThumbnail) { logoBitmap = it }
     }
@@ -225,6 +254,8 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         setupPresetControls()
         setupZoomControl()
         setupCameraQualityControls()
+        setupFpsSpinner()
+        setupFocusExposureControls()
         setupCrewSignIn()
         onSportChanged()
         updateStatus(R.string.status_offline, Color.parseColor("#B7C2CC"))
@@ -265,11 +296,14 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         // as "on" — that mismatch was why returning from another app previously
         // left the camera dark until the whole app was force-closed and
         // relaunched (a fresh isOnPreview=false to begin with). Left alone while
-        // isStreaming or reconnectPending — the reconnect/backoff logic already
-        // owns those cases (prepareAndStartStream re-prepares the camera itself
-        // on each attempt) and there's no foreground service here to keep a
-        // broadcast alive in the background anyway, so tearing the camera down
-        // ourselves mid-retry would only fight that logic instead of helping.
+        // isStreaming or reconnectPending — those are exactly the cases
+        // BroadcastForegroundService is running for (see
+        // startBroadcastForegroundService), keeping this whole process at
+        // foreground importance so the background-camera restriction this
+        // comment is otherwise describing doesn't apply, and so the
+        // reconnect/backoff logic (which re-prepares the camera itself on
+        // each attempt) doesn't get fought by tearing the camera down here
+        // mid-retry.
         if (cameraPrepared && !rtmpCamera2.isStreaming && !reconnectPending) {
             rtmpCamera2.stopPreview()
             cameraPrepared = false
@@ -285,6 +319,12 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         if (rtmpCamera2.isOnPreview) {
             rtmpCamera2.stopPreview()
         }
+        // Idempotent — a no-op if no broadcast session was in progress. The
+        // service's own android:stopWithTask default (true) already handles
+        // the user swiping the app away from Recents, but onDestroy() can
+        // also fire for other reasons (e.g. the OS reclaiming this process
+        // under memory pressure), so this doesn't rely on that alone.
+        stopBroadcastForegroundService()
     }
 
     private fun hasPermissions(): Boolean {
@@ -311,7 +351,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
 
     private fun startPreview() {
         binding.openGlView.post {
-            if (rtmpCamera2.prepareAudio() && rtmpCamera2.prepareVideo(streamWidth, streamHeight, 30, streamBitrateKbps * 1024, 0)) {
+            if (rtmpCamera2.prepareAudio() && rtmpCamera2.prepareVideo(streamWidth, streamHeight, streamFps, streamBitrateKbps * 1024, 0)) {
                 overlayFilter = ImageObjectFilterRender()
                 rtmpCamera2.glInterface.setFilter(overlayFilter)
                 overlayFilter.setImage(renderCurrentOverlayBitmap())
@@ -319,6 +359,13 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
                 overlayFilter.setPosition(0f, 0f)
                 rtmpCamera2.startPreview()
                 readDeviceZoomRange()
+                // The camera reopens fresh (Camera2 defaults: continuous AF on,
+                // 0 EV) every time startPreview() runs — including every return
+                // from a locked screen (see onPause/onResume) — so the saved
+                // auto-focus/exposure preferences have to be re-applied here
+                // every time too, not just once at first launch.
+                applyAutoFocus(binding.autoFocusSwitch.isChecked)
+                readDeviceExposureRange()
             } else {
                 cameraPrepared = false
                 Toast.makeText(this, "Could not open camera/mic for preview", Toast.LENGTH_LONG).show()
@@ -347,6 +394,166 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         } catch (error: Exception) {
             Log.w(TAG, "Could not read camera zoom range, defaulting to 0.6x-5x", error)
         }
+    }
+
+    /**
+     * Narrows PREFERRED_FPS_OPTIONS down to whatever this device's active
+     * camera actually reports supporting (Camera2's CONTROL_AE_AVAILABLE_
+     * TARGET_FPS_RANGES, via RootEncoder's getSupportedFps()) — a candidate
+     * fps only makes the list if some supported range actually contains it,
+     * same "ask the device, don't assume" reasoning as deviceZoomRange.
+     * Safe to call before the camera is opened (rtmpCamera2 just needs to
+     * exist): it queries CameraCharacteristics for the back camera, not a
+     * live capture session, which is also why setupFpsSpinner (onCreate)
+     * doesn't have to wait for startPreview() the way readDeviceZoomRange
+     * does.
+     */
+    private fun supportedFpsOptions(): List<Int> {
+        return try {
+            val ranges = rtmpCamera2.getSupportedFps()
+            PREFERRED_FPS_OPTIONS.filter { candidate -> ranges.any { candidate in it.lower..it.upper } }
+                .ifEmpty { listOf(DEFAULT_FPS) }
+        } catch (error: Exception) {
+            Log.w(TAG, "Could not read supported camera fps, defaulting to $DEFAULT_FPS", error)
+            listOf(DEFAULT_FPS)
+        }
+    }
+
+    private fun setupFpsSpinner() {
+        val options = supportedFpsOptions()
+        val labels = options.map { getString(R.string.fps_format, it) }
+        val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, labels) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getView(position, convertView, parent) as TextView
+                view.setTextColor(Color.WHITE)
+                return view
+            }
+
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getDropDownView(position, convertView, parent) as TextView
+                view.setTextColor(Color.WHITE)
+                view.setPadding(24, 20, 24, 20)
+                return view
+            }
+        }
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        binding.fpsSpinner.adapter = adapter
+        binding.fpsSpinner.setSelection(options.indexOf(streamFps).coerceAtLeast(0))
+        binding.fpsSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selected = options[position]
+                if (selected == streamFps) return
+                prefs.edit().putInt(PREF_STREAM_FPS, selected).apply()
+                if (rtmpCamera2.isStreaming) {
+                    Toast.makeText(this@MainActivity, R.string.camera_quality_change_after_stream, Toast.LENGTH_LONG).show()
+                } else {
+                    recreate()
+                }
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+        }
+    }
+
+    /**
+     * enableAutoFocus()/disableAutoFocus() report false (not throw) when
+     * called before the camera is actually open — harmless here since the
+     * real call happens from startPreview()'s success branch, but a device
+     * with no Camera2 AF control at all throws instead, which is what the
+     * try/catch (rather than just checking the boolean) actually guards
+     * against — disabling the switch so the operator isn't left toggling a
+     * control that silently does nothing.
+     */
+    private fun applyAutoFocus(enabled: Boolean) {
+        try {
+            val applied = if (enabled) rtmpCamera2.enableAutoFocus() else rtmpCamera2.disableAutoFocus()
+            if (!applied) Log.w(TAG, "Camera did not accept auto focus=$enabled")
+        } catch (error: Exception) {
+            Log.w(TAG, "Auto focus not supported on this device", error)
+            binding.autoFocusSwitch.isEnabled = false
+            binding.autoFocusSwitch.isChecked = false
+        }
+    }
+
+    /**
+     * value is an absolute AE compensation step (not a delta), already
+     * clamped to exposureRange by every caller's own coercion — see
+     * readDeviceExposureRange and setupFocusExposureControls.
+     */
+    private fun applyExposure(value: Int) {
+        try {
+            rtmpCamera2.setExposure(value)
+        } catch (error: Exception) {
+            Log.w(TAG, "setExposure($value) failed", error)
+        }
+        binding.exposureValueLabel.text = getString(R.string.exposure_format, value)
+    }
+
+    /**
+     * Camera2's real min/max AE compensation range varies by device (some
+     * report a single-value range, meaning no compensation control at all —
+     * handled the same as an outright read failure: manual exposure is
+     * disabled rather than left offering a slider that can't move). Called
+     * every time the camera (re)opens, same as readDeviceZoomRange, since
+     * getMinExposure()/getMaxExposure() need a live camera session.
+     */
+    private fun readDeviceExposureRange() {
+        try {
+            val min = rtmpCamera2.getMinExposure()
+            val max = rtmpCamera2.getMaxExposure()
+            if (max <= min) throw IllegalStateException("Device reports no exposure compensation range ($min..$max)")
+            exposureRange = min..max
+            binding.exposureSeekBar.max = max - min
+            val manualEnabled = binding.manualExposureSwitch.isChecked
+            val ev = if (manualEnabled) prefs.getInt(PREF_EXPOSURE_VALUE, 0).coerceIn(exposureRange) else 0
+            binding.exposureSeekBar.progress = ev - min
+            applyExposure(ev)
+        } catch (error: Exception) {
+            Log.w(TAG, "Manual exposure not supported on this device", error)
+            binding.manualExposureSwitch.isEnabled = false
+            binding.manualExposureSwitch.isChecked = false
+            binding.exposureRow.visibility = View.GONE
+        }
+    }
+
+    /**
+     * Auto focus applies live (no encoder rebuild involved, unlike
+     * resolution/bitrate/fps) — same reasoning as the zoom slider already
+     * applying immediately. Manual exposure's on/off switch reveals/hides
+     * exposureRow rather than the slider always being visible, since "off"
+     * has a real meaning here (reset to 0 EV / plain auto-exposure) that a
+     * permanently-visible slider at some arbitrary leftover position would
+     * misrepresent.
+     */
+    private fun setupFocusExposureControls() {
+        binding.autoFocusSwitch.isChecked = prefs.getBoolean(PREF_AUTO_FOCUS_ENABLED, true)
+        binding.autoFocusSwitch.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean(PREF_AUTO_FOCUS_ENABLED, isChecked).apply()
+            applyAutoFocus(isChecked)
+        }
+
+        val manualExposureEnabled = prefs.getBoolean(PREF_MANUAL_EXPOSURE_ENABLED, false)
+        binding.manualExposureSwitch.isChecked = manualExposureEnabled
+        binding.exposureRow.visibility = if (manualExposureEnabled) View.VISIBLE else View.GONE
+        binding.manualExposureSwitch.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean(PREF_MANUAL_EXPOSURE_ENABLED, isChecked).apply()
+            binding.exposureRow.visibility = if (isChecked) View.VISIBLE else View.GONE
+            val ev = if (isChecked) prefs.getInt(PREF_EXPOSURE_VALUE, 0).coerceIn(exposureRange) else 0
+            binding.exposureSeekBar.progress = ev - exposureRange.first
+            applyExposure(ev)
+        }
+
+        binding.exposureSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
+                if (!fromUser) return
+                val ev = progress + exposureRange.first
+                prefs.edit().putInt(PREF_EXPOSURE_VALUE, ev).apply()
+                applyExposure(ev)
+            }
+
+            override fun onStartTrackingTouch(bar: SeekBar) = Unit
+            override fun onStopTrackingTouch(bar: SeekBar) = Unit
+        })
     }
 
     private fun setupZoomControl() {
@@ -450,7 +657,10 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
      * choice to prefs immediately either way, and only calls recreate()
      * (which re-reads prefs from scratch and re-preps video at the new
      * settings) when nothing is currently streaming; otherwise it just
-     * toasts that the change will apply next time.
+     * toasts that the change will apply next time. setupFpsSpinner follows
+     * the exact same rule for streamFps, kept as its own function only
+     * because its options come from supportedFpsOptions() rather than a
+     * fixed enum, unlike setupEnumSpinner's two callers below.
      */
     private fun setupCameraQualityControls() {
         setupEnumSpinner(
@@ -1624,11 +1834,38 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         updateStatus(R.string.status_connecting, Color.parseColor("#F2B33D"))
         if (prepareAndStartStream()) {
             binding.goLiveBtn.setText(R.string.end_stream)
+            startBroadcastForegroundService()
         } else {
             autoReconnectEnabled = false
             updateStatus(R.string.status_failed, Color.parseColor("#E4392F"))
             Toast.makeText(this, "Could not prepare the encoder to start streaming", Toast.LENGTH_LONG).show()
         }
+    }
+
+    /**
+     * Pins the process at foreground importance (via a mandatory ongoing
+     * notification + wake lock — see BroadcastForegroundService's own doc
+     * comment) for as long as a broadcast session is in progress, so the
+     * camera/encoder/RTMP connection this Activity owns keeps running
+     * through a locked screen or another app coming to the front instead of
+     * being torn down by Android's background-camera restriction. Tied to
+     * the broadcast *session* (started here, stopped everywhere
+     * autoReconnectEnabled goes back to false — manual stop, cancelled
+     * reconnect, or an unrecoverable auth error) rather than to isStreaming
+     * alone, so a connection drop mid-retry doesn't drop foreground priority
+     * right when the reconnect loop needs it most.
+     */
+    private fun startBroadcastForegroundService() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionRequest.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        ContextCompat.startForegroundService(this, Intent(this, BroadcastForegroundService::class.java))
+    }
+
+    private fun stopBroadcastForegroundService() {
+        stopService(Intent(this, BroadcastForegroundService::class.java))
     }
 
     /**
@@ -1640,7 +1877,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
      * throughout; only the streaming encoders get torn down and rebuilt here.
      */
     private fun prepareAndStartStream(): Boolean {
-        if (!rtmpCamera2.prepareAudio() || !rtmpCamera2.prepareVideo(streamWidth, streamHeight, 30, streamBitrateKbps * 1024, 0)) {
+        if (!rtmpCamera2.prepareAudio() || !rtmpCamera2.prepareVideo(streamWidth, streamHeight, streamFps, streamBitrateKbps * 1024, 0)) {
             return false
         }
         overlayFilter = ImageObjectFilterRender()
@@ -1656,6 +1893,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         autoReconnectEnabled = false
         cancelPendingReconnect()
         rtmpCamera2.stopStream()
+        stopBroadcastForegroundService()
         binding.goLiveBtn.setText(R.string.go_live)
         updateStatus(R.string.status_offline, Color.parseColor("#B7C2CC"))
         maybeOfferToCompleteFixture()
@@ -1725,6 +1963,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         if (rtmpCamera2.isStreaming) {
             rtmpCamera2.stopStream()
         }
+        stopBroadcastForegroundService()
         binding.goLiveBtn.setText(R.string.go_live)
         updateStatus(R.string.status_offline, Color.parseColor("#B7C2CC"))
         Toast.makeText(this, R.string.reconnect_cancelled, Toast.LENGTH_SHORT).show()
@@ -1843,6 +2082,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         runOnUiThread {
             autoReconnectEnabled = false
             cancelPendingReconnect()
+            stopBroadcastForegroundService()
             updateStatus(R.string.status_failed, Color.parseColor("#E4392F"))
             binding.goLiveBtn.setText(R.string.go_live)
             Toast.makeText(this, "RTMP auth error — check the stream key", Toast.LENGTH_LONG).show()
@@ -1950,5 +2190,17 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         const val PREF_CREW_IS_ADMIN = "crew_is_admin"
         const val PREF_STREAM_RESOLUTION = "stream_resolution"
         const val PREF_STREAM_BITRATE = "stream_bitrate"
+        const val PREF_STREAM_FPS = "stream_fps"
+        const val PREF_AUTO_FOCUS_ENABLED = "auto_focus_enabled"
+        const val PREF_MANUAL_EXPOSURE_ENABLED = "manual_exposure_enabled"
+        const val PREF_EXPOSURE_VALUE = "exposure_value"
+        const val DEFAULT_FPS = 30
+
+        // Candidates only — setupFpsSpinner narrows this to whatever
+        // getSupportedFps() says this device's camera actually offers (see
+        // supportedFpsOptions), same "ask the device, don't assume" approach
+        // as deviceZoomRange. 24 and 60 are the two other frame rates crews
+        // asked for; not an exhaustive list of every rate Camera2 could report.
+        val PREFERRED_FPS_OPTIONS = listOf(24, 30, 60)
     }
 }

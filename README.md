@@ -213,17 +213,17 @@ both came from `MainActivity` having no `onPause`/`onResume` handling at all
 beyond the on-screen match timer.
 
 - **Camera:** `onCreate` used to call `startPreview()` once, directly, and
-  never again. Android revokes camera access from backgrounded apps outright
-  (there's no foreground service here to hold onto it), so `rtmpCamera2`
-  ended up in a state where `isOnPreview` still reported `true` while the
-  camera itself was actually dead — nothing ever noticed or recovered, short
-  of a fresh `onCreate` from a full relaunch. `onPause` now calls
-  `stopPreview()` and `onResume` calls it again via `maybeStartPreview()`,
-  making every return to the foreground behave like the original cold
-  launch. This is skipped whenever `rtmpCamera2.isStreaming` or a
-  reconnect is in progress (`reconnectPending`) — RootEncoder re-prepares
-  the camera itself on every stream/reconnect attempt regardless of preview
-  state, so tearing it down here would only fight that logic, not help it.
+  never again. Android revokes camera access from backgrounded apps outright,
+  so `rtmpCamera2` ended up in a state where `isOnPreview` still reported
+  `true` while the camera itself was actually dead — nothing ever noticed or
+  recovered, short of a fresh `onCreate` from a full relaunch. `onPause` now
+  calls `stopPreview()` and `onResume` calls it again via
+  `maybeStartPreview()`, making every return to the foreground behave like
+  the original cold launch. This is skipped whenever `rtmpCamera2.isStreaming`
+  or a reconnect is in progress (`reconnectPending`) — those are exactly the
+  cases `BroadcastForegroundService` covers instead (see "Broadcasting
+  through a locked screen" below), so tearing the camera down here would
+  only fight that, not help it.
 - **Fixture list:** `refreshCrewFixturesInBackground()` used to run exactly
   once, from `setupCrewSignIn()` at cold launch, and swallowed any failure
   silently (by design — see its comment — so a stale-token blip on startup
@@ -234,6 +234,87 @@ beyond the on-screen match timer.
   it — a full manual sign-out + sign-in — happened. It's now also called
   from `onResume`, so every return to the foreground (not just a fresh
   process) gets a fresh attempt.
+
+## Broadcasting through a locked screen
+
+The section above fixes the *idle preview* case — screen locks, camera
+recovers on return. Actually going live has a stricter problem: Android's
+background-camera restriction applies just as much mid-broadcast as it does
+to idle preview, so without help, locking the screen (or the crew's screen
+timeout kicking in — some test devices cap out at 10 minutes with no "never"
+option) would kill a live stream outright, not just the preview.
+
+`BroadcastForegroundService` (a plain, unbound `Service` — it holds no
+reference to `rtmpCamera2` and does no camera/RTMP work itself) exists purely
+to pin the whole app process at foreground importance for as long as a
+broadcast is genuinely in progress, via `startForeground()`'s mandatory
+ongoing notification plus a partial wake lock. As long as *any* component in
+a process — an Activity or a Service — counts as foreground, Android treats
+the whole process that way, so `MainActivity`'s own camera/encoder/RTMP
+session (unchanged, still entirely Activity-owned) keeps running through a
+locked screen exactly as if the app were still on top, the same trick a
+video-call app uses to survive the screen turning off mid-call.
+
+Started the moment a Go Live attempt succeeds
+(`startBroadcastForegroundService`, from `startStreamingFresh`) and stopped
+everywhere `autoReconnectEnabled` goes back to `false` — a manual End Stream,
+"Stop Reconnecting", or an unrecoverable auth error — rather than tied to
+`rtmpCamera2.isStreaming` alone. That distinction matters: a dropped
+connection mid-retry flips `isStreaming` to `false` between attempts, and
+that's exactly when losing foreground priority would be worst — the
+reconnect/backoff loop (see above) needs the process to stay alive to keep
+retrying. `onDestroy` also stops it defensively (idempotent, a no-op if no
+broadcast was in progress) for any Activity teardown that isn't the user
+swiping the task away from Recents — that case is already handled by the
+service's own `android:stopWithTask` default (`true`), which deliberately
+ends an orphaned broadcast rather than leaving one running with no UI able to
+control it.
+
+The ongoing notification is unavoidable — it's what Android requires in
+exchange for foreground priority, not a design choice — and on Android 13+
+showing it needs the `POST_NOTIFICATIONS` runtime permission, requested
+once, best-effort, right before the first Go Live rather than bundled into
+the upfront camera/mic request (so an existing install upgrading to this
+version still gets asked, since camera/mic were likely already granted long
+ago). Declining it doesn't block Go Live or the service — the process still
+gets pinned at foreground importance either way, which is the actual
+mechanism keeping the camera alive; the notification just won't be visible.
+
+## Camera settings — frame rate, auto focus, manual exposure
+
+Three additions to the Camera settings tab, alongside the existing
+resolution/zoom/bitrate controls:
+
+- **Frame rate.** `supportedFpsOptions()` asks the device's own Camera2
+  characteristics (`RtmpCamera2.getSupportedFps()`) which of 24/30/60fps it
+  actually reports supporting, rather than presenting a fixed list some
+  phones can't honor — same "ask the device, don't assume" approach the zoom
+  slider already uses for its range. Persisted like resolution/bitrate:
+  changing it saves immediately but only takes effect on the next
+  `recreate()` (immediately if nothing's currently streaming, otherwise next
+  time the app opens) since re-preparing the video encoder at a new fps mid-
+  broadcast means tearing it down first.
+- **Auto focus.** A plain on/off switch (`RtmpCamera2.enableAutoFocus()` /
+  `disableAutoFocus()`), on by default. Applies immediately, no
+  recreate needed — unlike resolution/bitrate/fps, toggling it doesn't touch
+  the encoder. Devices with no Camera2 autofocus control at all (the
+  `android.hardware.camera.autofocus` manifest feature is already declared
+  optional) get the switch disabled rather than left offering a control that
+  silently does nothing.
+- **Manual exposure.** Off by default (plain auto-exposure). Switching it on
+  reveals a slider spanning this device's real AE compensation range
+  (`getMinExposure()`/`getMaxExposure()` — varies by phone, read once per
+  camera open) and applies it live via `setExposure()`. Switching it back off
+  resets to neutral (0 EV) rather than leaving the last dragged value applied
+  invisibly. A device that reports no real compensation range at all disables
+  the switch instead of offering a slider that can't move.
+
+All three re-apply every time the camera actually (re)opens
+(`startPreview()`'s success path, right where `readDeviceZoomRange()` already
+runs) — Camera2 resets to its own defaults (continuous AF on, 0 EV) on every
+fresh open, including the ones the "camera survives backgrounding" fix above
+now causes on every return from a locked screen, so the saved preferences
+have to be re-applied there too, not just once at first launch.
 
 ## What it deliberately does NOT do (yet)
 
