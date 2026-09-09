@@ -717,6 +717,11 @@ worth doing before this goes anywhere near real production traffic.
   `PROJECT_SPEC.md`'s 4.5 update note): responsibility for a child's
   consent to be filmed sits with the school, via the attestation it must
   complete before creating its first fixture — not with Open Door Live.
-- Local timezone display — kickoff times are shown in a fixed UTC format
-  (deliberately, to avoid a server/client hydration mismatch); converting to
-  the visitor's local time would need a small client component.
+- Per-visitor local timezone display — kickoff times are shown in a fixed
+  CAT format (deliberately, to avoid a server/client hydration mismatch —
+  see `formatKickoff`, `lib/fixtures.ts`), not each individual visitor's
+  own local timezone. Fixed-zone display was always the intent, not a
+  placeholder; it briefly said UTC instead of CAT (2 hours off from the
+  kickoff time everyone here actually means) until that got fixed.
+  Per-visitor localization would need a small client component and isn't
+  planned — every fixture's host school and viewer here is in CAT anyway.

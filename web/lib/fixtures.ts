@@ -128,19 +128,25 @@ const MONTHS = [
 ];
 
 /**
- * Always UTC, deliberately — formatting in the visitor's local timezone
+ * CAT — South Africa's local time, a fixed UTC+2 with no daylight saving —
+ * rather than each visitor's own local timezone. A per-visitor local time
  * would mean the server-rendered HTML and the client's first render
  * disagree (Next.js hydration mismatch: the server doesn't know the
- * visitor's timezone). A clearly-labeled fixed timezone is simpler and
- * correct; converting to local time would need a small client component,
- * left for later.
+ * visitor's timezone); CAT is a fixed offset computed identically on
+ * server and client either way, so it doesn't have that problem, and it's
+ * what every fixture's host school and viewer here actually is. Used to
+ * show UTC instead — technically correct but 2 hours off from the kickoff
+ * time everyone here actually means.
  */
+const CAT_OFFSET_MS = 2 * 60 * 60 * 1000;
+
 export function formatKickoff(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
+  const utcDate = new Date(iso);
+  if (Number.isNaN(utcDate.getTime())) return iso;
+  const date = new Date(utcDate.getTime() + CAT_OFFSET_MS);
   const day = date.getUTCDate();
   const month = MONTHS[date.getUTCMonth()];
   const hours = String(date.getUTCHours()).padStart(2, "0");
   const minutes = String(date.getUTCMinutes()).padStart(2, "0");
-  return `${day} ${month} · ${hours}:${minutes} UTC`;
+  return `${day} ${month} · ${hours}:${minutes} CAT`;
 }

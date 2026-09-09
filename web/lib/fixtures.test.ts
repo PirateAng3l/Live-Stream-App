@@ -145,8 +145,12 @@ describe("distinctSports", () => {
 });
 
 describe("formatKickoff", () => {
-  it("formats in UTC regardless of the runtime's local timezone", () => {
-    expect(formatKickoff("2026-08-20T14:05:00Z")).toBe("20 Aug · 14:05 UTC");
+  it("formats in CAT (UTC+2) regardless of the runtime's local timezone", () => {
+    expect(formatKickoff("2026-08-20T14:05:00Z")).toBe("20 Aug · 16:05 CAT");
+  });
+
+  it("rolls over to the next day when the +2 offset crosses midnight", () => {
+    expect(formatKickoff("2026-08-20T23:15:00Z")).toBe("21 Aug · 01:15 CAT");
   });
 
   it("returns the raw input instead of throwing on an unparseable date", () => {
