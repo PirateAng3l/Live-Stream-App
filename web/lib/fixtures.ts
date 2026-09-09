@@ -14,7 +14,8 @@ export interface FixtureRow {
   status: FixtureStatus;
   host_school_id: string;
   home_team_id: string;
-  away_team_id: string;
+  /** Null for a Clean Slate/Event fixture (sport "other") — there's no opposing team. */
+  away_team_id: string | null;
   youtube_video_id: string | null;
   final_home_score: number | null;
   final_away_score: number | null;
@@ -38,9 +39,9 @@ export interface FixtureSummary {
   status: FixtureStatus;
   hostSchoolId: string;
   homeTeamId: string;
-  awayTeamId: string;
+  awayTeamId: string | null;
   homeTeamName: string;
-  awayTeamName: string;
+  awayTeamName: string | null;
   schoolName: string;
   youtubeVideoId: string | null;
   finalHomeScore: number | null;
@@ -71,7 +72,7 @@ export function resolveFixtureSummaries(
     homeTeamId: fixture.home_team_id,
     awayTeamId: fixture.away_team_id,
     homeTeamName: teamNames.get(fixture.home_team_id) ?? "Home",
-    awayTeamName: teamNames.get(fixture.away_team_id) ?? "Away",
+    awayTeamName: fixture.away_team_id ? (teamNames.get(fixture.away_team_id) ?? "Away") : null,
     schoolName: schoolNames.get(fixture.host_school_id) ?? "",
     youtubeVideoId: fixture.youtube_video_id,
     finalHomeScore: fixture.final_home_score,

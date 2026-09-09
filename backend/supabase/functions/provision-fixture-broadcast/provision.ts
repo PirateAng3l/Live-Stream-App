@@ -21,7 +21,8 @@ export interface FixtureForProvisioning {
   scheduledStart: string; // ISO 8601
   hostSchoolId: string;
   homeTeamName: string;
-  awayTeamName: string;
+  /** Null for a Clean Slate/Event fixture (sport "other") — there's no opposing team. */
+  awayTeamName: string | null;
 }
 
 export interface YoutubeAccount {
@@ -60,7 +61,9 @@ export interface ProvisionResult {
 }
 
 function broadcastTitle(fixture: FixtureForProvisioning): string {
-  return `${fixture.homeTeamName} vs ${fixture.awayTeamName} (${fixture.sport})`;
+  return fixture.awayTeamName
+    ? `${fixture.homeTeamName} vs ${fixture.awayTeamName} (${fixture.sport})`
+    : `${fixture.homeTeamName} (${fixture.sport})`;
 }
 
 export async function provisionFixtureBroadcast(

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { StatusBadge } from "./_components";
+import { MatchTitle, StatusBadge } from "./_components";
 import { getCurrentParent } from "@/lib/auth";
 import { loadFavouriteSchoolIds } from "@/lib/favourites-server";
 import { filterByFavouriteSchools, type FixtureSummary, formatKickoff, groupFixturesByTab } from "@/lib/fixtures";
@@ -88,7 +88,7 @@ export default async function HomePage() {
                     <StatusBadge status={fixture.status} />
                   </div>
                   <div className="mt-1 font-semibold">
-                    {fixture.homeTeamName} <span className="text-textsecondary">vs</span> {fixture.awayTeamName}
+                    <MatchTitle homeTeamName={fixture.homeTeamName} awayTeamName={fixture.awayTeamName} />
                   </div>
                   <div className="mt-1 text-sm text-textsecondary">
                     {fixture.schoolName} · {formatKickoff(fixture.scheduledStart)}

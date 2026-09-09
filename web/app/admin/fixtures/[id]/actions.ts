@@ -133,11 +133,17 @@ export async function updateFixtureAction(_prev: ActionState, formData: FormData
 
   const sport = String(formData.get("sport") ?? "");
   const homeTeamId = String(formData.get("home_team_id") ?? "");
-  const awayTeamId = String(formData.get("away_team_id") ?? "");
+  // Blank whenever the Clean Slate/Event form didn't render the away-team
+  // select at all — a prize-giving or concert has no opposing team.
+  // Migration 0015's check constraint is the real backstop (away_team_id
+  // is only allowed to be null when sport = 'other').
+  const awayTeamIdRaw = String(formData.get("away_team_id") ?? "");
+  const awayTeamId = awayTeamIdRaw || null;
   const scheduledStartLocal = String(formData.get("scheduled_start") ?? "");
 
   if (!sport) return { error: "Sport is required" };
-  if (!homeTeamId || !awayTeamId) return { error: "Home and away teams are required" };
+  if (!homeTeamId) return { error: "A team is required" };
+  if (sport !== "other" && !awayTeamId) return { error: "Home and away teams are required" };
   if (homeTeamId === awayTeamId) return { error: "Home and away teams must be different" };
   if (!scheduledStartLocal) return { error: "Kickoff time is required" };
 

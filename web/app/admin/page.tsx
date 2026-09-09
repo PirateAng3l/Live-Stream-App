@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LoadError, StatusBadge } from "../_components";
+import { LoadError, MatchTitle, StatusBadge } from "../_components";
 import { loadFixturesForStaff } from "@/lib/admin";
 import { formatKickoff } from "@/lib/fixtures";
 import { getCurrentStaffProfile } from "@/lib/staff";
@@ -50,7 +50,7 @@ export default async function AdminFixturesPage() {
                   <StatusBadge status={fixture.status} />
                 </div>
                 <div className="mt-1 font-semibold">
-                  {fixture.homeTeamName} <span className="text-textsecondary">vs</span> {fixture.awayTeamName}
+                  <MatchTitle homeTeamName={fixture.homeTeamName} awayTeamName={fixture.awayTeamName} />
                 </div>
                 <div className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-textsecondary">
                   <span>{fixture.schoolName}</span>

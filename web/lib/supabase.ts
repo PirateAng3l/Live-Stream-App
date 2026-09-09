@@ -19,7 +19,13 @@ export async function resolveNames(
   fixtures: FixtureRow[],
 ): Promise<{ teams: TeamRow[]; schools: SchoolRow[] }> {
   const supabase = createSupabaseServerClient();
-  const teamIds = Array.from(new Set(fixtures.flatMap((f) => [f.home_team_id, f.away_team_id])));
+  // away_team_id is null for a Clean Slate/Event fixture — filtered out
+  // before hitting .in(), which can't take a literal null as a value.
+  const teamIds = Array.from(
+    new Set(
+      fixtures.flatMap((f) => [f.home_team_id, f.away_team_id]).filter((id): id is string => id !== null),
+    ),
+  );
   const schoolIds = Array.from(new Set(fixtures.map((f) => f.host_school_id)));
 
   const [teamsResult, schoolsResult] = await Promise.all([

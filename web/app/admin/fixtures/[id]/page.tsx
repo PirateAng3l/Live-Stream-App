@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { LoadError, StatusBadge } from "../../../_components";
+import { LoadError, MatchTitle, StatusBadge } from "../../../_components";
 import { formatKickoff } from "@/lib/fixtures";
 import { loadFixtureSponsors, loadSponsorsForSchool } from "@/lib/sponsors-server";
 import { sponsorLayerLabel, sponsorPositionLabel, sponsorTierLabel } from "@/lib/sponsors";
@@ -53,7 +53,7 @@ export default async function FixtureDetailPage({ params }: FixtureDetailPagePro
       </p>
       <div className="mt-1 flex items-center gap-3">
         <h1 className="text-2xl font-bold">
-          {fixture.homeTeamName} <span className="text-textsecondary">vs</span> {fixture.awayTeamName}
+          <MatchTitle homeTeamName={fixture.homeTeamName} awayTeamName={fixture.awayTeamName} />
         </h1>
         <StatusBadge status={fixture.status} />
       </div>

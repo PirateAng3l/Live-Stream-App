@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BackendNotConfigured, LoadError, StatusBadge } from "../_components";
+import { BackendNotConfigured, LoadError, MatchTitle, StatusBadge } from "../_components";
 import { getCurrentParent } from "@/lib/auth";
 import { loadFavouriteSchoolIds } from "@/lib/favourites-server";
 import {
@@ -146,7 +146,7 @@ function FixtureRow({ fixture }: { fixture: FixtureSummary }) {
           <StatusBadge status={fixture.status} />
         </div>
         <div className="mt-1 font-semibold">
-          {fixture.homeTeamName} <span className="text-textsecondary">vs</span> {fixture.awayTeamName}
+          <MatchTitle homeTeamName={fixture.homeTeamName} awayTeamName={fixture.awayTeamName} />
         </div>
         <div className="mt-1 text-sm text-textsecondary">
           {fixture.schoolName} · {formatKickoff(fixture.scheduledStart)}

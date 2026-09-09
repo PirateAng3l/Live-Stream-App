@@ -13,6 +13,28 @@ const STATUS_STYLES: Record<FixtureStatus, string> = {
   cancelled: "bg-white/10 text-textsecondary line-through",
 };
 
+/**
+ * "Home vs Away", or just the home name when there's no away team — a
+ * Clean Slate/Event fixture (sport "other", e.g. a prize-giving or
+ * concert) has nothing to call "away". One shared component so every
+ * fixture-title spot (schedule, home page, match page, admin) handles the
+ * missing-away case the same way instead of six separate ternaries.
+ */
+export function MatchTitle({
+  homeTeamName,
+  awayTeamName,
+}: {
+  homeTeamName: string;
+  awayTeamName: string | null;
+}) {
+  if (!awayTeamName) return <>{homeTeamName}</>;
+  return (
+    <>
+      {homeTeamName} <span className="text-textsecondary">vs</span> {awayTeamName}
+    </>
+  );
+}
+
 export function StatusBadge({ status }: { status: FixtureStatus }) {
   return (
     <span

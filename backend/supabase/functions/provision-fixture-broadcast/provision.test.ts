@@ -187,6 +187,57 @@ Deno.test("the broadcast title is built from both team names and the sport", asy
   );
 });
 
+Deno.test('a Clean Slate/Event fixture with no away team omits "vs" from the title', async () => {
+  const { db } = fakeDb({
+    getFixture: async () => ({
+      ...FIXTURE,
+      sport: "other",
+      awayTeamName: null,
+    }),
+  });
+  let capturedBody = "";
+  const fn = (async (url: string | URL, init?: RequestInit) => {
+    const u = url.toString();
+    if (u.includes("oauth2.googleapis.com/token")) {
+      return new Response(JSON.stringify({ access_token: "at-123" }), {
+        status: 200,
+      });
+    }
+    if (u.includes("/liveBroadcasts?")) {
+      capturedBody = init!.body as string;
+      return new Response(JSON.stringify({ id: "bcast-1" }), { status: 200 });
+    }
+    if (u.includes("/liveStreams")) {
+      return new Response(
+        JSON.stringify({
+          id: "stream-1",
+          cdn: {
+            ingestionInfo: { ingestionAddress: "rtmp://x", streamName: "key" },
+          },
+        }),
+        { status: 200 },
+      );
+    }
+    if (u.includes("/videos?part=status&id=")) {
+      return new Response(
+        JSON.stringify({ items: [{ status: { embeddable: true } }] }),
+        { status: 200 },
+      );
+    }
+    return new Response(JSON.stringify({ id: "bcast-1" }), { status: 200 });
+  }) as typeof fetch;
+
+  await provisionFixtureBroadcast("fixture-1", {
+    db,
+    fetchFn: fn,
+    googleClientId: "id",
+    googleClientSecret: "secret",
+  });
+
+  const sent = JSON.parse(capturedBody);
+  assert.deepEqual(sent.snippet.title, "Riverside 1st XV (other)");
+});
+
 Deno.test("a fresh liveStream is created per call, never reused across fixtures", async () => {
   const { db } = fakeDb();
   const { fn, calls } = fakeGoogleApi();

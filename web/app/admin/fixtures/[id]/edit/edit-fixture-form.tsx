@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { authButtonClass, authInputClass } from "../../../../_components";
 import type { TeamOption } from "@/lib/admin";
@@ -30,6 +31,10 @@ function toDatetimeLocalValue(iso: string): string {
 
 export function EditFixtureForm({ fixture, teams }: { fixture: FixtureSummary; teams: TeamOption[] }) {
   const [state, formAction] = useFormState(updateFixtureAction, initialState);
+  // Same reasoning as the new-fixture form: a Clean Slate/Event fixture
+  // has no opposing team, so away_team_id isn't rendered for it at all.
+  const [sport, setSport] = useState(fixture.sport);
+  const isCleanSlate = sport === "other";
 
   return (
     <div className="mx-auto max-w-sm">
@@ -37,7 +42,13 @@ export function EditFixtureForm({ fixture, teams }: { fixture: FixtureSummary; t
       <form action={formAction} className="space-y-4">
         <input type="hidden" name="fixture_id" value={fixture.id} />
 
-        <select name="sport" required defaultValue={fixture.sport} className={authInputClass}>
+        <select
+          name="sport"
+          required
+          value={sport}
+          onChange={(e) => setSport(e.target.value)}
+          className={authInputClass}
+        >
           {SPORTS.map((sport) => (
             <option key={sport} value={sport}>
               {sportLabel(sport)}
@@ -47,7 +58,7 @@ export function EditFixtureForm({ fixture, teams }: { fixture: FixtureSummary; t
 
         <select name="home_team_id" required defaultValue={fixture.homeTeamId} className={authInputClass}>
           <option value="" disabled>
-            Home team
+            {isCleanSlate ? "Team" : "Home team"}
           </option>
           {teams.map((team) => (
             <option key={team.id} value={team.id}>
@@ -56,16 +67,18 @@ export function EditFixtureForm({ fixture, teams }: { fixture: FixtureSummary; t
           ))}
         </select>
 
-        <select name="away_team_id" required defaultValue={fixture.awayTeamId} className={authInputClass}>
-          <option value="" disabled>
-            Away team
-          </option>
-          {teams.map((team) => (
-            <option key={team.id} value={team.id}>
-              {team.name}
+        {!isCleanSlate && (
+          <select name="away_team_id" required defaultValue={fixture.awayTeamId ?? ""} className={authInputClass}>
+            <option value="" disabled>
+              Away team
             </option>
-          ))}
-        </select>
+            {teams.map((team) => (
+              <option key={team.id} value={team.id}>
+                {team.name}
+              </option>
+            ))}
+          </select>
+        )}
 
         <input
           type="datetime-local"

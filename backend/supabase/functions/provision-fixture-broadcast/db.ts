@@ -31,10 +31,15 @@ export function createSupabaseProvisionDb(client: SupabaseClient): ProvisionDb {
       // Two flat queries instead of an embedded-relation select: keeps the
       // supabase-js typing honest without generated Database types, and
       // doesn't depend on foreign-key constraint names staying stable.
+      // away_team_id is null for a Clean Slate/Event fixture, so it's
+      // filtered out here rather than passed into .in() as a literal null.
+      const teamIds = [fixture.home_team_id, fixture.away_team_id].filter(
+        (id): id is string => id !== null,
+      );
       const { data: teams, error: teamsError } = await client
         .from("teams")
         .select("id, name")
-        .in("id", [fixture.home_team_id, fixture.away_team_id]);
+        .in("id", teamIds);
 
       if (teamsError || !teams) {
         throw new Error(
@@ -43,8 +48,10 @@ export function createSupabaseProvisionDb(client: SupabaseClient): ProvisionDb {
       }
 
       const homeTeam = teams.find((t) => t.id === fixture.home_team_id);
-      const awayTeam = teams.find((t) => t.id === fixture.away_team_id);
-      if (!homeTeam || !awayTeam) {
+      const awayTeam = fixture.away_team_id
+        ? teams.find((t) => t.id === fixture.away_team_id)
+        : null;
+      if (!homeTeam || (fixture.away_team_id && !awayTeam)) {
         throw new Error(
           `Fixture ${fixtureId} references a team that no longer exists`,
         );
@@ -56,7 +63,7 @@ export function createSupabaseProvisionDb(client: SupabaseClient): ProvisionDb {
         scheduledStart: fixture.scheduled_start,
         hostSchoolId: fixture.host_school_id,
         homeTeamName: homeTeam.name,
-        awayTeamName: awayTeam.name,
+        awayTeamName: awayTeam?.name ?? null,
       };
     },
 

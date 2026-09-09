@@ -63,6 +63,17 @@ describe("resolveFixtureSummaries", () => {
     expect(summaries[0]?.awayTeamName).toBe("Away");
     expect(summaries[0]?.schoolName).toBe("");
   });
+
+  it("leaves awayTeamId/awayTeamName null for a Clean Slate/Event fixture with no opposing team", () => {
+    const summaries = resolveFixtureSummaries(
+      [fixtureRow({ sport: "other", away_team_id: null })],
+      TEAMS,
+      SCHOOLS,
+    );
+    expect(summaries[0]?.awayTeamId).toBeNull();
+    expect(summaries[0]?.awayTeamName).toBeNull();
+    expect(summaries[0]?.homeTeamName).toBe("Riverside 1st XV");
+  });
 });
 
 describe("groupFixturesByTab", () => {

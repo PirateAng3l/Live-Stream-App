@@ -161,8 +161,15 @@ they have one.
   "scheduling feature" the spec calls out (7.3.6) — the form does nothing
   but insert a row into `fixtures`; the YouTube broadcast gets provisioned
   automatically from there by the database trigger already built in
-  `backend/` (migration 0002). Needs at least two teams to exist for the
-  school first.
+  `backend/` (migration 0002). Needs at least one team to exist for the
+  school first — two, for anything but Clean Slate/Event. Picking Clean
+  Slate/Event as the sport hides the away-team select entirely rather than
+  making it optional-but-shown: a prize-giving or a concert has no
+  opposing team to name, not just an unfilled one (migration 0015 —
+  `away_team_id` is nullable, but only when `sport = 'other'`, enforced by
+  a check constraint rather than trusted to the form). Switching a fixture
+  between Clean Slate/Event and a scored sport in `/admin/fixtures/[id]/edit`
+  shows or hides that select live as the sport changes.
 - **`/admin/fixtures/[id]`** — a single fixture's detail page: kickoff
   time, status, streaming readiness, and its sponsor placements. Shows
   which sponsors are currently assigned (tier, position, and whether the
@@ -246,7 +253,8 @@ they have one.
   same site-wide footer as the pages above.
 - **`/admin/teams`**, **`/admin/teams/new`**, **`/admin/teams/[id]/edit`** —
   list/create/edit teams for a school. A prerequisite for creating a
-  fixture (a fixture needs two existing team IDs), so it had to come first.
+  fixture (one existing team ID, two for anything but Clean Slate/Event —
+  see `/admin/fixtures/new` above), so it had to come first.
   Deleting a team that's still referenced by a fixture (`home_team_id`/
   `away_team_id` have no `ON DELETE` behavior, deliberately — an orphaned
   reference would be a data-integrity mess) fails with a friendly message

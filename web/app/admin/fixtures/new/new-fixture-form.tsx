@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { authButtonClass, authInputClass } from "../../../_components";
 import type { TeamOption } from "@/lib/admin";
@@ -10,6 +11,11 @@ const initialState: ActionState = {};
 
 export function NewFixtureForm({ schoolId, teams }: { schoolId: string; teams: TeamOption[] }) {
   const [state, formAction] = useFormState(createFixtureAction, initialState);
+  // A Clean Slate/Event fixture (a prize-giving, a concert) has no
+  // opposing team — away_team_id isn't rendered at all for it, so the
+  // form never submits one and createFixtureAction doesn't require it.
+  const [sport, setSport] = useState("");
+  const isCleanSlate = sport === "other";
 
   return (
     <div className="mx-auto max-w-sm">
@@ -17,7 +23,13 @@ export function NewFixtureForm({ schoolId, teams }: { schoolId: string; teams: T
       <form action={formAction} className="space-y-4">
         <input type="hidden" name="school_id" value={schoolId} />
 
-        <select name="sport" required defaultValue="" className={authInputClass}>
+        <select
+          name="sport"
+          required
+          value={sport}
+          onChange={(e) => setSport(e.target.value)}
+          className={authInputClass}
+        >
           <option value="" disabled>
             Sport
           </option>
@@ -30,7 +42,7 @@ export function NewFixtureForm({ schoolId, teams }: { schoolId: string; teams: T
 
         <select name="home_team_id" required defaultValue="" className={authInputClass}>
           <option value="" disabled>
-            Home team
+            {isCleanSlate ? "Team" : "Home team"}
           </option>
           {teams.map((team) => (
             <option key={team.id} value={team.id}>
@@ -39,16 +51,18 @@ export function NewFixtureForm({ schoolId, teams }: { schoolId: string; teams: T
           ))}
         </select>
 
-        <select name="away_team_id" required defaultValue="" className={authInputClass}>
-          <option value="" disabled>
-            Away team
-          </option>
-          {teams.map((team) => (
-            <option key={team.id} value={team.id}>
-              {team.name}
+        {!isCleanSlate && (
+          <select name="away_team_id" required defaultValue="" className={authInputClass}>
+            <option value="" disabled>
+              Away team
             </option>
-          ))}
-        </select>
+            {teams.map((team) => (
+              <option key={team.id} value={team.id}>
+                {team.name}
+              </option>
+            ))}
+          </select>
+        )}
 
         <input
           type="datetime-local"

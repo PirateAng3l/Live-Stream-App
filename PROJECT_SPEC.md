@@ -315,7 +315,8 @@ Team
   id, school_id, name, age_group, sport, crest/badge
 
 Fixture
-  id, sport, home_team_id, away_team_id, school_id (host),
+  id, sport, home_team_id, away_team_id (nullable — a Clean Slate/Event
+  fixture has no opposing team), school_id (host),
   scheduled_start, status (scheduled|live|completed),
   assigned_crew_id,
   youtube_broadcast_id, youtube_video_id, youtube_stream_key,
