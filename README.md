@@ -263,6 +263,23 @@ mixed into one list. Which path a signed-in account gets is decided purely by
 whether its profile has a `school_id` — the same way the web admin panel's
 `resolveSchoolContext` tells the two roles apart.
 
+**A Clean Slate/Event fixture (sport `other`) has no away team**
+(`backend/supabase/migrations/0015_fixtures_away_team_optional.sql` made
+`away_team_id` nullable — see the web README's Clean Slate section). Both
+`getUpcomingFixtures` and `getAllUpcomingFixtures` skip a null
+`away_team_id` when building the teams lookup instead of passing it
+through, and `FixtureSummary.awayTeamName` is `String?` — the dropdown
+label drops the " vs " entirely for these fixtures instead of showing a
+placeholder. This isn't cosmetic: Android's bundled `org.json` converts a
+JSON `null` via `getString()` into the literal 4-character text `"null"`
+rather than throwing, and that string previously ended up inside a
+`teams?id=in.(...)` filter sent to PostgREST — which Postgres rejected
+with `invalid input syntax for type uuid: "null"`, surfaced to crew as a
+sign-in failure the moment their school had even one upcoming Clean
+Slate/Event fixture. Always read a possibly-absent JSON field with the
+`optNullableString` extension (bottom of `SupabaseClient.kt`), never
+`getString`, unless the column is truly guaranteed non-null by the schema.
+
 **Loading a fixture also fetches the home team's real logo.** The small mark to the
 left of each team's name/score in the scoreboard — previously a flat blue (home) /
 red (away) block — is now that team's actual emblem. If the fixture's host school

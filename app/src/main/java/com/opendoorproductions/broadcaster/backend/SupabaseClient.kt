@@ -25,7 +25,8 @@ data class FixtureSummary(
     val sport: String,
     val scheduledStart: String,
     val homeTeamName: String,
-    val awayTeamName: String,
+    /** Null for a Clean Slate/Event fixture (sport "other") — there's no opposing team. */
+    val awayTeamName: String?,
     /**
      * Only populated by getAllUpcomingFixtures (the platform_admin,
      * every-school path) — a school_operator only ever sees their own
@@ -126,7 +127,11 @@ class SupabaseClient(private val baseUrl: String, private val anonKey: String) {
         for (i in 0 until fixtures.length()) {
             val row = fixtures.getJSONObject(i)
             teamIds.add(row.getString("home_team_id"))
-            teamIds.add(row.getString("away_team_id"))
+            // Null for a Clean Slate/Event fixture (sport "other") — skip it, since
+            // row.getString would otherwise return the literal 4-character text
+            // "null" (Android's org.json converts JSON null via toString()), which
+            // Postgres then rejects as invalid input for the teams.id uuid column.
+            row.optNullableString("away_team_id")?.let { teamIds.add(it) }
         }
         val teamsUrl = "$baseUrl/rest/v1/teams" +
             "?id=in.(${teamIds.joinToString(",") { encode(it) }})" +
@@ -161,7 +166,7 @@ class SupabaseClient(private val baseUrl: String, private val anonKey: String) {
                 sport = row.getString("sport"),
                 scheduledStart = row.getString("scheduled_start"),
                 homeTeamName = teamNames[row.getString("home_team_id")] ?: "Home",
-                awayTeamName = teamNames[row.getString("away_team_id")] ?: "Away",
+                awayTeamName = row.optNullableString("away_team_id")?.let { teamNames[it] ?: "Away" },
                 homeLogoUrl = homeLogoUrl,
             )
         }
@@ -190,7 +195,9 @@ class SupabaseClient(private val baseUrl: String, private val anonKey: String) {
         for (i in 0 until fixtures.length()) {
             val row = fixtures.getJSONObject(i)
             teamIds.add(row.getString("home_team_id"))
-            teamIds.add(row.getString("away_team_id"))
+            // Null for a Clean Slate/Event fixture (sport "other") — skip it, see
+            // the identical comment in getUpcomingFixtures above.
+            row.optNullableString("away_team_id")?.let { teamIds.add(it) }
             schoolIds.add(row.getString("host_school_id"))
         }
 
@@ -227,7 +234,7 @@ class SupabaseClient(private val baseUrl: String, private val anonKey: String) {
                 sport = row.getString("sport"),
                 scheduledStart = row.getString("scheduled_start"),
                 homeTeamName = teamNames[row.getString("home_team_id")] ?: "Home",
-                awayTeamName = teamNames[row.getString("away_team_id")] ?: "Away",
+                awayTeamName = row.optNullableString("away_team_id")?.let { teamNames[it] ?: "Away" },
                 schoolName = schoolNames[row.getString("host_school_id")] ?: "Unknown school",
                 homeLogoUrl = schoolLogoUrls[row.getString("host_school_id")],
             )

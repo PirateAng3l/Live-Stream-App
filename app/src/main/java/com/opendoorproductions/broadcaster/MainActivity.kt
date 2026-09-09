@@ -588,7 +588,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         binding.rtmpUrlInput.setText(credentials.ingestionAddress)
         binding.rtmpKeyInput.setText(credentials.streamKey)
         binding.homeNameInput.setText(fixture.homeTeamName)
-        binding.awayNameInput.setText(fixture.awayTeamName)
+        binding.awayNameInput.setText(fixture.awayTeamName.orEmpty())
         Sport.entries.firstOrNull { it.name.equals(fixture.sport, ignoreCase = true) }?.let { matchedSport ->
             currentSport = matchedSport
             binding.sportSpinner.setSelection(Sport.entries.indexOf(matchedSport))
@@ -715,7 +715,8 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
             listOf(getString(R.string.no_fixtures_found))
         } else {
             crewFixtures.map { fixture ->
-                val matchLabel = "${fixture.homeTeamName} vs ${fixture.awayTeamName}"
+                // Clean Slate/Event fixtures (sport "other") have no away team.
+                val matchLabel = fixture.awayTeamName?.let { "${fixture.homeTeamName} vs $it" } ?: fixture.homeTeamName
                 // Only the platform_admin, every-school list (getAllUpcomingFixtures)
                 // populates schoolName — a school_operator's own fixtures are all the
                 // same school, so there's nothing to disambiguate.
