@@ -202,6 +202,39 @@ generated from it (see that folder's own README for how).
   follow-ups), and it can't make a genuinely dead network resolve faster — a long real
   outage means a proportionally long visible gap before it catches back up.
 
+## App lifecycle — camera and fixture list survive backgrounding
+
+Switching away to another app (or just letting the screen lock) used to leave
+the camera preview permanently black on return, recoverable only by force-
+closing the app from Recents and relaunching it — and even then, an
+already-signed-in crew account's fixture list could go stale until they
+manually signed out and back in. Neither was ever an RTMP/network problem;
+both came from `MainActivity` having no `onPause`/`onResume` handling at all
+beyond the on-screen match timer.
+
+- **Camera:** `onCreate` used to call `startPreview()` once, directly, and
+  never again. Android revokes camera access from backgrounded apps outright
+  (there's no foreground service here to hold onto it), so `rtmpCamera2`
+  ended up in a state where `isOnPreview` still reported `true` while the
+  camera itself was actually dead — nothing ever noticed or recovered, short
+  of a fresh `onCreate` from a full relaunch. `onPause` now calls
+  `stopPreview()` and `onResume` calls it again via `maybeStartPreview()`,
+  making every return to the foreground behave like the original cold
+  launch. This is skipped whenever `rtmpCamera2.isStreaming` or a
+  reconnect is in progress (`reconnectPending`) — RootEncoder re-prepares
+  the camera itself on every stream/reconnect attempt regardless of preview
+  state, so tearing it down here would only fight that logic, not help it.
+- **Fixture list:** `refreshCrewFixturesInBackground()` used to run exactly
+  once, from `setupCrewSignIn()` at cold launch, and swallowed any failure
+  silently (by design — see its comment — so a stale-token blip on startup
+  wouldn't nag an operator who hadn't touched anything yet). But that meant
+  a single transient failure (e.g. a network blip while Wi-Fi reconnects
+  right as the screen wakes) had no retry path at all: the fixture list
+  just stayed empty/stale until the only other thing that ever repopulated
+  it — a full manual sign-out + sign-in — happened. It's now also called
+  from `onResume`, so every return to the foreground (not just a fresh
+  process) gets a fresh attempt.
+
 ## What it deliberately does NOT do (yet)
 
 - No SRT fallback, no adaptive bitrate, no thermal/battery instrumentation.

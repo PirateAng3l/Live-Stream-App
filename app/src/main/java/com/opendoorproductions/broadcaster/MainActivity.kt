@@ -59,6 +59,18 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     private lateinit var presetStore: SponsorPresetStore
     private var presetSummaries: List<SponsorPresetSummary> = emptyList()
 
+    /**
+     * Tracks whether we've asked the camera for a preview and haven't torn
+     * it back down yet — set synchronously the moment maybeStartPreview()
+     * decides to call startPreview(), not read back from
+     * rtmpCamera2.isOnPreview, because startPreview()'s actual camera work
+     * runs inside an openGlView.post{} callback that hasn't executed yet by
+     * the time onResume's own guard check would run (onCreate/onStart/
+     * onResume all run synchronously before the posted Runnable does) — an
+     * isOnPreview-based guard would race and open the camera twice.
+     */
+    private var cameraPrepared = false
+
     private val supabaseClient by lazy { SupabaseClient(BackendConfig.supabaseUrl, BackendConfig.supabaseAnonKey) }
     private var crewFixtures: List<FixtureSummary> = emptyList()
 
@@ -158,7 +170,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         val granted = grants[Manifest.permission.CAMERA] == true &&
             grants[Manifest.permission.RECORD_AUDIO] == true
         if (granted) {
-            startPreview()
+            maybeStartPreview()
         } else {
             Toast.makeText(this, R.string.camera_permission_required, Toast.LENGTH_LONG).show()
         }
@@ -217,9 +229,13 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         onSportChanged()
         updateStatus(R.string.status_offline, Color.parseColor("#B7C2CC"))
 
-        if (hasPermissions()) {
-            startPreview()
-        } else {
+        // Preview itself is started from onResume (which always runs right after
+        // this returns) rather than here — see onResume/onPause and
+        // maybeStartPreview for why one lifecycle-owned call site replaces what
+        // used to be a same-tick call here plus another in the permission
+        // callback, neither of which ever ran again if the OS killed the
+        // camera while the app was backgrounded.
+        if (!hasPermissions()) {
             permissionRequest.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO))
         }
     }
@@ -227,11 +243,37 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     override fun onResume() {
         super.onResume()
         uiHandler.post(timerTick)
+        maybeStartPreview()
+        // Re-fetches whatever fixtures are now upcoming every time the app comes
+        // back to the foreground — including right after this same onResume's
+        // first firing on a cold launch — rather than only once in
+        // setupCrewSignIn(). Previously a transient failure there (a network
+        // blip while Wi-Fi reconnects after the screen wakes, or simply a fixture
+        // list that changed while backgrounded) was swallowed silently with no
+        // retry, leaving crew stuck with a stale/empty fixture list until they
+        // manually signed out and back in — performCrewSignIn's success path was
+        // the only other thing that ever repopulated it.
+        refreshCrewFixturesInBackground()
     }
 
     override fun onPause() {
         super.onPause()
         uiHandler.removeCallbacks(timerTick)
+        // Camera access is forbidden for backgrounded apps on modern Android
+        // regardless of what we do here, so release it deliberately instead of
+        // leaving rtmpCamera2 in a zombie state that isOnPreview still reports
+        // as "on" — that mismatch was why returning from another app previously
+        // left the camera dark until the whole app was force-closed and
+        // relaunched (a fresh isOnPreview=false to begin with). Left alone while
+        // isStreaming or reconnectPending — the reconnect/backoff logic already
+        // owns those cases (prepareAndStartStream re-prepares the camera itself
+        // on each attempt) and there's no foreground service here to keep a
+        // broadcast alive in the background anyway, so tearing the camera down
+        // ourselves mid-retry would only fight that logic instead of helping.
+        if (cameraPrepared && !rtmpCamera2.isStreaming && !reconnectPending) {
+            rtmpCamera2.stopPreview()
+            cameraPrepared = false
+        }
     }
 
     override fun onDestroy() {
@@ -251,6 +293,22 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
         return camera == PackageManager.PERMISSION_GRANTED && mic == PackageManager.PERMISSION_GRANTED
     }
 
+    /**
+     * The one gate every call site (onCreate's initial launch, the permission
+     * grant callback, and onResume every time the app comes back to the
+     * foreground) goes through before requesting a preview — cameraPrepared is
+     * set here, synchronously, before startPreview()'s real work runs on the
+     * next main-thread loop iteration, so two of these firing in the same tick
+     * (e.g. onCreate's implicit onResume right behind a still-pending
+     * permission grant) can't both slip past the check and open the camera
+     * twice.
+     */
+    private fun maybeStartPreview() {
+        if (cameraPrepared || rtmpCamera2.isStreaming || !hasPermissions()) return
+        cameraPrepared = true
+        startPreview()
+    }
+
     private fun startPreview() {
         binding.openGlView.post {
             if (rtmpCamera2.prepareAudio() && rtmpCamera2.prepareVideo(streamWidth, streamHeight, 30, streamBitrateKbps * 1024, 0)) {
@@ -262,6 +320,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
                 rtmpCamera2.startPreview()
                 readDeviceZoomRange()
             } else {
+                cameraPrepared = false
                 Toast.makeText(this, "Could not open camera/mic for preview", Toast.LENGTH_LONG).show()
             }
         }
@@ -450,9 +509,9 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     // why loading one also persists it the same way manual entry always has.
     private fun setupCrewSignIn() {
         updateCrewSignInUi()
-        if (loadStoredCrewSession() != null) {
-            refreshCrewFixturesInBackground()
-        }
+        // The initial fetch (and every subsequent one) happens from onResume,
+        // which always fires right after onCreate returns — see onResume for
+        // why a fixture list refresh belongs there instead of only here.
 
         binding.crewSignInBtn.setOnClickListener { performCrewSignIn() }
         binding.crewSignOutBtn.setOnClickListener {
