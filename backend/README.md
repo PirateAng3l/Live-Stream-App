@@ -174,6 +174,98 @@ request a quota increase from Google (Cloud Console → YouTube Data API
 v3 → Quotas → request increase) — a review process that takes days, so
 worth starting once real usage says it's needed, not on the day it bites.
 
+## YouTube OAuth token refresh failures (not quota)
+
+A separate failure family from the quota one above — same symptom (a
+fixture stuck on "Provisioning…"), different cause, told apart by the
+error text in the function's logs: quota failures say `quotaExceeded`;
+these say `invalid_grant` or `invalid_client`. Diagnosed the hard way,
+over several hours, on the first real (non-mocked) test of provisioning
+against a live Google account — worth the full account here so it's a
+five-minute fix next time instead of a repeat of that.
+
+**`invalid_grant: Token has been expired or revoked.`** — the stored
+`oauth_refresh_token` itself is dead. The most likely cause for this
+platform's central account: the OAuth client was still in **Testing**
+publishing status, where Google force-expires every refresh token after
+7 days regardless of activity — completely independent of how often the
+app is actually used. Real fix: Cloud Console → **Audience** → check
+**Publishing status** → **Publish app** to reach **In production**,
+which removes the 7-day expiry entirely. Reaching "In production"
+needs the app's domain (home page / privacy / terms links on the
+**Branding** page) verified in **Google Search Console** first, under
+the same Google account that owns the Cloud project. This is a
+*separate, slower* thing from the above: Google's review of the
+sensitive `youtube` scope itself (a written justification plus a short
+demo video, submitted from **Data Access** → **Verification Center**)
+— that review can take days and only affects the "unverified app"
+warning screen and the 100-test-user cap. **It does not block reaching
+"In production," and reaching "In production" is what actually fixes
+the 7-day expiry** — don't wait on the scope review before considering
+this resolved.
+
+**`invalid_client: The OAuth client was not found.`** — the client_id
+in the `GOOGLE_OAUTH_CLIENT_ID` secret doesn't match any real OAuth
+client in the project (deleted, or corrupted in a copy-paste). Check
+Cloud Console → **Credentials** for whether the client still exists;
+Google's own **↺ Restore deleted credentials** link can bring back a
+deleted one within a window. Always copy a client ID via the copy icon
+next to it on that page — never retype it, never copy it back out of a
+chat message or screenshot.
+
+**`invalid_grant: Bad Request`** (generic, unlike the specific "expired
+or revoked" message above) — this one is misleading. It doesn't mean
+the token is expired; it usually means the token (or a client secret)
+picked up a stray character during copy-paste — most often a quote
+mark grabbed along with the value from a JSON display (e.g. selecting
+`"1//abc..."` including the surrounding `"` rather than just the value
+between them). Invisible in a browser text field. Verify before
+assuming anything else is wrong:
+```sql
+select
+  oauth_refresh_token,
+  length(oauth_refresh_token) as len,
+  oauth_refresh_token ~ '\s' as has_whitespace,
+  oauth_refresh_token ~ '[^A-Za-z0-9/_-]' as has_unexpected_chars
+from public.youtube_accounts
+where owner_type = 'platform';
+```
+A real Google refresh token only ever contains letters, digits, `/`,
+`_`, and `-` — either column coming back `true` confirms contamination.
+Fix it in place rather than risking another bad paste:
+```sql
+update public.youtube_accounts
+set oauth_refresh_token = regexp_replace(oauth_refresh_token, '[^A-Za-z0-9/_-]', '', 'g')
+where owner_type = 'platform';
+```
+
+**Minting a replacement refresh token manually** (via
+[OAuth Playground](https://developers.google.com/oauthplayground))
+needs a **Web application**-type OAuth client with
+`https://developers.google.com/oauthplayground` registered as an
+authorized redirect URI. The original `provisioning-script` client is
+a **Desktop** type — Desktop clients are locked to a fixed
+`http://localhost` redirect and the Playground can't use them at all
+(`Error 400: redirect_uri_mismatch`). Worth keeping a dedicated Web
+application client around under a name like "OAuth Playground token
+tool" specifically for this recurring task, alongside the original.
+
+**A refresh token only works with the exact client that issued it.** If
+a new token gets minted under a different OAuth client than the one
+currently configured, `GOOGLE_OAUTH_CLIENT_ID`/`GOOGLE_OAUTH_CLIENT_SECRET`
+in Supabase must be updated to match — and **the function must be
+redeployed afterward**, since an already-warm running instance keeps
+using whatever secret values it read at its last cold start; it won't
+pick up a dashboard secret edit until forced to restart.
+
+**Which `youtube_accounts` row actually matters isn't always the
+platform one.** `getYoutubeAccountForSchool` (`db.ts`) uses a school's
+own account only when `schools.youtube_account_id` is set for that
+school; otherwise it falls back to the row with `owner_type =
+'platform'`. Check `schools.youtube_account_id` before assuming which
+row needs the fix — editing the platform row does nothing if the
+school in question has been pointed at its own account.
+
 ## RLS refinements found after the initial schema
 
 Follow-up migrations that tightened or extended policies from
