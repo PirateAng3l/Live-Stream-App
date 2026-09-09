@@ -150,3 +150,46 @@ export function formatKickoff(iso: string): string {
   const minutes = String(date.getUTCMinutes()).padStart(2, "0");
   return `${day} ${month} · ${hours}:${minutes} CAT`;
 }
+
+const DATETIME_LOCAL_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/;
+
+/**
+ * The inverse of formatKickoff, for the admin fixture form's <input
+ * type="datetime-local">: that value ("YYYY-MM-DDTHH:mm") carries no
+ * timezone of its own, and the form actions that read it run as Next.js
+ * Server Actions — server-side Node, not the admin's browser — so passing
+ * it straight to `new Date(value)` parses it in whatever timezone the
+ * *server process* happens to run in (commonly UTC in production), not CAT
+ * and not the admin's own local timezone either. An admin entering 17:00
+ * ended up with a fixture stored as 17:00 UTC and then displayed (correctly,
+ * per formatKickoff) as 19:00 CAT — the input needs the same fixed CAT
+ * treatment as the display, just applied in reverse.
+ */
+export function parseCatDatetimeLocal(value: string): Date {
+  const match = DATETIME_LOCAL_PATTERN.exec(value);
+  if (!match) return new Date(NaN);
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  return new Date(Date.UTC(year, month - 1, day, hour, minute) - CAT_OFFSET_MS);
+}
+
+/**
+ * The inverse of parseCatDatetimeLocal, for prefilling the edit form's
+ * datetime-local input from a fixture's already-stored UTC instant — reads
+ * it back out as CAT wall-clock time using UTC getters on the shifted
+ * instant (same approach as formatKickoff), not the browser's local Date
+ * getters, so the value shown for editing matches what formatKickoff
+ * displays regardless of the admin's own browser timezone.
+ */
+export function toCatDatetimeLocalValue(iso: string): string {
+  const utcDate = new Date(iso);
+  if (Number.isNaN(utcDate.getTime())) return "";
+  const date = new Date(utcDate.getTime() + CAT_OFFSET_MS);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(
+    date.getUTCHours(),
+  )}:${pad(date.getUTCMinutes())}`;
+}

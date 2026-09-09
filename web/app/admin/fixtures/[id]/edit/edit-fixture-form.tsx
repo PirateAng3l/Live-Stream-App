@@ -4,30 +4,11 @@ import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { authButtonClass, authInputClass } from "../../../../_components";
 import type { TeamOption } from "@/lib/admin";
-import type { FixtureSummary } from "@/lib/fixtures";
+import { toCatDatetimeLocalValue, type FixtureSummary } from "@/lib/fixtures";
 import { SPORTS, sportLabel } from "@/lib/sports";
 import { updateFixtureAction, type ActionState } from "../actions";
 
 const initialState: ActionState = {};
-
-/**
- * datetime-local inputs have no timezone of their own — the browser reads
- * whatever's typed as local wall-clock time, and createFixtureAction /
- * updateFixtureAction both just do `new Date(value).toISOString()`, which
- * interprets it as the browser's local time and converts to UTC for
- * storage. So prefilling this field has to invert that exact conversion:
- * take the stored UTC instant and format it back out using the same local
- * Date getters the browser used going in, or a re-save without touching
- * this field would silently shift the kickoff time.
- */
-function toDatetimeLocalValue(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-    date.getHours(),
-  )}:${pad(date.getMinutes())}`;
-}
 
 export function EditFixtureForm({ fixture, teams }: { fixture: FixtureSummary; teams: TeamOption[] }) {
   const [state, formAction] = useFormState(updateFixtureAction, initialState);
@@ -84,7 +65,7 @@ export function EditFixtureForm({ fixture, teams }: { fixture: FixtureSummary; t
           type="datetime-local"
           name="scheduled_start"
           required
-          defaultValue={toDatetimeLocalValue(fixture.scheduledStart)}
+          defaultValue={toCatDatetimeLocalValue(fixture.scheduledStart)}
           className={authInputClass}
           aria-label="Kickoff time"
         />

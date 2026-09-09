@@ -161,7 +161,19 @@ they have one.
   "scheduling feature" the spec calls out (7.3.6) — the form does nothing
   but insert a row into `fixtures`; the YouTube broadcast gets provisioned
   automatically from there by the database trigger already built in
-  `backend/` (migration 0002). Needs at least one team to exist for the
+  `backend/` (migration 0002). The kickoff time field
+  (`<input type="datetime-local">`) carries no timezone of its own, and
+  `createFixtureAction`/`updateFixtureAction` are Next.js Server Actions —
+  server-side Node, not the admin's browser — so it's parsed with
+  `parseCatDatetimeLocal` (`lib/fixtures.ts`), which treats the entered
+  value as CAT explicitly, rather than `new Date(value)`, which would parse
+  it in whatever timezone the *server process* happens to run in (an admin
+  entering 17:00 was getting 19:00 CAT back on the schedule — the server ran
+  in UTC, so 17:00 got stored as 17:00 UTC, then correctly shown as
+  17:00 UTC + 2 = 19:00 CAT by `formatKickoff`). The edit form's prefill
+  (`toCatDatetimeLocalValue`) is the exact inverse, so re-saving a fixture
+  without touching this field round-trips to the same instant. Needs at
+  least one team to exist for the
   school first — two, for anything but Clean Slate/Event. Picking Clean
   Slate/Event as the sport hides the away-team select entirely rather than
   making it optional-but-shown: a prize-giving or a concert has no

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { parseCatDatetimeLocal } from "@/lib/fixtures";
 import { SPONSOR_LAYERS, SPONSOR_POSITIONS, SPONSOR_TIERS } from "@/lib/sponsors";
 import { getCurrentStaffProfile } from "@/lib/staff";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
@@ -147,7 +148,7 @@ export async function updateFixtureAction(_prev: ActionState, formData: FormData
   if (homeTeamId === awayTeamId) return { error: "Home and away teams must be different" };
   if (!scheduledStartLocal) return { error: "Kickoff time is required" };
 
-  const scheduledStart = new Date(scheduledStartLocal);
+  const scheduledStart = parseCatDatetimeLocal(scheduledStartLocal);
   if (Number.isNaN(scheduledStart.getTime())) return { error: "Kickoff time is invalid" };
 
   const supabase = createSupabaseServerClient();

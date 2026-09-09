@@ -6,8 +6,10 @@ import {
   type FixtureRow,
   formatKickoff,
   groupFixturesByTab,
+  parseCatDatetimeLocal,
   resolveFixtureSummaries,
   type SchoolRow,
+  toCatDatetimeLocalValue,
   type TeamRow,
 } from "./fixtures";
 
@@ -155,5 +157,39 @@ describe("formatKickoff", () => {
 
   it("returns the raw input instead of throwing on an unparseable date", () => {
     expect(formatKickoff("not-a-date")).toBe("not-a-date");
+  });
+});
+
+describe("parseCatDatetimeLocal", () => {
+  it("treats a datetime-local value as CAT wall-clock time, not the runtime's local timezone", () => {
+    // 17:00 CAT is 15:00Z — regression test for the admin entering 17:00 and
+    // getting 19:00 CAT back on the schedule (a server-timezone-dependent
+    // new Date(value) was parsing it as UTC, then formatKickoff added
+    // another +2 on top).
+    expect(parseCatDatetimeLocal("2026-08-20T17:00").toISOString()).toBe("2026-08-20T15:00:00.000Z");
+  });
+
+  it("rolls back to the previous day when CAT is ahead of UTC across midnight", () => {
+    expect(parseCatDatetimeLocal("2026-08-20T01:00").toISOString()).toBe("2026-08-19T23:00:00.000Z");
+  });
+
+  it("round-trips through formatKickoff", () => {
+    const stored = parseCatDatetimeLocal("2026-08-20T17:00").toISOString();
+    expect(formatKickoff(stored)).toBe("20 Aug · 17:00 CAT");
+  });
+
+  it("returns an invalid Date instead of throwing on an unparseable value", () => {
+    expect(Number.isNaN(parseCatDatetimeLocal("not-a-date").getTime())).toBe(true);
+  });
+});
+
+describe("toCatDatetimeLocalValue", () => {
+  it("is the inverse of parseCatDatetimeLocal", () => {
+    const value = "2026-08-20T17:00";
+    expect(toCatDatetimeLocalValue(parseCatDatetimeLocal(value).toISOString())).toBe(value);
+  });
+
+  it("returns an empty string instead of throwing on an unparseable date", () => {
+    expect(toCatDatetimeLocalValue("not-a-date")).toBe("");
   });
 });
