@@ -15,6 +15,7 @@ import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
+import android.view.WindowManager
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.EditText
@@ -1843,16 +1844,30 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
     }
 
     /**
-     * Pins the process at foreground importance (via a mandatory ongoing
-     * notification + wake lock — see BroadcastForegroundService's own doc
-     * comment) for as long as a broadcast session is in progress, so the
-     * camera/encoder/RTMP connection this Activity owns keeps running
-     * through a locked screen or another app coming to the front instead of
-     * being torn down by Android's background-camera restriction. Tied to
-     * the broadcast *session* (started here, stopped everywhere
+     * Two separate Android mechanisms, both needed, solving two separate
+     * problems:
+     *
+     * 1. BroadcastForegroundService pins the *process* at foreground
+     *    importance (via a mandatory ongoing notification + a PARTIAL wake
+     *    lock — CPU only) for as long as a broadcast session is in progress,
+     *    so the camera/encoder/RTMP connection this Activity owns isn't torn
+     *    down by Android's background-camera restriction if the operator
+     *    switches to another app or the screen locks via the power button.
+     *
+     * 2. FLAG_KEEP_SCREEN_ON stops the screen from ever dimming/locking on
+     *    its own timeout in the first place — a PARTIAL wake lock alone does
+     *    NOT do this (that's the "partial" in its name: CPU awake, display
+     *    free to sleep). Without it, once the display actually turns off the
+     *    Activity's window loses its surface — the same GLSurfaceView-backed
+     *    surface the camera renders into — which stalls the stream even
+     *    though the process/camera access survives via the service above.
+     *    This is the fix for a test phone capped at a 10-minute screen
+     *    timeout with no "never" option.
+     *
+     * Both tied to the broadcast *session* (started here, cleared everywhere
      * autoReconnectEnabled goes back to false — manual stop, cancelled
      * reconnect, or an unrecoverable auth error) rather than to isStreaming
-     * alone, so a connection drop mid-retry doesn't drop foreground priority
+     * alone, so a connection drop mid-retry doesn't lose either protection
      * right when the reconnect loop needs it most.
      */
     private fun startBroadcastForegroundService() {
@@ -1862,10 +1877,12 @@ class MainActivity : AppCompatActivity(), ConnectChecker {
             notificationPermissionRequest.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
         ContextCompat.startForegroundService(this, Intent(this, BroadcastForegroundService::class.java))
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
     private fun stopBroadcastForegroundService() {
         stopService(Intent(this, BroadcastForegroundService::class.java))
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
     /**

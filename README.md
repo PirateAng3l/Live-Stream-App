@@ -244,31 +244,53 @@ to idle preview, so without help, locking the screen (or the crew's screen
 timeout kicking in — some test devices cap out at 10 minutes with no "never"
 option) would kill a live stream outright, not just the preview.
 
-`BroadcastForegroundService` (a plain, unbound `Service` — it holds no
-reference to `rtmpCamera2` and does no camera/RTMP work itself) exists purely
-to pin the whole app process at foreground importance for as long as a
-broadcast is genuinely in progress, via `startForeground()`'s mandatory
-ongoing notification plus a partial wake lock. As long as *any* component in
-a process — an Activity or a Service — counts as foreground, Android treats
-the whole process that way, so `MainActivity`'s own camera/encoder/RTMP
-session (unchanged, still entirely Activity-owned) keeps running through a
-locked screen exactly as if the app were still on top, the same trick a
-video-call app uses to survive the screen turning off mid-call.
+This actually takes **two** separate fixes, not one, because "the screen
+locks" covers two different things Android does that each break the stream
+on their own:
 
-Started the moment a Go Live attempt succeeds
-(`startBroadcastForegroundService`, from `startStreamingFresh`) and stopped
-everywhere `autoReconnectEnabled` goes back to `false` — a manual End Stream,
-"Stop Reconnecting", or an unrecoverable auth error — rather than tied to
-`rtmpCamera2.isStreaming` alone. That distinction matters: a dropped
-connection mid-retry flips `isStreaming` to `false` between attempts, and
-that's exactly when losing foreground priority would be worst — the
-reconnect/backoff loop (see above) needs the process to stay alive to keep
-retrying. `onDestroy` also stops it defensively (idempotent, a no-op if no
-broadcast was in progress) for any Activity teardown that isn't the user
-swiping the task away from Recents — that case is already handled by the
-service's own `android:stopWithTask` default (`true`), which deliberately
-ends an orphaned broadcast rather than leaving one running with no UI able to
-control it.
+1. **Losing foreground priority** (the operator switches to another app, or
+   presses the power button to lock the screen). `BroadcastForegroundService`
+   (a plain, unbound `Service` — it holds no reference to `rtmpCamera2` and
+   does no camera/RTMP work itself) exists purely to pin the whole app
+   process at foreground importance for as long as a broadcast is genuinely
+   in progress, via `startForeground()`'s mandatory ongoing notification plus
+   a **partial** wake lock (CPU only — see point 2). As long as *any*
+   component in a process — an Activity or a Service — counts as foreground,
+   Android treats the whole process that way, so `MainActivity`'s own
+   camera/encoder/RTMP session (unchanged, still entirely Activity-owned)
+   isn't torn down by the background-camera restriction.
+2. **The display itself timing out and turning off** (no one touched
+   anything — the screen just goes to sleep on its own, e.g. a test device
+   capped at a 10-minute timeout with no "never" option). A *partial* wake
+   lock deliberately does **not** prevent this — that's what "partial" means:
+   CPU stays awake, the display is still free to sleep. And once the display
+   actually turns off, the Activity's window loses its surface — the same
+   `OpenGlView` surface the camera renders into — which stalls the stream
+   even though the process/camera access itself survives via point 1. Fixed
+   with `Window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)` on
+   `MainActivity`'s own window, which stops the display from ever timing out
+   in the first place while it's set, completely independent of whatever the
+   phone's own Settings > Display timeout is configured to.
+
+Both are necessary; neither alone is sufficient. The first fix without the
+second still goes dark once the screen physically sleeps; the second without
+the first still drops the moment the operator actually switches away to
+another app (the screen can be kept on while a *different* app is in front).
+
+Both are started together and stopped together
+(`startBroadcastForegroundService`/`stopBroadcastForegroundService`), the
+moment a Go Live attempt succeeds and everywhere `autoReconnectEnabled` goes
+back to `false` — a manual End Stream, "Stop Reconnecting", or an
+unrecoverable auth error — rather than tied to `rtmpCamera2.isStreaming`
+alone. That distinction matters: a dropped connection mid-retry flips
+`isStreaming` to `false` between attempts, and that's exactly when losing
+either protection would be worst — the reconnect/backoff loop (see above)
+needs both the process alive and the screen on to keep retrying.
+`onDestroy` also stops both defensively (idempotent, a no-op if no broadcast
+was in progress) for any Activity teardown that isn't the user swiping the
+task away from Recents — that case is already handled by the service's own
+`android:stopWithTask` default (`true`), which deliberately ends an orphaned
+broadcast rather than leaving one running with no UI able to control it.
 
 The ongoing notification is unavoidable — it's what Android requires in
 exchange for foreground priority, not a design choice — and on Android 13+
