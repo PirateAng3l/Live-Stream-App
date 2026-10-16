@@ -36,6 +36,7 @@ export function SchoolRequestRow({ request }: { request: SchoolSignupRequest }) 
       {(approveState?.error || rejectState?.error) && (
         <p className="mt-2 text-sm text-live">{approveState?.error ?? rejectState?.error}</p>
       )}
+      {approveState?.warning && <p className="mt-2 text-sm text-textsecondary">{approveState.warning}</p>}
     </li>
   );
 }

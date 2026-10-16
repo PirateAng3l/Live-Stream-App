@@ -347,34 +347,59 @@ they have one.
   `/admin/school/new` (role-checked in `actions.ts`;
   `school_signup_requests_admin_manage`, migration 0007, is the real
   backstop). Approving a request runs the exact same insert
-  `createSchoolAction` does — same fields, same `schools` row — then marks
-  the request `approved` and links it via `resulting_school_id`; rejecting
-  just flips its status. An approved row's "Invite operator" link jumps
-  straight to `/admin/school`'s invite form (below), prefilled with the
-  request's contact email. The admin nav shows a `Requests (N)` count next
-  to the link whenever `N` pending requests exist, computed once in
-  `admin/layout.tsx` (`loadPendingSchoolRequestCount`) and skipped entirely
-  for a `school_operator`, who never sees the link at all.
+  `createSchoolAction` does — same fields, same `schools` row — marks the
+  request `approved`, links it via `resulting_school_id`, **and invites the
+  request's own `contact_email` as that school's operator**, via the same
+  `inviteSchoolOperator` helper described below; rejecting just flips the
+  request's status.
+
+  That invite used to be a second, separate action a platform_admin had to
+  trigger by hand afterwards, via an "Invite operator" link — in practice
+  that step kept getting missed (clicking Approve reads as "done"), leaving
+  a school fully approved with no way to actually sign in, and nothing on
+  screen saying so — a real pilot-school onboarding was stuck for days on
+  exactly this before anyone noticed. Folding the invite into approval
+  closes that gap for the normal path. It isn't foolproof — the invite
+  call can still fail (a transient network blip, the edge function being
+  down) independently of the approval that already succeeded — so
+  `loadSchoolRequests` also checks, for every *approved* row, whether a
+  `school_operator` profile actually exists for its `resulting_school_id`
+  yet. A row missing one shows a persistent **"Not yet invited"** label
+  next to its "Invite operator" link — unlike a one-off toast, this stays
+  visible across reloads, and will also flag any request approved before
+  this auto-invite existed. That link still jumps straight to
+  `/admin/school`'s invite form, prefilled with the request's contact
+  email, as the manual retry path.
+
+  The admin nav shows a `Requests (N)` count next to the link whenever `N`
+  pending requests exist, computed once in `admin/layout.tsx`
+  (`loadPendingSchoolRequestCount`) and skipped entirely for a
+  `school_operator`, who never sees the link at all.
 - **Inviting an operator** — `/admin/school`'s `OperatorInviteForm`
-  (`platform_admin` only), below the logo upload. There's only one kind of
-  operator account in this project: the same login this creates works both
-  here and as the broadcaster app's CREW SIGN-IN (see the top-level
-  README) — "school operator" and "crew member" aren't two different
-  things. Split across a privilege boundary: the new `invite-school-operator`
-  edge function (`backend/supabase/functions/`) does the one thing that
-  genuinely needs the service-role key — creating the `auth.users` account
-  via `inviteUserByEmail` — using this admin's own session token, not a
-  secret this app holds; `inviteOperatorAction` then elevates that new
-  profile to `school_operator` with the right `school_id` using this
-  admin's *ordinary* session, since `profiles_admin_all` (migration 0001)
-  already lets a platform_admin update any profile — no reason to
-  duplicate that check inside the edge function too. If the elevation
-  write fails after the invite succeeds, the new account just sits at the
-  default `role='parent'` until retried, not a broken state. Right below
-  it, `ResendInviteForm`/`resendOperatorInviteAction` handles a lost or
-  expired invite link — plain `supabase.auth.resetPasswordForEmail`, no
-  edge function or service-role key involved, since resending doesn't
-  create anything new.
+  (`platform_admin` only), below the logo upload — the manual path, now
+  mostly needed for a school created directly via `/admin/school/new` (no
+  sign-up request involved) or to invite a different address than the one
+  on file. There's only one kind of operator account in this project: the
+  same login this creates works both here and as the broadcaster app's CREW
+  SIGN-IN (see the top-level README) — "school operator" and "crew member"
+  aren't two different things. Both this form's `inviteOperatorAction` and
+  `approveSchoolRequestAction` above call the same `inviteSchoolOperator`
+  helper (`lib/invite-operator.ts`) rather than duplicating it, split across
+  a privilege boundary: the `invite-school-operator` edge function
+  (`backend/supabase/functions/`) does the one thing that genuinely needs
+  the service-role key — creating the `auth.users` account via
+  `inviteUserByEmail` — using the caller's own session token, not a secret
+  this app holds; `inviteSchoolOperator` then elevates that new profile to
+  `school_operator` with the right `school_id` using the caller's
+  *ordinary* session, since `profiles_admin_all` (migration 0001) already
+  lets a platform_admin update any profile — no reason to duplicate that
+  check inside the edge function too. If the elevation write fails after
+  the invite succeeds, the new account just sits at the default
+  `role='parent'` until retried, not a broken state. Right below it,
+  `ResendInviteForm`/`resendOperatorInviteAction` handles a lost or expired
+  invite link — plain `supabase.auth.resetPasswordForEmail`, no edge
+  function or service-role key involved, since resending doesn't create
+  anything new.
 - **`/set-password`** — where both the invite and resend emails land.
   There is no dashboard "Flow type" toggle to set for this (an earlier
   version of this doc claimed one under Authentication → Sign In /

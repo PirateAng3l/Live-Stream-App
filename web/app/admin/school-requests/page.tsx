@@ -52,6 +52,9 @@ export default async function SchoolRequestsPage() {
                   {request.schoolName} — {request.contactEmail}
                 </span>
                 <span className="flex items-center gap-3">
+                  {request.status === "approved" && request.resultingSchoolId && !request.hasOperator && (
+                    <span className="text-accent">Not yet invited</span>
+                  )}
                   {request.status === "approved" && request.resultingSchoolId && (
                     <Link
                       href={`/admin/school?school=${request.resultingSchoolId}&invite_email=${encodeURIComponent(request.contactEmail)}`}

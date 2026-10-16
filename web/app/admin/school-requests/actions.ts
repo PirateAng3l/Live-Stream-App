@@ -1,11 +1,22 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { inviteSchoolOperator } from "@/lib/invite-operator";
 import { getCurrentStaffProfile, type StaffProfile } from "@/lib/staff";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 export interface ActionState {
   error?: string;
+  /**
+   * Set only when approval itself succeeded (the school and the request's
+   * own status are already committed) but the automatic invite that
+   * follows it didn't go out — distinct from `error`, which school-
+   * request-row.tsx renders as if nothing happened at all. The "Invite
+   * operator" link next to every approved request (school-requests/
+   * page.tsx) is the recovery path: re-running it is exactly
+   * inviteSchoolOperator again, by hand.
+   */
+  warning?: string;
 }
 
 type AdminCheck = { ok: true; staff: StaffProfile } | { ok: false; error: string };
@@ -24,7 +35,17 @@ async function requirePlatformAdmin(): Promise<AdminCheck> {
  * createSchoolAction does, then marks the request approved and links it to
  * that new school — school_signup_requests_admin_manage (migration 0007)
  * is the real backstop on both writes, this just short-circuits with a
- * friendlier error for anyone who isn't platform_admin.
+ * friendlier error for anyone who isn't platform_admin. Finally, invites
+ * the request's own contact_email as that school's operator, via the same
+ * inviteSchoolOperator helper the manual "Invite operator" form uses.
+ *
+ * That invite used to be a second, separate action a platform_admin had to
+ * remember to trigger by hand after approving — in practice it kept getting
+ * missed (approve felt like the finished action), leaving a school
+ * approved with no way to actually sign in and nothing on screen saying
+ * so. Folding it into approval itself is the fix: one click, and the
+ * school's contact is the one invited, not whatever the admin happens to
+ * type into a form afterward.
  */
 export async function approveSchoolRequestAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const check = await requirePlatformAdmin();
@@ -64,6 +85,21 @@ export async function approveSchoolRequestAction(_prev: ActionState, formData: F
     })
     .eq("id", requestId);
   if (updateError) return { error: updateError.message };
+
+  // The school is fully approved regardless of what happens below — an
+  // invite failure here is never worth undoing that, and there's nothing to
+  // undo it with anyway (no transaction spans these three writes). The
+  // "Invite operator" link on every approved request is the retry path.
+  const inviteResult = await inviteSchoolOperator(supabase, {
+    email: request.contact_email,
+    schoolId: school.id,
+  });
+  if (inviteResult.error) {
+    revalidatePath("/admin/school-requests");
+    return {
+      warning: `${request.school_name} was approved, but the invite email to ${request.contact_email} didn't go out (${inviteResult.error}). Use "Invite operator" below to retry.`,
+    };
+  }
 
   revalidatePath("/admin/school-requests");
   return {};

@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { resolveSchoolContext } from "@/lib/admin";
+import { inviteSchoolOperator, setPasswordRedirectUrl } from "@/lib/invite-operator";
 import { getCurrentStaffProfile } from "@/lib/staff";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
@@ -36,36 +36,6 @@ export async function confirmSchoolConsentAction(_prev: ActionState, formData: F
 
   revalidatePath("/admin/school");
   return { success: "Consent confirmed — this school can now create fixtures." };
-}
-
-/**
- * Not the link itself — the *base* the Invite user / Reset Password email
- * templates build their link from, via Supabase's `{{ .RedirectTo }}`
- * template variable (Authentication → Emails → Templates, dashboard-only,
- * this app can't set it). Those templates are set to
- * `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=invite` (or
- * `type=recovery`) instead of Supabase's default `{{ .ConfirmationURL }}`
- * — that default routes through Supabase's own PKCE-flow verify redirect,
- * which hands off a one-time `?code=` requiring a "code verifier" from
- * the browser that started the auth flow. For an admin-triggered email
- * there is no such browser — confirmed live, every attempt through that
- * default path failed instantly regardless of device. `token_hash` +
- * `verifyOtp()` (SetPasswordForm) sidesteps that: it validates the raw
- * token directly, no prior browser state required — Supabase's own
- * documented pattern for exactly this case.
- *
- * Without an explicit redirectTo at all, `{{ .RedirectTo }}` would be
- * empty and the templates would have nothing to build a link from.
- * Reading the incoming request's own Host header works in every
- * environment (Vercel preview/production, local dev) without a
- * hardcoded env var to keep in sync.
- *
- * Must also be added to Supabase's Auth → URL Configuration → Redirect
- * URLs allow-list, or Supabase silently ignores it — that's a dashboard
- * setting, not something this app can set for itself.
- */
-function setPasswordRedirectUrl(): string {
-  return `https://${headers().get("host")}/set-password`;
 }
 
 /**
@@ -163,19 +133,12 @@ export async function updateSchoolLogoAction(_prev: ActionState, formData: FormD
 }
 
 /**
- * Two-step by design, split across a privilege boundary:
- *
- * 1. The invite-school-operator edge function creates the auth.users
- *    account — the one thing that genuinely requires the service-role key,
- *    which this app never holds (see that function's own README). Called
- *    with this admin's own session token, not a secret this app stores.
- * 2. The elevation to school_operator happens right here, using this
- *    admin's ordinary RLS-bound session — profiles_admin_all (migration
- *    0001) already lets a platform_admin update any profile, so there's no
- *    reason to duplicate that permission check inside the edge function
- *    too. If this second write fails, the invited account just sits at
- *    the default role='parent' until the operation is retried — a
- *    recoverable state, not a broken one.
+ * The manual per-school fallback — most schools now get invited
+ * automatically the moment their sign-up request is approved (see
+ * approveSchoolRequestAction, school-requests/actions.ts), which calls the
+ * exact same inviteSchoolOperator helper this does. This form stays for a
+ * school that was created directly via createSchoolAction (no sign-up
+ * request involved), or for re-inviting under a different email address.
  */
 export async function inviteOperatorAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const staff = await getCurrentStaffProfile();
@@ -189,31 +152,11 @@ export async function inviteOperatorAction(_prev: ActionState, formData: FormDat
   if (!email) return { error: "An email address is required" };
 
   const supabase = createSupabaseServerClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) return { error: "Not signed in as staff" };
-
-  const functionsUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/invite-school-operator`;
-  const response = await fetch(functionsUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({ email, redirectTo: setPasswordRedirectUrl() }),
-  });
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) return { error: result.error ?? "Could not send the invite" };
-
-  const { error: elevateError } = await supabase
-    .from("profiles")
-    .update({ role: "school_operator", school_id: schoolId })
-    .eq("id", result.user_id);
-  if (elevateError) return { error: elevateError.message };
+  const result = await inviteSchoolOperator(supabase, { email, schoolId });
+  if (result.error) return { error: result.error };
 
   revalidatePath("/admin/school");
-  return { success: `Invite sent to ${email}` };
+  return { success: result.success };
 }
 
 /**
