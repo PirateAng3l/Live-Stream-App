@@ -118,6 +118,51 @@ see the edge function's own README for the exact commands. Until those
 are set, fixture inserts still succeed; the trigger just logs a warning
 and skips provisioning.
 
+## Stale fixtures are closed out automatically (pg_cron)
+
+Status has always moved forward only through explicit, manual actions —
+the Android app's `markFixtureLive` (fires on a real RTMP connect) and the
+admin panel's `completeFixtureAction` (a deliberate concierge action). That
+was always by design: a dropped connection isn't the same as a final
+whistle, so nothing ever auto-reverted status.
+
+What wasn't by design: nothing ever moved a fixture *forward* either, if
+the human step that was supposed to never came. Crew forgets to press "Mark
+completed" (or picks "Just stop streaming" instead, in the app's own End
+Stream dialog), or a fixture never goes live at all (a no-show, a
+technical failure before kickoff) — and the public site keeps showing LIVE
+or Scheduled indefinitely. This happened for real: one fixture sat LIVE
+for four days, another sat Scheduled five days past kickoff, both unnoticed
+until someone actually looked.
+
+`0016_auto_close_stale_fixtures.sql` adds `public.close_out_stale_fixtures()`,
+scheduled hourly via `pg_cron` (`cron.schedule('close-out-stale-fixtures',
+'0 * * * *', ...)`):
+
+- **`live` → `completed`** once `scheduled_start` is more than **6 hours**
+  in the past. Status only ever reaches `live` via a genuine RTMP connect,
+  so this is never a guess — no school fixture streams that long. Scores
+  are left untouched (null, same as any other match closed out without one
+  entered); this only fixes the badge, not the result.
+- **`scheduled` → `cancelled`** once `scheduled_start` is more than **24
+  hours** in the past and it never went live at all. `cancelled` rather
+  than `completed` since nothing was ever actually broadcast — and
+  `groupFixturesByTab` (`web/lib/fixtures.ts`) already shows a cancelled
+  fixture in neither the Upcoming nor the Completed tab, which is exactly
+  right here: there's nothing to watch, live or replayed.
+
+Both windows are deliberately generous (hours/a day, not minutes) so a long
+match day or a late kickoff is never mistaken for staleness. This is a
+safety net for the forgotten case, not a replacement for actually pressing
+End Stream / Mark completed — crew and admins should keep doing that
+promptly; this just stops a missed one from lying to parents indefinitely.
+
+The function runs as whatever role `pg_cron` invokes it as (`postgres` on
+Supabase, which already bypasses RLS as the table owner) — it's a plain
+function, deliberately not `security definer`, so if it were ever called
+directly over PostgREST by an anon or authenticated client instead, it'd
+run under *their* RLS instead of silently gaining privilege.
+
 ## YouTube API quota
 
 Every fixture provisioned costs **201 units** against the YouTube Data
