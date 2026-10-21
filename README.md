@@ -118,6 +118,22 @@ generated from it (see that folder's own README for how).
   for the three sponsor slots, or to Open Door Live's own mark for the top-right
   logo slot (see "Loading a fixture also fetches its assigned sponsor logos" below)
   — so the app still works with zero setup. Picks persist across restarts.
+- **The lower-third's optional prefix text** (e.g. "This match is sponsored
+  by", Settings → Sponsor Ads) sits in front of the headline sponsor's own
+  logo, not beside it. When a logo image is set, it's always centered
+  across the full width of the bar regardless of whether a prefix is typed
+  — previously, typing *any* prefix text hard-pinned the logo's left edge
+  to a fixed point well right of center, and a long prefix could run
+  straight through the logo instead of stopping short of it, since neither
+  box ever actually accounted for the other's real width. The prefix text
+  itself is center-anchored too (`Paint.Align.CENTER`), so it grows
+  outward from the middle in both directions as it gets longer rather than
+  extending rightward from a fixed left edge — and it's drawn *after* the
+  logo, so it layers visibly on top instead of racing it for space
+  (`OverlayChrome.drawHeadline`). Only the image case works this way: with
+  no logo uploaded yet, the prefix and the plain-text fallback keep their
+  own separate space, since centering two different strings at the same
+  point would just draw them on top of each other illegibly.
 - **Zoom, 0.6x (wide) to 5x**, a vertical slider on the left edge of the preview —
   always visible, not tucked in Settings, since it's a live framing adjustment made
   while watching the shot, not a one-time setting. **Snaps to exactly 1.0x** when

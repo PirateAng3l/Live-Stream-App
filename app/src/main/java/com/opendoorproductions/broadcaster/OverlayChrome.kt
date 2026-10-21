@@ -40,6 +40,13 @@ class OverlayChrome(private val width: Int, private val height: Int) {
         color = Color.parseColor("#D8DEE4")
     }
 
+    // Same paint, center-anchored — used when a logo image is present (see
+    // drawHeadline), so the prefix grows outward from the middle instead of
+    // from a fixed left edge. Kept as a separate Paint rather than mutating
+    // prefixTextPaint's own textAlign per call, since the no-image branch
+    // still needs the plain left-aligned version.
+    private val prefixTextPaintCentered = Paint(prefixTextPaint).apply { textAlign = Paint.Align.CENTER }
+
     fun panelPaint(): Paint = panelPaint
 
     fun drawLogo(canvas: Canvas, logo: OverlayAsset) {
@@ -75,22 +82,35 @@ class OverlayChrome(private val width: Int, private val height: Int) {
         val top = height - barHeight
         canvas.drawRect(0f, top, width.toFloat(), height.toFloat(), sponsorBarPaint)
 
+        if (asset.bitmap != null) {
+            // The logo sits centered across the full bar width regardless of
+            // the prefix, and is drawn before the prefix text so the text
+            // layers on top of it — visible overlapping the logo — rather
+            // than competing with it for separate horizontal space. Used to
+            // hard-pin the logo's left edge to 0.42x the moment any prefix
+            // text existed at all, which both shoved a short logo off-center
+            // for no reason and let a long prefix run straight through it,
+            // since neither box ever accounted for the other's real width.
+            val pad = barHeight * 0.12f
+            val bounds = RectF(width * 0.04f, top + pad, width * 0.96f, height - pad)
+            drawBitmapFit(canvas, asset.bitmap, bounds, asset.scale, asset.offsetY)
+            if (prefix.isNotBlank()) {
+                canvas.drawText(prefix.uppercase(), width / 2f, top + barHeight * 0.65f, prefixTextPaintCentered)
+            }
+            return
+        }
+
+        // No logo image uploaded yet, so the prefix and the plain-text
+        // fallback still need their own separate space — centering both at
+        // the same point would draw two different strings on top of each
+        // other instead of one legible line.
         if (prefix.isNotBlank()) {
             canvas.drawText(prefix.uppercase(), width * 0.04f, top + barHeight * 0.65f, prefixTextPaint)
         }
         if (!hasContent) return
-
         val contentLeft = if (prefix.isNotBlank()) width * 0.42f else 0f
-        val contentRight = width * 0.96f
-
-        if (asset.bitmap != null) {
-            val pad = barHeight * 0.12f
-            val bounds = RectF(contentLeft, top + pad, contentRight, height - pad)
-            drawBitmapFit(canvas, asset.bitmap, bounds, asset.scale, asset.offsetY)
-        } else {
-            val centerX = (contentLeft + contentRight) / 2f
-            canvas.drawText(asset.text.uppercase(), centerX, top + barHeight * 0.65f, sponsorTextPaint)
-        }
+        val centerX = (contentLeft + width * 0.96f) / 2f
+        canvas.drawText(asset.text.uppercase(), centerX, top + barHeight * 0.65f, sponsorTextPaint)
     }
 
     private fun drawCorner(canvas: Canvas, asset: OverlayAsset, rect: RectF) {
