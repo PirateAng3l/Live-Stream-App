@@ -30,6 +30,16 @@ jobs:
           java-version: "17"
 
       - uses: android-actions/setup-android@v3
+        with:
+          # Default packages ("tools platform-tools") 404 as of writing —
+          # Google dropped the legacy standalone "tools" package from the
+          # SDK manifest, which broke this action's default install for
+          # every user, not just this repo (confirmed: 26 straight successful
+          # runs on this exact workflow file before this started failing).
+          # Gradle/AGP never needed "tools" anyway — it pulls whatever
+          # platform/build-tools it needs itself via the licenses this
+          # action already accepts.
+          packages: platform-tools
 
       - name: Write local.properties
         run: |
